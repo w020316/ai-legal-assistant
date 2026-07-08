@@ -1,0 +1,26 @@
+# 开发环境配置
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lawai}
+    username: ${DB_USER:lawai}
+    password: ${DB_PASSWORD:lawai123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+
+# 开发环境开启 Swagger
+springdoc:
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.lawai.legalassistant: debug

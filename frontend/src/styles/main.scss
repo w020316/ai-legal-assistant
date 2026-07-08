@@ -1,0 +1,80 @@
+// 全局样式与设计变量（对应产品设计方案 6.3 视觉规范）
+:root {
+  // 主色 - 深海军蓝，专业稳重
+  --color-primary: #1e3a5f;
+  --color-primary-light: #2d5485;
+  // 辅助色 - 墨绿，引用/成功
+  --color-accent: #2c7a7b;
+  // 警示色
+  --color-danger: #c53030;
+  --color-warning: #d69e2e;
+  --color-success: #2c7a7b;
+  // 背景
+  --color-bg: #f7fafc;
+  --color-bg-card: #ffffff;
+  // 文字
+  --color-text-primary: #1a202c;
+  --color-text-regular: #4a5568;
+  --color-text-secondary: #a0aec0;
+  // 边框
+  --color-border: #e2e8f0;
+  // 圆角
+  --radius-card: 8px;
+  --radius-button: 6px;
+  --radius-tag: 4px;
+  // 阴影
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  // 字体
+  --font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+// Element Plus 主色覆盖
+:root {
+  --el-color-primary: #1e3a5f;
+  --el-color-primary-light-3: #4a6485;
+  --el-color-primary-light-5: #6e85a3;
+  --el-color-primary-light-7: #a3b2c9;
+  --el-color-primary-light-9: #d8e0ec;
+  --el-color-primary-dark-2: #152944;
+}
+
+// 滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

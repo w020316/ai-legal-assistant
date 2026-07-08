@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: ai-legal-assistant
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Jackson
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+  # Servlet
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+  # AI - Agnes (OpenAI V1 兼容)
+  ai:
+    openai:
+      base-url: ${AGNES_BASE_URL:https://agnes-ai.com}
+      api-key: ${AGNES_API_KEY}
+      chat:
+        options:
+          model: agnes-2.0-flash
+          temperature: 0.3
+          max-tokens: 4096
+      embedding:
+        options:
+          model: agnes-embedding
+
+# MyBatis-Plus
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.lawai.legalassistant.modules.**.entity
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# Springdoc OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+
+# 应用自定义配置
+lawai:
+  # 安全放行路径
+  security:
+    permit-paths:
+      - /api/v1/auth/**
+      - /api/v1/health
+      - /api/v1/ai/test/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+  # CORS
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:4173
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allow-credentials: true
+    max-age: 3600
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    com.lawai.legalassistant: debug
+    org.springframework.ai: info

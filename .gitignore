@@ -42,9 +42,12 @@ node_modules/
 dist/
 dist-ssr/
 .npm/
+.npm-cache/
 .pnpm-store/
 *.local
 .vite/
+auto-imports.d.ts
+components.d.ts
 
 # ===== 测试与覆盖率 =====
 coverage/
