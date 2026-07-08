@@ -19,6 +19,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/HealthView.vue'),
         meta: { title: '系统状态', icon: 'Monitor' },
       },
+      {
+        path: 'documents',
+        name: 'Documents',
+        component: () => import('@/views/DocumentView.vue'),
+        meta: { title: '文档分析', icon: 'Document' },
+      },
+      {
+        path: 'templates',
+        name: 'Templates',
+        component: () => import('@/views/TemplateView.vue'),
+        meta: { title: '文书模板', icon: 'Files' },
+      },
+      {
+        path: 'cases',
+        name: 'Cases',
+        component: () => import('@/views/CaseView.vue'),
+        meta: { title: '案例检索', icon: 'Search' },
+      },
     ],
   },
   {

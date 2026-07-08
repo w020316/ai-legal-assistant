@@ -79,6 +79,9 @@ lawai:
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allow-credentials: true
     max-age: 3600
+  # 文件上传存储路径
+  upload:
+    path: ${UPLOAD_PATH:./uploads}
 
 server:
   port: ${SERVER_PORT:8080}

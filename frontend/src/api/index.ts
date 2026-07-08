@@ -232,5 +232,117 @@ export async function sendMessageStream(
   }
 }
 
+// ==================== 文档分析相关 ====================
+
+// 上传结果
+export interface UploadResult {
+  id: number
+  filename: string
+  fileType: string
+  fileSize: number
+}
+
+// 风险点
+export interface RiskPoint {
+  clause: string
+  level: string
+  issue: string
+  suggestion: string
+  legalBasis: string
+}
+
+// 文档分析结果
+export interface DocumentAnalysis {
+  summary: string
+  riskPoints: RiskPoint[]
+}
+
+// 用户文档
+export interface UserDocumentVO {
+  id: number
+  filename: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+  analysisStatus: string
+}
+
+// 上传文档（FormData）
+export const uploadDocument = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post<UploadResult>('/documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+// 文档列表
+export const listDocuments = () => http.get<UserDocumentVO[]>('/documents')
+
+// 获取文档分析结果
+export const getDocumentAnalysis = (id: number) =>
+  http.get<DocumentAnalysis>(`/documents/${id}/analysis`)
+
+// 触发文档分析
+export const analyzeDocument = (id: number) => http.post<void>(`/documents/${id}/analyze`)
+
+// ==================== 文书模板相关 ====================
+
+// 模板 VO
+export interface TemplateVO {
+  id: number
+  title: string
+  category: string
+  source: string
+  rawText: string
+}
+
+// 生成请求
+export interface GenerateRequest {
+  elements: Record<string, string>
+}
+
+// 生成结果
+export interface GenerateResult {
+  content: string
+}
+
+// 模板列表
+export const listTemplates = (category?: string) =>
+  http.get<TemplateVO[]>('/templates', { params: { category } })
+
+// 模板详情
+export const getTemplate = (id: number) => http.get<TemplateVO>(`/templates/${id}`)
+
+// 生成文书
+export const generateDocument = (id: number, data: GenerateRequest) =>
+  http.post<GenerateResult>(`/templates/${id}/generate`, data)
+
+// ==================== 案例检索相关 ====================
+
+// 案例检索请求
+export interface CaseSearchRequest {
+  keyword?: string
+  cause?: string
+  courtLevel?: string
+  year?: number
+  page?: number
+  size?: number
+}
+
+// 案例 VO
+export interface CaseVO {
+  id: number
+  title: string
+  caseCause: string
+  court: string
+  year: number
+  summary: string
+  source: string
+}
+
+// 案例检索
+export const searchCases = (params: CaseSearchRequest) => http.get<CaseVO[]>('/cases', { params })
+
 // 重新导出类型
 export type { ApiResult }

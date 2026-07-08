@@ -2,7 +2,15 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ChatDotRound, Monitor, User, SwitchButton } from '@element-plus/icons-vue'
+import {
+  ChatDotRound,
+  Monitor,
+  Document,
+  Files,
+  Search,
+  User,
+  SwitchButton,
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -10,6 +18,9 @@ const isCollapse = ref(false)
 
 const menus = [
   { index: '/chat', title: '智能问答', icon: ChatDotRound },
+  { index: '/documents', title: '文档分析', icon: Document },
+  { index: '/templates', title: '文书模板', icon: Files },
+  { index: '/cases', title: '案例检索', icon: Search },
   { index: '/health', title: '系统状态', icon: Monitor },
 ]
 
