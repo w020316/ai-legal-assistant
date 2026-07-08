@@ -66,6 +66,11 @@ lawai:
       - /v3/api-docs/**
       - /swagger-ui/**
       - /swagger-ui.html
+  # JWT 配置
+  jwt:
+    secret: ${JWT_SECRET:lawai-default-jwt-secret-please-change-in-production-at-least-32-chars}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:7200000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
   # CORS
   cors:
     allowed-origins:
