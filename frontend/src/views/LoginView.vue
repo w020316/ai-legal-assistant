@@ -37,12 +37,12 @@ async function handleSubmit() {
     loading.value = true
     try {
       if (isLogin.value) {
-        // M2 实现：当前后端尚未提供登录接口，此处为骨架
         const res = await login({ username: form.username, password: form.password })
         userStore.setAuth({
           accessToken: res.data.accessToken,
           refreshToken: res.data.refreshToken,
-          username: form.username,
+          username: res.data.username || form.username,
+          role: res.data.role,
         })
         ElMessage.success('登录成功')
         const redirect = (route.query.redirect as string) || '/chat'

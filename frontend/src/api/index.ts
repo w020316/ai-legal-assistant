@@ -21,6 +21,8 @@ export interface LoginResult {
   accessToken: string
   refreshToken: string
   expiresIn: number
+  username: string
+  role: string
 }
 
 export const login = (data: LoginParams) => http.post<LoginResult>('/auth/login', data)

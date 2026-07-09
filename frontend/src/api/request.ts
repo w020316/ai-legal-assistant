@@ -36,17 +36,17 @@ service.interceptors.request.use(
 )
 
 // 响应拦截：统一处理业务码
+// 成功时直接返回 ApiResult（而非 AxiosResponse），调用处用 res.data 取业务数据
 service.interceptors.response.use(
   (response) => {
     const res = response.data as ApiResult
-    // 流式响应（SSE）直接返回原始数据
+    // 流式响应（SSE/Blob）直接返回原始数据
     if (response.config.responseType === 'stream' || response.config.responseType === 'blob') {
-      return response
+      return response.data
     }
     if (res.code === 0) {
-      // 业务成功：把 ApiResult 放回 data 字段，调用处用 res.data.data 取值
-      response.data = res
-      return response
+      // 业务成功：直接返回 ApiResult，调用处用 res.data 取业务数据
+      return res
     }
     // 业务错误
     const msg = ERROR_MESSAGES[res.code] || res.message || '请求失败'
