@@ -19,13 +19,16 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-ai.version>2.0.0</spring-ai.version>
+        <!-- Spring AI 1.0 GA 与 Spring Boot 3.4 兼容；2.0 专为 Spring Boot 4.x 设计，会拉入 4.x 模块（jackson/http-client/restclient）引发多重冲突 -->
+        <spring-ai.version>1.0.0</spring-ai.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
         <pdfbox.version>3.0.3</pdfbox.version>
         <poi.version>5.3.0</poi.version>
         <hutool.version>5.8.32</hutool.version>
+        <!-- 覆盖 Spring Boot 3.4 默认 Jackson 2.18.1（被 openai-java-core 黑名单因 jackson-databind#4639），用 2.18.2 -->
+        <jackson-bom.version>2.18.2</jackson-bom.version>
     </properties>
 
     <dependencies>
