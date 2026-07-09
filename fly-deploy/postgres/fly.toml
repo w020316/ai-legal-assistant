@@ -1,0 +1,31 @@
+app = "lawai-pg"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[mounts]]
+  source = "pg_data"
+  destination = "/var/lib/postgresql/data"
+
+[env]
+  POSTGRES_DB = "lawai"
+  POSTGRES_USER = "lawai"
+  POSTGRES_PASSWORD = "lawai123"
+  POSTGRES_HOST_AUTH_METHOD = "trust"
+  # 关键修复：Fly.io volume 挂载点会创建 lost+found 目录，
+  # 导致 initdb 拒绝在挂载点直接初始化。改用子目录作为 PGDATA。
+  PGDATA = "/var/lib/postgresql/data/pgdata"
+  TZ = "Asia/Shanghai"
+
+[[services]]
+  internal_port = 5432
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = []
+    port = 5432
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = 512

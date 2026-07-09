@@ -1,0 +1,20 @@
+app = "lawai-redis"
+primary_region = "nrt"
+
+[build]
+  image = "redis:7-alpine"
+
+[[mounts]]
+  source = "redis_data"
+  destination = "/data"
+
+[env]
+  REDIS_ARGS = "appendonly yes"
+
+[[services]]
+  internal_port = 6379
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = []
+    port = 6379

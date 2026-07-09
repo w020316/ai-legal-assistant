@@ -1,0 +1,45 @@
+app = "lawai-backend"
+primary_region = "nrt"
+
+[build]
+  image = "ghcr.io/w020316/lawai-backend:latest"
+
+[env]
+  SPRING_PROFILES_ACTIVE = "prod"
+  DB_HOST = "lawai-pg.internal"
+  DB_PORT = "5432"
+  DB_NAME = "lawai"
+  DB_USER = "lawai"
+  DB_PASSWORD = "lawai123"
+  REDIS_HOST = "lawai-redis.internal"
+  REDIS_PORT = "6379"
+  REDIS_PASSWORD = ""
+  AGNES_BASE_URL = "https://agnes-ai.com"
+  JWT_SECRET = "lawai-prod-jwt-secret-32-chars-minimum-2026"
+  JWT_ACCESS_EXPIRATION = "7200000"
+  JWT_REFRESH_EXPIRATION = "604800000"
+  UPLOAD_PATH = "/app/uploads"
+  ADMIN_USERNAME = "admin"
+  ADMIN_PASSWORD = "admin123"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.tcp_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = 512

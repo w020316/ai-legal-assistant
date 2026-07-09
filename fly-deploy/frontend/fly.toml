@@ -1,0 +1,18 @@
+app = "lawai-frontend"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.tcp_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
