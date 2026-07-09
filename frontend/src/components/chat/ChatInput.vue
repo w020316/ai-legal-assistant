@@ -27,9 +27,10 @@ function handleSend() {
 }
 
 // 键盘事件：Enter 发送，Shift+Enter 换行，输入法 composing 时不触发
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-    e.preventDefault()
+function handleKeydown(e: Event | KeyboardEvent) {
+  const ev = e as KeyboardEvent
+  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) {
+    ev.preventDefault()
     handleSend()
   }
 }
