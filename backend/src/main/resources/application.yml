@@ -71,6 +71,11 @@ lawai:
     secret: ${JWT_SECRET:lawai-default-jwt-secret-please-change-in-production-at-least-32-chars}
     access-expiration: ${JWT_ACCESS_EXPIRATION:7200000}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  # 初始化管理员
+  init:
+    admin:
+      username: ${ADMIN_USERNAME:admin}
+      password: ${ADMIN_PASSWORD:admin123}
   # CORS
   cors:
     allowed-origins:
