@@ -1,0 +1,9 @@
+# WSL2 资源限制（AI 法律助手本地部署）
+# 系统 16GB 内存，限制 WSL2 最多用 4GB（足够 4 容器：postgres+redis+backend+frontend）
+# 避免 Docker Desktop 占用过多内存导致宿主机卡顿
+# 使用方法：将此文件复制到 C:\Users\你的用户名\.wslconfig，然后执行 wsl --shutdown
+[wsl2]
+memory=4GB
+processors=4
+swap=2GB
+localhostForwarding=true
