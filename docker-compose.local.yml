@@ -1,0 +1,87 @@
+# AI 法律助手 - 本地 Docker 一键部署（全容器化，HTTP only）
+# 使用：docker compose -f docker-compose.local.yml up -d --build
+# 访问：http://localhost（前端）  http://localhost:8080（后端API/Swagger）
+# 停止：docker compose -f docker-compose.local.yml down
+# 清空数据：docker compose -f docker-compose.local.yml down -v
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lawai-postgres
+    environment:
+      POSTGRES_DB: lawai
+      POSTGRES_USER: lawai
+      POSTGRES_PASSWORD: lawai123
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lawai -d lawai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: lawai-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: lawai-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: lawai
+      DB_USER: lawai
+      DB_PASSWORD: lawai123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      AGNES_API_KEY: ${AGNES_API_KEY}
+      AGNES_BASE_URL: ${AGNES_BASE_URL:-https://agnes-ai.com}
+      JWT_SECRET: ${JWT_SECRET:-lawai-dev-jwt-secret-32-chars-minimum-2026}
+      JWT_ACCESS_EXPIRATION: 7200000
+      JWT_REFRESH_EXPIRATION: 604800000
+      UPLOAD_PATH: /app/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/app/uploads
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: lawai-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  redis_data:
+  uploads:
+  backend_logs:
