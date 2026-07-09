@@ -79,9 +79,9 @@ onMounted(() => {
       <div ref="scrollRef" class="message-stream">
         <!-- 空状态引导 -->
         <div v-if="!chatStore.hasSession" class="empty-state">
-          <el-icon :size="64" color="#1E3A5F"><ChatDotRound /></el-icon>
-          <h2>AI 法律助手</h2>
-          <p>面向法律从业者的智能问答平台</p>
+          <el-icon :size="48" color="#8C6A3F"><ChatDotRound /></el-icon>
+          <h2>开始您的法律问答</h2>
+          <p>面向法律从业者的智能问答平台，基于权威语料检索增强</p>
           <p class="hint">请选择左侧会话，或点击「新建」开始对话</p>
         </div>
         <!-- 消息列表 -->
@@ -114,6 +114,7 @@ onMounted(() => {
   border-radius: var(--radius-card);
   overflow: hidden;
   border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
 }
 .left-panel {
   width: 260px;
@@ -126,14 +127,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: var(--color-bg);
 }
 .message-stream {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px;
+  padding: 24px 32px;
 }
 .msg-list {
-  max-width: 900px;
+  max-width: 880px;
   margin: 0 auto;
 }
 .empty-state {
@@ -143,17 +145,21 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   color: var(--color-text-regular);
+  text-align: center;
   h2 {
-    margin: 16px 0 8px;
-    font-size: 22px;
+    margin: 20px 0 8px;
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 600;
     color: var(--color-primary);
   }
   p {
     font-size: 14px;
     margin: 4px 0;
+    max-width: 48ch;
   }
   .hint {
-    margin-top: 12px;
+    margin-top: 16px;
     color: var(--color-text-secondary);
     font-size: 13px;
   }

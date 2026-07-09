@@ -21,7 +21,7 @@ spring:
   # AI - Agnes (OpenAI V1 兼容)
   ai:
     openai:
-      base-url: ${AGNES_BASE_URL:https://agnes-ai.com}
+      base-url: ${AGNES_BASE_URL:https://apihub.agnes-ai.com}
       api-key: ${AGNES_API_KEY}
       chat:
         options:

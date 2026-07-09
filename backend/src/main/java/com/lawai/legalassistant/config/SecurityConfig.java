@@ -4,6 +4,7 @@ import com.lawai.legalassistant.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -48,6 +49,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.disable()) // CORS 由 CorsFilter Bean 处理
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    // SSE 流式问答接口放行：登录态由 ChatService 内部通过 SSE error 事件返回，
+                    // 避免 Spring Security 拒绝时因 produces=text/event-stream 内容协商无法返回 403 JSON
+                    // 导致空响应/挂起。JwtAuthenticationFilter 仍会解析 token 注入 SecurityContext。
+                    auth.requestMatchers(HttpMethod.POST, "/api/v1/sessions/*/messages").permitAll();
                     permitPaths.forEach(p -> auth.requestMatchers(p).permitAll());
                     auth.anyRequest().authenticated();
                 })

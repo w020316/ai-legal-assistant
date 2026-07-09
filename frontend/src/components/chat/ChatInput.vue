@@ -73,22 +73,30 @@ function handleKeydown(e: Event | KeyboardEvent) {
 .chat-input {
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-card);
-  padding: 12px 24px 8px;
+  padding: 14px 32px 10px;
 }
 .input-wrap {
   :deep(.el-textarea__inner) {
     border-radius: var(--radius-card);
-    font-family: var(--font-family);
+    font-family: var(--font-sans);
     line-height: 1.6;
+    border-color: var(--color-border);
+    transition: var(--transition-base);
+    &:focus {
+      border-color: var(--color-primary-soft);
+      box-shadow: 0 0 0 2px rgba(11, 37, 69, 0.06);
+    }
   }
 }
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 .counter {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--color-text-secondary);
 }
@@ -97,9 +105,10 @@ function handleKeydown(e: Event | KeyboardEvent) {
   gap: 8px;
 }
 .disclaimer {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
   color: var(--color-text-secondary);
   text-align: center;
+  letter-spacing: 0.01em;
 }
 </style>

@@ -1,31 +1,52 @@
-// 全局样式与设计变量（对应产品设计方案 6.3 视觉规范）
+// 全局样式与设计变量
+// 遵循 docs/ui-skill.md 设计规范：Soft Structuralism + 法律典籍编辑感
+// 配色锁：墨蓝 #0B2545 + 古铜 #8C6A3F，暖白 #FAFAF7 背景
 :root {
-  // 主色 - 深海军蓝，专业稳重
-  --color-primary: #1e3a5f;
-  --color-primary-light: #2d5485;
-  // 辅助色 - 墨绿，引用/成功
-  --color-accent: #2c7a7b;
-  // 警示色
-  --color-danger: #c53030;
-  --color-warning: #d69e2e;
-  --color-success: #2c7a7b;
-  // 背景
-  --color-bg: #f7fafc;
-  --color-bg-card: #ffffff;
-  // 文字
-  --color-text-primary: #1a202c;
-  --color-text-regular: #4a5568;
-  --color-text-secondary: #a0aec0;
-  // 边框
-  --color-border: #e2e8f0;
-  // 圆角
-  --radius-card: 8px;
+  // 字体栈
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  --font-sans: 'PingFang SC', 'Microsoft YaHei', -apple-system, 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  --font-family: var(--font-sans);
+
+  // 配色（OKLCH 思维，hex 落地，无纯黑纯白，向暖色调色）
+  --color-primary: #0B2545;          // 权威墨蓝
+  --color-primary-light: #133159;    // 主色悬浮
+  --color-primary-soft: #2C4A6E;     // 主色浅化
+  --color-accent: #8C6A3F;           // 典籍古铜（唯一强调色）
+  --color-accent-light: #F4EFE6;     // 古铜浅底（引用块、tag）
+  --color-danger: #9B2C2C;           // 深酒红
+  --color-warning: #9C6B0B;          // 深琥珀
+  --color-success: #2D6A4F;          // 深森林绿
+
+  // 背景（暖白系，非纯白）
+  --color-bg: #FAFAF7;
+  --color-bg-card: #FFFFFF;
+  --color-bg-soft: #F5F3EE;
+
+  // 文字（近黑非纯黑，向暖色调色）
+  --color-text-primary: #0A0A0A;
+  --color-text-regular: #3D3D3D;
+  --color-text-secondary: #8A8A8A;
+
+  // 边框（暖灰发丝线，非冷灰）
+  --color-border: #E8E6E1;
+  --color-border-light: #F0EEE9;
+
+  // 圆角（一套系统，法律克制感，默认 6px）
+  --radius-sm: 3px;
+  --radius-card: 6px;
   --radius-button: 6px;
-  --radius-tag: 4px;
-  // 阴影
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
-  // 字体
-  --font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --radius-lg: 10px;
+  --radius-tag: 3px;
+
+  // 阴影（超弥散，rgba 基于墨蓝，非纯黑）
+  --shadow-card: 0 1px 2px rgba(11, 37, 69, 0.04), 0 2px 8px rgba(11, 37, 69, 0.03);
+  --shadow-hover: 0 2px 4px rgba(11, 37, 69, 0.06), 0 8px 24px rgba(11, 37, 69, 0.06);
+  --shadow-popover: 0 4px 12px rgba(11, 37, 69, 0.08), 0 16px 48px rgba(11, 37, 69, 0.08);
+
+  // 过渡（MOTION_INTENSITY=4，流畅 CSS，cubic-bezier 弹簧物理）
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: all 0.2s var(--ease-out);
 }
 
 * {
@@ -42,39 +63,93 @@ body,
 }
 
 body {
-  font-family: var(--font-family);
+  font-family: var(--font-sans);
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+// 标题统一用衬线，传递法律典籍权威感
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+// 数字与代码等宽
+code, pre, .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--color-accent);
   text-decoration: none;
+  transition: var(--transition-base);
+  &:hover {
+    color: var(--color-primary);
+  }
 }
 
-// Element Plus 主色覆盖
+// Element Plus 主题覆盖（墨蓝主色 + 古铜强调 + 暖灰边框 + 6px 圆角）
 :root {
-  --el-color-primary: #1e3a5f;
-  --el-color-primary-light-3: #4a6485;
-  --el-color-primary-light-5: #6e85a3;
-  --el-color-primary-light-7: #a3b2c9;
-  --el-color-primary-light-9: #d8e0ec;
-  --el-color-primary-dark-2: #152944;
+  --el-color-primary: #0B2545;
+  --el-color-primary-light-3: #2C4A6E;
+  --el-color-primary-light-5: #5A7A9E;
+  --el-color-primary-light-7: #9AB0C8;
+  --el-color-primary-light-9: #D8E0EC;
+  --el-color-primary-dark-2: #061A33;
+
+  --el-color-success: #2D6A4F;
+  --el-color-warning: #9C6B0B;
+  --el-color-danger: #9B2C2C;
+  --el-color-info: #8C6A3F;
+
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 3px;
+  --el-border-radius-round: 10px;
+
+  --el-font-family: var(--font-sans);
+
+  --el-border-color: #E8E6E1;
+  --el-border-color-light: #F0EEE9;
+  --el-border-color-lighter: #F5F3EE;
+
+  --el-text-color-primary: #0A0A0A;
+  --el-text-color-regular: #3D3D3D;
+  --el-text-color-secondary: #8A8A8A;
+  --el-text-color-placeholder: #A8A8A8;
+
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #FAFAF7;
+  --el-fill-color-light: #F5F3EE;
 }
 
-// 滚动条
+// 滚动条（极简，暖灰）
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-text-secondary);
+  background: #D8D4CC;
   border-radius: 4px;
+  &:hover {
+    background: #C5C0B6;
+  }
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+// 无障碍：尊重 reduced-motion
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
