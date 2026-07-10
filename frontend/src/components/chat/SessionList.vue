@@ -30,6 +30,31 @@ const filtered = computed(() => {
 const starredList = computed(() => filtered.value.filter((s) => s.starred))
 const normalList = computed(() => filtered.value.filter((s) => !s.starred))
 
+// 按时间分组
+const groupedNormalList = computed(() => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const weekAgo = new Date(today.getTime() - 7 * 86400000)
+
+  const groups: { label: string; items: SessionVO[] }[] = [
+    { label: '今天', items: [] },
+    { label: '昨天', items: [] },
+    { label: '过去7天', items: [] },
+    { label: '更早', items: [] },
+  ]
+
+  for (const s of normalList.value) {
+    const d = new Date(s.updatedAt)
+    if (d >= today) groups[0].items.push(s)
+    else if (d >= yesterday) groups[1].items.push(s)
+    else if (d >= weekAgo) groups[2].items.push(s)
+    else groups[3].items.push(s)
+  }
+
+  return groups.filter((g) => g.items.length > 0)
+})
+
 // 重命名会话
 async function handleRename(session: SessionVO) {
   try {
@@ -91,25 +116,27 @@ async function handleDelete(session: SessionVO) {
           </div>
         </div>
       </template>
-      <!-- 普通分组 -->
-      <template v-if="normalList.length">
-        <div v-if="starredList.length" class="group-title">其他</div>
-        <div
-          v-for="s in normalList"
-          :key="s.id"
-          class="item"
-          :class="{ active: s.id === currentId }"
-          @click="emit('select', s)"
-        >
-          <div class="item-main">
-            <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><Star /></el-icon>
-            <span class="title">{{ s.title }}</span>
+      <!-- 普通分组（按时间分组） -->
+      <template v-if="groupedNormalList.length">
+        <template v-for="g in groupedNormalList" :key="g.label">
+          <div class="group-title">{{ g.label }}</div>
+          <div
+            v-for="s in g.items"
+            :key="s.id"
+            class="item"
+            :class="{ active: s.id === currentId }"
+            @click="emit('select', s)"
+          >
+            <div class="item-main">
+              <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><Star /></el-icon>
+              <span class="title">{{ s.title }}</span>
+            </div>
+            <div class="item-actions">
+              <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
+              <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
+            </div>
           </div>
-          <div class="item-actions">
-            <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
-            <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
-          </div>
-        </div>
+        </template>
       </template>
       <!-- 空状态 -->
       <el-empty v-if="!filtered.length" description="暂无会话" :image-size="60" />

@@ -165,7 +165,7 @@ public class ChatService {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "消息内容不能为空");
         }
         // 校验会话
-        getSession(userId, sessionId);
+        ChatSession session = getSession(userId, sessionId);
 
         // 1. 加载近 6 轮历史（在保存当前用户消息前加载，避免包含当前问题）
         List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
@@ -198,6 +198,10 @@ public class ChatService {
                 String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
                 saveAssistantMessage(sessionId, aiContent, citationsJson);
                 log.info("异步 AI 回复完成: sessionId={}", sessionId);
+                // 如果会话标题是默认的"新对话"，自动生成标题
+                if ("新对话".equals(session.getTitle())) {
+                    autoRenameSession(sessionId, content);
+                }
             } catch (Exception e) {
                 log.error("异步 AI 调用失败: sessionId={}", sessionId, e);
                 // 保存错误提示消息
@@ -240,6 +244,31 @@ public class ChatService {
         messageMapper.insertMessage(msg);
         touchSession(sessionId);
         return msg.getId();
+    }
+
+    /**
+     * 异步自动命名会话（当标题为默认"新对话"时）
+     * 调用 AI 根据用户首条消息生成 4-8 字摘要
+     */
+    private void autoRenameSession(Long sessionId, String userMessage) {
+        try {
+            String titlePrompt = "请将以下用户问题概括为4-8个字的标题，直接输出标题文字，不要加引号或标点：\n" + userMessage;
+            String title = agnesClient.chat("你是一个标题生成助手，只输出简短标题。", titlePrompt);
+            // 清理标题：去除引号、换行、首尾空格，截断到8字
+            title = title.replaceAll("[\"'""''「」【】]", "").replaceAll("[\\r\\n]", "").trim();
+            if (title.length() > 8) {
+                title = title.substring(0, 8);
+            }
+            if (!title.isBlank()) {
+                ChatSession update = new ChatSession();
+                update.setId(sessionId);
+                update.setTitle(title);
+                sessionMapper.updateById(update);
+                log.info("会话自动命名: sessionId={}, title={}", sessionId, title);
+            }
+        } catch (Exception e) {
+            log.warn("会话自动命名失败: sessionId={}, {}", sessionId, e.getMessage());
+        }
     }
 
     /**

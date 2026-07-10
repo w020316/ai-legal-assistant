@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import type { MessageVO } from '@/api'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import CitationCard from './CitationCard.vue'
-import { CopyDocument, RefreshRight } from '@element-plus/icons-vue'
+import { CopyDocument, RefreshRight, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
@@ -21,6 +22,21 @@ async function copyContent() {
     ElMessage.error('复制失败')
   }
 }
+
+// 长回复折叠：检测"### 详细分析"或"## 详细分析"标题
+const detailPattern = /^(#{2,3})\s*详细分析\s*$/m
+const hasDetail = computed(() => detailPattern.test(props.message.content))
+const splitContent = computed(() => {
+  if (!hasDetail.value) return { main: props.message.content, detail: '' }
+  const match = props.message.content.match(detailPattern)
+  if (!match || match.index === undefined) return { main: props.message.content, detail: '' }
+  const idx = match.index
+  return {
+    main: props.message.content.slice(0, idx).trim(),
+    detail: props.message.content.slice(idx).trim(),
+  }
+})
+const detailExpanded = ref(false)
 </script>
 
 <template>
@@ -36,8 +52,27 @@ async function copyContent() {
         <span v-if="streaming && !message.content" class="loading-dots">
           <i></i><i></i><i></i>
         </span>
-        <!-- Markdown 内容 -->
-        <MarkdownRenderer v-else :content="message.content" />
+        <!-- Markdown 内容（流式或无详细分析时直接渲染） -->
+        <MarkdownRenderer
+          v-else-if="streaming || !hasDetail"
+          :content="message.content"
+        />
+        <!-- 完成后含详细分析：折叠渲染 -->
+        <template v-else>
+          <MarkdownRenderer v-if="splitContent.main" :content="splitContent.main" />
+          <div class="detail-collapse">
+            <div class="detail-header" @click="detailExpanded = !detailExpanded">
+              <el-icon class="toggle-icon">
+                <ArrowDown v-if="detailExpanded" />
+                <ArrowRight v-else />
+              </el-icon>
+              <span>详细分析</span>
+            </div>
+            <div v-show="detailExpanded" class="detail-body">
+              <MarkdownRenderer :content="splitContent.detail" />
+            </div>
+          </div>
+        </template>
         <!-- 流式光标 -->
         <span v-if="streaming && message.content" class="cursor">▋</span>
         <!-- 引用来源卡片 -->
@@ -79,6 +114,35 @@ async function copyContent() {
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
   }
+}
+.detail-collapse {
+  margin-top: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  overflow: hidden;
+}
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-bg);
+  user-select: none;
+  transition: background 0.15s;
+  &:hover {
+    background: var(--color-bg-soft);
+  }
+  .toggle-icon {
+    font-size: 14px;
+  }
+}
+.detail-body {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
 }
 // 流式光标动画
 .cursor {

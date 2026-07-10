@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Promotion, VideoPause } from '@element-plus/icons-vue'
+import { ref, computed, watch } from 'vue'
+import { Promotion, VideoPause, Loading } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   sending: boolean
@@ -17,6 +17,31 @@ const maxLen = 2000
 
 // 是否可发送
 const canSend = computed(() => input.value.trim().length > 0 && !props.sending && !props.disabled)
+
+// AI 生成阶段提示
+const stageText = ref('')
+const stages = ['正在理解您的问题…', '正在检索相关法律法规…', '正在整理建议…']
+let stageTimer: ReturnType<typeof setInterval> | null = null
+
+watch(
+  () => props.sending,
+  (sending) => {
+    if (sending) {
+      let idx = 0
+      stageText.value = stages[0]
+      stageTimer = setInterval(() => {
+        idx = (idx + 1) % stages.length
+        stageText.value = stages[idx]
+      }, 3000)
+    } else {
+      stageText.value = ''
+      if (stageTimer) {
+        clearInterval(stageTimer)
+        stageTimer = null
+      }
+    }
+  },
+)
 
 // 发送消息
 function handleSend() {
@@ -38,6 +63,10 @@ function handleKeydown(e: Event | KeyboardEvent) {
 
 <template>
   <div class="chat-input">
+    <div v-if="sending" class="stage-hint">
+      <el-icon class="loading-icon"><Loading /></el-icon>
+      <span>{{ stageText }}</span>
+    </div>
     <div class="input-wrap">
       <el-input
         v-model="input"
@@ -81,6 +110,28 @@ function handleKeydown(e: Event | KeyboardEvent) {
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-card);
   padding: 14px 32px 10px;
+}
+.stage-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-button);
+  margin-bottom: 8px;
+  .loading-icon {
+    animation: spin 1s linear infinite;
+  }
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .input-wrap {
   :deep(.el-textarea__inner) {

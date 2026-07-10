@@ -42,6 +42,18 @@ async function handleRegenerate() {
   scrollToBottom()
 }
 
+// 推荐问题
+const suggestions = [
+  '什么是诉讼时效？',
+  '劳动合同解除的法定情形有哪些？',
+  '民间借贷利率的上限是多少？',
+  '如何认定夫妻共同财产？',
+]
+
+function handleSuggestion(text: string) {
+  handleSend(text)
+}
+
 // 消息列表变化时自动滚动
 watch(
   () => chatStore.messages.length,
@@ -89,6 +101,16 @@ onMounted(() => {
         </div>
         <!-- 消息列表 -->
         <div v-else class="msg-list">
+          <!-- 空会话推荐问题 -->
+          <div v-if="chatStore.messages.length === 0" class="suggestions">
+            <div class="suggestions-title">您可以直接提问，或试试以下问题：</div>
+            <div class="suggestion-grid">
+              <div v-for="s in suggestions" :key="s" class="suggestion-card" @click="handleSuggestion(s)">
+                {{ s }}
+              </div>
+            </div>
+          </div>
+          <!-- 消息列表 -->
           <MessageItem
             v-for="(msg, i) in chatStore.messages"
             :key="i"
@@ -140,6 +162,36 @@ onMounted(() => {
 .msg-list {
   max-width: 880px;
   margin: 0 auto;
+}
+.suggestions {
+  max-width: 680px;
+  margin: 40px auto;
+}
+.suggestions-title {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+  text-align: center;
+}
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.suggestion-card {
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-regular);
+  transition: var(--transition-base);
+  &:hover {
+    border-color: var(--color-primary-soft);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-card);
+  }
 }
 .empty-state {
   height: 100%;
