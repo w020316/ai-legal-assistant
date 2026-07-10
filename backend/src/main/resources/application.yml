@@ -31,6 +31,13 @@ spring:
       embedding:
         options:
           model: agnes-embedding
+    # 减少重试次数，embedding 模型不可用时不阻塞太久
+    retry:
+      max-attempts: 2
+      backoff:
+        initial-interval: 1000
+        multiplier: 2.0
+        max-interval: 5000
 
 # MyBatis-Plus
 mybatis-plus:

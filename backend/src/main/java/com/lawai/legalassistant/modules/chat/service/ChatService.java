@@ -183,9 +183,16 @@ public class ChatService {
         // 3. 异步执行 RAG 检索 + AI 调用 + 保存 AI 消息
         CompletableFuture.runAsync(() -> {
             try {
-                List<RetrievedChunk> chunks = ragService.retrieve(content, RAG_TOP_K);
+                // RAG 检索（embedding 模型不可用时降级为无上下文）
+                List<RetrievedChunk> chunks = Collections.emptyList();
+                String citationsJson = null;
+                try {
+                    chunks = ragService.retrieve(content, RAG_TOP_K);
+                    citationsJson = buildCitationsJson(chunks);
+                } catch (Exception e) {
+                    log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
+                }
                 String context = buildContext(chunks);
-                String citationsJson = buildCitationsJson(chunks);
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
                         Map.of("context", context, "history", history, "question", content));
                 String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
