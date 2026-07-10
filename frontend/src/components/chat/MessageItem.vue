@@ -150,6 +150,8 @@ const formattedTime = computed(() => {
     line-height: 1.6;
     font-size: 14px;
     box-shadow: var(--shadow-card);
+    // 用户消息从右滑入
+    animation: slideInRight 0.35s var(--ease-out) both;
   }
 }
 .assistant-msg {
@@ -168,6 +170,8 @@ const formattedTime = computed(() => {
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     overflow: hidden;
+    // AI 消息从左滑入
+    animation: slideInLeft 0.35s var(--ease-out) both;
     // 顶部发丝线：古铜色渐变到透明，编辑典籍感
     &::before {
       content: '';
@@ -238,7 +242,7 @@ const formattedTime = computed(() => {
   color: var(--color-accent);
   animation: blink 1s steps(2) infinite;
 }
-// 等待加载三点动画（古铜色，非灰色）
+// 等待加载三点脉冲动画（古铜色，统一使用全局 pulseDot 关键帧）
 .loading-dots {
   display: inline-flex;
   gap: 4px;
@@ -248,7 +252,7 @@ const formattedTime = computed(() => {
     height: 6px;
     border-radius: 50%;
     background: var(--color-accent);
-    animation: bounce 1.2s infinite ease-in-out;
+    animation: pulseDot 1.2s infinite ease-in-out;
     &:nth-child(2) {
       animation-delay: 0.2s;
     }
@@ -302,18 +306,6 @@ const formattedTime = computed(() => {
 @keyframes blink {
   to {
     opacity: 0;
-  }
-}
-@keyframes bounce {
-  0%,
-  80%,
-  100% {
-    transform: scale(0.6);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
   }
 }
 </style>

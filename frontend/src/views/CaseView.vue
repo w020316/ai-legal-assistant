@@ -144,7 +144,7 @@ onMounted(handleSearch)
       <el-select v-model="form.year" placeholder="年份" clearable class="filter-item year-item">
         <el-option v-for="y in yearOptions" :key="y" :label="y + '年'" :value="y" />
       </el-select>
-      <el-button type="primary" :loading="loading" @click="handleSearch">搜索</el-button>
+      <el-button type="primary" :loading="loading" class="ripple-btn" @click="handleSearch">搜索</el-button>
       <el-button @click="handleReset">重置</el-button>
     </div>
     <div class="search-hint">提示：输入关键词可进行语义检索，或按案由/法院/年份筛选</div>
@@ -156,6 +156,7 @@ onMounted(handleSearch)
       </div>
       <div v-loading="loading" class="case-list">
         <div v-for="c in pagedCases" :key="c.id" class="case-card" @click="handleViewDetail(c)">
+          <span class="case-corner">{{ (c.caseCause || '案').charAt(0) }}</span>
           <div class="case-card-head">
             <span class="case-title" :title="c.title">{{ c.title }}</span>
             <el-tag size="small" effect="light">{{ c.caseCause || '未分类' }}</el-tag>
@@ -287,17 +288,68 @@ onMounted(handleSearch)
   gap: 12px;
 }
 .case-card {
+  position: relative;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 14px 16px;
   background: var(--color-bg-card);
   cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+  // staggered 入场动画（fade-in-up）
+  animation: fadeInUp 0.45s var(--ease-out) both;
+  transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+  // 前 10 张逐个延迟入场
+  &:nth-child(1) { animation-delay: 0.03s; }
+  &:nth-child(2) { animation-delay: 0.06s; }
+  &:nth-child(3) { animation-delay: 0.09s; }
+  &:nth-child(4) { animation-delay: 0.12s; }
+  &:nth-child(5) { animation-delay: 0.15s; }
+  &:nth-child(6) { animation-delay: 0.18s; }
+  &:nth-child(n+7) { animation-delay: 0.21s; }
+  // 左侧琥珀色竖条：hover 时高度从 0 增长到 100%
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    border-radius: 0 2px 2px 0;
+    background: var(--color-accent);
+    transition: height 0.3s var(--ease-out);
+  }
   &:hover {
-    box-shadow: 0 4px 12px rgba(11, 37, 69, 0.06);
+    box-shadow: 0 4px 12px rgba(26, 23, 20, 0.06);
     transform: translateY(-1px);
     border-color: var(--color-primary-light);
+    &::before {
+      height: 100%;
+    }
+    .case-corner {
+      color: var(--color-accent);
+      border-color: rgba(200, 137, 62, 0.4);
+    }
   }
+}
+// 左上角角标装饰：案由首字（HyperUI 风格）
+.case-corner {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card) 0 var(--radius-sm) 0;
+  transition: var(--transition-base);
+  user-select: none;
 }
 .case-card-head {
   display: flex;
@@ -355,6 +407,8 @@ onMounted(handleSearch)
 /* 详情抽屉 */
 .detail {
   padding: 0 4px;
+  // 抽屉打开时内容滑入动画
+  animation: slideInRight 0.4s var(--ease-out) both;
 }
 .detail-title {
   font-size: 18px;

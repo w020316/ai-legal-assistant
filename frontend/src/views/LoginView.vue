@@ -147,13 +147,45 @@ function toggleMode() {
 // 左半品牌叙事（深色面板）
 .brand-panel {
   position: relative;
+  overflow: hidden;
   background: var(--color-sidebar-bg);
   padding: 64px 56px;
   display: flex;
   align-items: center;
   border-right: none;
+  // 背景装饰：右上角琥珀色渐变光晕
+  &::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200, 137, 62, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  // 背景装饰：左下角细几何线条网格
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+      linear-gradient(rgba(200, 192, 180, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200, 192, 180, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0;
+    mask-image: linear-gradient(to top right, rgba(0, 0, 0, 0.5), transparent 60%);
+    -webkit-mask-image: linear-gradient(to top right, rgba(0, 0, 0, 0.5), transparent 60%);
+    pointer-events: none;
+  }
 }
 .brand-inner {
+  position: relative;
+  z-index: 1;
   max-width: 460px;
   width: 100%;
 }
@@ -162,6 +194,7 @@ function toggleMode() {
   align-items: center;
   gap: 10px;
   margin-bottom: 64px;
+  animation: fadeInUp 0.5s var(--ease-out) both;
 }
 .brand-name {
   font-family: var(--font-serif);
@@ -178,6 +211,9 @@ function toggleMode() {
   color: #F0EBE0;
   margin-bottom: 24px;
   letter-spacing: -0.02em;
+  // 渐入动画
+  animation: fadeInUp 0.6s var(--ease-out) both;
+  animation-delay: 0.1s;
 }
 .brand-sub {
   font-size: 15px;
@@ -185,6 +221,8 @@ function toggleMode() {
   color: rgba(200, 192, 180, 0.7);
   max-width: 42ch;
   margin-bottom: 40px;
+  animation: fadeInUp 0.5s var(--ease-out) both;
+  animation-delay: 0.2s;
 }
 .brand-features {
   list-style: none;
@@ -199,6 +237,11 @@ function toggleMode() {
     gap: 12px;
     font-size: 14px;
     color: rgba(200, 192, 180, 0.8);
+    // 逐项 staggered 入场
+    animation: fadeInUp 0.5s var(--ease-out) both;
+    &:nth-child(1) { animation-delay: 0.3s; }
+    &:nth-child(2) { animation-delay: 0.4s; }
+    &:nth-child(3) { animation-delay: 0.5s; }
   }
 }
 .brand-foot {

@@ -206,19 +206,37 @@ a {
 }
 
 // ===== Element Plus 组件精致覆盖 =====
-// 主按钮：墨蓝背景，hover 微微下沉感（translateY + 加深）
+// 主按钮：浓缩咖啡黑背景，hover 微微下沉感（translateY + 加深）+ 光泽扫过（ibelick 风格）
 .el-button--primary {
+  position: relative;
+  overflow: hidden;
   background-color: var(--color-primary);
   border-color: var(--color-primary);
   font-weight: 500;
   letter-spacing: 0.01em;
   transition: var(--transition-base);
+  // 光泽扫过伪元素：hover 时从左到右扫过一道高光
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -130%;
+    width: 80%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.16) 50%, transparent 100%);
+    transform: skewX(-20deg);
+    transition: left 0.55s var(--ease-out);
+    pointer-events: none;
+  }
   &:hover,
   &:focus {
     background-color: var(--color-primary-light);
     border-color: var(--color-primary-light);
     transform: translateY(1px);
     box-shadow: 0 1px 2px rgba(26, 23, 20, 0.08);
+    &::after {
+      left: 130%;
+    }
   }
   &:active {
     transform: translateY(2px);
@@ -228,6 +246,9 @@ a {
   &.is-disabled:hover {
     transform: none;
     box-shadow: none;
+    &::after {
+      display: none;
+    }
   }
 }
 
@@ -251,7 +272,7 @@ a {
   }
 }
 
-// 输入框 focus：古铜色边框 + 极轻光环
+// 输入框 focus：琥珀色边框 + 极轻光环 + 呼吸动画（Uiverse 风格）
 .el-input__wrapper,
 .el-textarea__inner {
   transition: var(--transition-base);
@@ -259,24 +280,33 @@ a {
 .el-input__wrapper.is-focus,
 .el-textarea__inner:focus {
   box-shadow: 0 0 0 2px rgba(200, 137, 62, 0.08) !important;
+  animation: focusBreathe 2.4s ease-in-out infinite;
 }
 .el-input__wrapper.is-focus {
   border-color: var(--color-accent) !important;
 }
 
-// 卡片统一过渡
+// 卡片统一过渡 + hover 琥珀色边框发光（HyperUI 风格）
 .el-card {
   border-radius: var(--radius-card);
   border-color: var(--color-border);
   box-shadow: var(--shadow-card);
   transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+  &:hover {
+    border-color: rgba(200, 137, 62, 0.45);
+    box-shadow: var(--shadow-hover), 0 0 0 1px rgba(200, 137, 62, 0.1), 0 0 16px rgba(200, 137, 62, 0.08);
+  }
 }
 
-// 标签：更克制的圆角与颜色
+// 标签：更克制的圆角与颜色 + hover 抖动（Uiverse jello 风格）
 .el-tag {
   border-radius: var(--radius-tag);
   font-weight: 500;
   font-size: 12px;
+  transition: var(--transition-base);
+  &:hover {
+    animation: jello 0.5s var(--ease-out);
+  }
   &.el-tag--info {
     background-color: var(--color-accent-light);
     border-color: var(--color-accent-light);
@@ -297,11 +327,178 @@ a {
   box-shadow: var(--shadow-popover);
 }
 
-// 无障碍：尊重 reduced-motion
+// ===== 动画关键帧（animista 风格）=====
+// 上浮渐入
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+// 从左滑入（用户消息）
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+// 从右滑入（AI 消息）
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+// 脉冲点（AI 思考）
+@keyframes pulseDot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+// 骨架屏光泽流动（LottieFiles 用 CSS 模拟）
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+// 涟漪扩散（ibelick 涟漪按钮）
+@keyframes ripple {
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+// 呼吸（徽章/光晕脉冲）
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(200, 137, 62, 0.18);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px rgba(200, 137, 62, 0);
+  }
+}
+// 抖动（jello，标签/微交互）
+@keyframes jello {
+  0%, 11%, 100% {
+    transform: translateX(0) skewX(0);
+  }
+  22% {
+    transform: translateX(-2px) skewX(-6deg);
+  }
+  33% {
+    transform: translateX(2px) skewX(5deg);
+  }
+  44% {
+    transform: translateX(-1px) skewX(-3deg);
+  }
+  55% {
+    transform: translateX(1px) skewX(2deg);
+  }
+  66% {
+    transform: translateX(-1px) skewX(-1deg);
+  }
+}
+// 输入框聚焦光环呼吸
+@keyframes focusBreathe {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(200, 137, 62, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(200, 137, 62, 0.05);
+  }
+}
+
+// ===== 动画工具类 =====
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s var(--ease-out) both;
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.4s var(--ease-out) both;
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.4s var(--ease-out) both;
+}
+// staggered 入场延迟工具类（每级 0.05s）
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+// ===== 涟漪效果按钮（ibelick 风格）=====
+// 在需要涟漪的按钮上添加 .ripple-btn 类
+.ripple-btn {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+  &:active::after {
+    animation: ripple 0.55s var(--ease-out);
+  }
+}
+
+// ===== 骨架屏（LottieFiles 风格用 CSS 模拟）=====
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-soft) 25%,
+    var(--color-border-light) 50%,
+    var(--color-bg-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+// 无障碍：尊重 reduced-motion（关键帧动画一并降级）
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  // 关闭无限循环动画（骨架屏、呼吸、脉冲）
+  .skeleton-loading,
+  .animate-fade-in-up,
+  .animate-slide-in-left,
+  .animate-slide-in-right {
+    animation: none !important;
   }
 }

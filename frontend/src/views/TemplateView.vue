@@ -315,10 +315,11 @@ onMounted(() => loadTemplates())
   padding: 8px;
 }
 .cat-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 16px;
   border-radius: var(--radius-button);
   cursor: pointer;
   transition: background 0.15s;
@@ -327,6 +328,19 @@ onMounted(() => loadTemplates())
   }
   &.active {
     background: var(--color-accent-light);
+    // 左侧琥珀色竖条滑入动画
+    &::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 60%;
+      border-radius: 0 2px 2px 0;
+      background: var(--color-accent);
+      animation: slideInLeft 0.3s var(--ease-out) both;
+    }
     .cat-label {
       color: var(--color-primary);
       font-weight: 600;
@@ -377,6 +391,8 @@ onMounted(() => loadTemplates())
   grid-column: 1 / -1;
 }
 .tpl-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 14px 16px;
@@ -384,10 +400,35 @@ onMounted(() => loadTemplates())
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: box-shadow 0.15s, transform 0.15s;
+  // 入场动画（fade-in-up，staggered）
+  animation: fadeInUp 0.45s var(--ease-out) both;
+  transition: box-shadow 0.25s var(--ease-out), transform 0.25s var(--ease-out), border-color 0.25s var(--ease-out);
+  &:nth-child(1) { animation-delay: 0.04s; }
+  &:nth-child(2) { animation-delay: 0.08s; }
+  &:nth-child(3) { animation-delay: 0.12s; }
+  &:nth-child(4) { animation-delay: 0.16s; }
+  &:nth-child(5) { animation-delay: 0.2s; }
+  &:nth-child(n+6) { animation-delay: 0.24s; }
+  // 右上角文档折角装饰（HyperUI 风格）
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 18px 18px 0;
+    border-color: transparent rgba(200, 137, 62, 0.14) transparent transparent;
+    transition: border-color 0.25s var(--ease-out);
+  }
   &:hover {
-    box-shadow: 0 4px 12px rgba(11, 37, 69, 0.06);
+    box-shadow: 0 4px 12px rgba(26, 23, 20, 0.06), 0 0 0 1px rgba(200, 137, 62, 0.12), 0 0 18px rgba(200, 137, 62, 0.1);
     transform: translateY(-2px);
+    border-color: rgba(200, 137, 62, 0.4);
+    &::after {
+      border-right-color: rgba(200, 137, 62, 0.3);
+    }
   }
 }
 .tpl-card-head {

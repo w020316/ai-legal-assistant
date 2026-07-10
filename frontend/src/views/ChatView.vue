@@ -216,6 +216,12 @@ onMounted(() => {
   color: var(--color-text-regular);
   line-height: 1.55;
   transition: var(--transition-base);
+  // staggered 入场动画（每个卡片延迟 0.05s）
+  animation: fadeInUp 0.5s var(--ease-out) both;
+  &:nth-child(1) { animation-delay: 0.05s; }
+  &:nth-child(2) { animation-delay: 0.1s; }
+  &:nth-child(3) { animation-delay: 0.15s; }
+  &:nth-child(4) { animation-delay: 0.2s; }
   // 偶数项下沉，形成锯齿错落
   &:nth-child(even) {
     margin-top: 20px;
@@ -229,6 +235,7 @@ onMounted(() => {
     transform: translateY(-1px);
     .suggestion-index {
       opacity: 1;
+      transform: scale(1.12);
     }
   }
 }
@@ -243,7 +250,7 @@ onMounted(() => {
   letter-spacing: 0.04em;
   line-height: 1.55;
   opacity: 0.7;
-  transition: opacity 0.2s var(--ease-out);
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
 }
 .suggestion-text {
   flex: 1;
@@ -265,6 +272,8 @@ onMounted(() => {
     height: 72px;
     border-radius: var(--radius-full);
     background: rgba(200, 137, 62, 0.12);
+    // 脉冲呼吸动画（LottieFiles 风格）
+    animation: breathe 3s ease-in-out infinite;
   }
   h2 {
     margin: 24px 0 8px;
@@ -272,11 +281,15 @@ onMounted(() => {
     font-size: 24px;
     font-weight: 700;
     color: var(--color-primary);
+    animation: fadeInUp 0.5s var(--ease-out) both;
+    animation-delay: 0.1s;
   }
   p {
     font-size: 14px;
     margin: 4px 0;
     max-width: 48ch;
+    animation: fadeInUp 0.5s var(--ease-out) both;
+    animation-delay: 0.15s;
   }
   .hint {
     margin-top: 16px;
@@ -285,6 +298,17 @@ onMounted(() => {
   }
   .create-btn {
     margin-top: 24px;
+    // 微妙悬浮动画
+    animation: floatBtn 3.5s ease-in-out infinite;
+  }
+}
+// 按钮微妙悬浮（上下漂浮 2px）
+@keyframes floatBtn {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
   }
 }
 

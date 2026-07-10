@@ -274,22 +274,44 @@ async function handleDelete(session: SessionVO) {
   letter-spacing: 0.02em;
 }
 .item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 8px 12px 8px 14px;
   border-radius: var(--radius-button);
   cursor: pointer;
   transition: var(--transition-base);
+  // 入场动画
+  animation: fadeInUp 0.3s var(--ease-out) both;
+  // 左侧琥珀色竖条：hover 时从 0 生长到 100%
+  &::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    border-radius: 0 2px 2px 0;
+    background: var(--color-accent);
+    transition: height 0.25s var(--ease-out);
+  }
   &:hover {
     background: var(--color-bg-soft);
+    &::before {
+      height: 70%;
+    }
     .item-actions {
       opacity: 1;
     }
   }
-  // 激活态：古铜浅底 + 墨蓝文字（非墨蓝深底白字，更克制）
+  // 激活态：古铜浅底 + 墨蓝文字（非墨蓝深底白字，更克制）+ 竖条常驻
   &.active {
     background: var(--color-accent-light);
+    &::before {
+      height: 70%;
+    }
     .title {
       color: var(--color-primary);
       font-weight: 500;

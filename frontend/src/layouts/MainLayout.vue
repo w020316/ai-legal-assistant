@@ -183,6 +183,17 @@ function handleLogout() {
   height: 36px;
   border-radius: var(--radius-full);
   background: rgba(200, 137, 62, 0.15);
+  // 微妙呼吸光晕（LottieFiles 风格）
+  animation: logoGlow 3s ease-in-out infinite;
+}
+// logo 徽章光晕脉冲（仅 box-shadow 呼吸，不位移）
+@keyframes logoGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(200, 137, 62, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(200, 137, 62, 0.12);
+  }
 }
 .header-left .logo {
   font-family: var(--font-serif);
@@ -265,7 +276,7 @@ function handleLogout() {
     background: rgba(200, 137, 62, 0.12);
     color: var(--color-sidebar-active);
     font-weight: 500;
-    // 左侧琥珀色竖条指示器（从圆点升级为竖条，更具引导力）
+    // 左侧琥珀色竖条指示器（从圆点升级为竖条，更具引导力）+ 滑入动画
     &::before {
       content: '';
       position: absolute;
@@ -276,7 +287,18 @@ function handleLogout() {
       height: 16px;
       border-radius: 2px;
       background: var(--color-sidebar-active);
+      transform-origin: center;
+      animation: menuBarIn 0.3s var(--ease-out) both;
     }
+  }
+}
+// 菜单激活竖条滑入（保留垂直居中，纵向生长）
+@keyframes menuBarIn {
+  from {
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    transform: translateY(-50%) scaleY(1);
   }
 }
 .main {
@@ -285,11 +307,15 @@ function handleLogout() {
 }
 .route-fade-enter-active,
 .route-fade-leave-active {
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
 }
-.route-fade-enter-from,
+.route-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
 .route-fade-leave-to {
   opacity: 0;
+  transform: translateY(-8px);
 }
 
 /* 移动端汉堡按钮 */
@@ -348,6 +374,8 @@ function handleLogout() {
       height: 16px;
       border-radius: 2px;
       background: var(--color-sidebar-active);
+      transform-origin: center;
+      animation: menuBarIn 0.3s var(--ease-out) both;
     }
   }
 }
