@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   ChatDotRound,
@@ -14,6 +14,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const isCollapse = ref(false)
 
@@ -40,7 +41,9 @@ function handleLogout() {
     <!-- 顶部栏：纯白 + 底部发丝线，64px 高 -->
     <el-header class="header">
       <div class="header-left">
-        <el-icon :size="20" color="#0B2545"><Reading /></el-icon>
+        <span class="logo-badge">
+          <el-icon :size="18" color="#0B2545"><Reading /></el-icon>
+        </span>
         <span class="logo">LawAI 法律助手</span>
       </div>
       <div class="header-right">
@@ -62,7 +65,7 @@ function handleLogout() {
       <!-- 侧边栏：纯白 + 右侧发丝线，240px -->
       <el-aside :width="isCollapse ? '64px' : '240px'" class="aside">
         <el-menu
-          :default-active="$route.path"
+          :default-active="route.path"
           :collapse="isCollapse"
           :collapse-transition="false"
           @select="handleMenuSelect"
@@ -78,7 +81,7 @@ function handleLogout() {
       <el-main class="main">
         <router-view v-slot="{ Component }">
           <transition name="route-fade" mode="out-in">
-            <component :is="Component" :key="$route.path" />
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </el-main>
@@ -103,7 +106,16 @@ function handleLogout() {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-light);
 }
 .header-left .logo {
   font-family: var(--font-serif);
@@ -144,6 +156,7 @@ function handleLogout() {
   border-radius: var(--radius-button);
   margin-bottom: 2px;
   color: var(--color-text-regular);
+  position: relative;
   transition: var(--transition-base);
   &:hover {
     background: var(--color-bg-soft);
@@ -153,6 +166,18 @@ function handleLogout() {
     background: var(--color-accent-light);
     color: var(--color-primary);
     font-weight: 500;
+    // 左侧古铜色小圆点指示器（非 border-left 强调，符合 ui-skill.md 4.3）
+    &::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: var(--radius-full);
+      background: var(--color-accent);
+    }
   }
 }
 .main {

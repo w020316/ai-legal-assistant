@@ -1,5 +1,7 @@
 package com.lawai.legalassistant.modules.casep.dto;
 
+import jakarta.validation.constraints.Max;
+
 /**
  * 案例检索请求
  */
@@ -21,6 +23,7 @@ public class CaseSearchRequest {
     private Integer page = 1;
 
     /** 每页条数 */
+    @Max(value = 100, message = "单页最多 100 条")
     private Integer size = 10;
 
     public String getKeyword() {

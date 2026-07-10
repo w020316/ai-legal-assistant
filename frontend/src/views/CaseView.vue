@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { searchCases, type CaseVO, type CaseSearchRequest } from '@/api'
 
@@ -41,12 +41,18 @@ const cases = ref<CaseVO[]>([])
 const loading = ref(false)
 const searched = ref(false)
 
+// 请求 ID：用于丢弃过期的搜索响应，避免旧结果覆盖新结果
+const requestId = ref(0)
+// 防抖计时器
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
 // 详情抽屉
 const drawerVisible = ref(false)
 const currentCase = ref<CaseVO | null>(null)
 
 // 执行检索
 async function handleSearch() {
+  const currentId = ++requestId.value
   loading.value = true
   searched.value = true
   try {
@@ -59,11 +65,28 @@ async function handleSearch() {
       size: form.size,
     }
     const res = await searchCases(params)
+    // 仅接受最新请求的响应，避免旧结果覆盖新结果
+    if (currentId !== requestId.value) return
     cases.value = res.data || []
   } finally {
-    loading.value = false
+    if (currentId === requestId.value) {
+      loading.value = false
+    }
   }
 }
+
+// 简单防抖：300ms 内重复触发只执行最后一次
+function debouncedSearch() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    handleSearch()
+    debounceTimer = null
+  }, 300)
+}
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 // 重置
 function handleReset() {
@@ -85,6 +108,11 @@ onMounted(handleSearch)
 
 <template>
   <div class="case-view">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">案例检索</h1>
+    </div>
+
     <!-- 顶部搜索栏 -->
     <div class="search-bar">
       <el-input
@@ -92,7 +120,7 @@ onMounted(handleSearch)
         placeholder="输入关键词，如合同解除、违约金、竞业限制…"
         clearable
         class="keyword-input"
-        @keyup.enter="handleSearch"
+        @keyup.enter="debouncedSearch"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
@@ -126,11 +154,11 @@ onMounted(handleSearch)
           <div class="case-card-meta">
             <span>{{ c.court || '—' }}</span>
             <span class="dot">·</span>
-            <span>{{ c.year }}年</span>
+            <span>{{ c.year ? c.year + '年' : '—' }}</span>
             <span v-if="c.source" class="dot">·</span>
             <span v-if="c.source" class="source">{{ c.source }}</span>
           </div>
-          <div class="case-card-summary">{{ c.summary }}</div>
+          <div class="case-card-summary">{{ c.summary || '暂无摘要' }}</div>
         </div>
 
         <el-empty
@@ -148,7 +176,7 @@ onMounted(handleSearch)
           <div class="detail-tags">
             <el-tag size="small" effect="light">{{ currentCase.caseCause || '未分类' }}</el-tag>
             <el-tag size="small" type="info" effect="plain">{{ currentCase.court || '—' }}</el-tag>
-            <el-tag size="small" type="info" effect="plain">{{ currentCase.year }}年</el-tag>
+            <el-tag size="small" type="info" effect="plain">{{ currentCase.year ? currentCase.year + '年' : '—' }}</el-tag>
           </div>
           <div v-if="currentCase.source" class="detail-source">
             来源：<a v-if="currentCase.source.startsWith('http')" :href="currentCase.source" target="_blank" rel="noopener">{{ currentCase.source }}</a>
@@ -170,6 +198,18 @@ onMounted(handleSearch)
   flex-direction: column;
   height: 100%;
   gap: 16px;
+}
+
+/* 页面标题 */
+.page-header {
+  padding: 4px 4px 0;
+}
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+  color: var(--color-primary);
 }
 
 /* 搜索栏 */
@@ -233,7 +273,7 @@ onMounted(handleSearch)
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(11, 37, 69, 0.06);
     transform: translateY(-1px);
     border-color: var(--color-primary-light);
   }
@@ -248,6 +288,8 @@ onMounted(handleSearch)
 .case-title {
   font-size: 15px;
   font-weight: 600;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
   color: var(--color-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -288,9 +330,16 @@ onMounted(handleSearch)
 .detail-title {
   font-size: 18px;
   font-weight: 600;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
   color: var(--color-primary);
   line-height: 1.5;
   margin-bottom: 12px;
+}
+:deep(.el-drawer__title) {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .detail-tags {
   display: flex;

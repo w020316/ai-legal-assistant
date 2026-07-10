@@ -54,9 +54,7 @@ public class DataInitializer implements CommandLineRunner {
         admin.setCreatedAt(Instant.now());
         admin.setUpdatedAt(Instant.now());
         userMapper.insert(admin);
-        log.info("===== 管理员账户初始化完成 =====");
-        log.info("用户名: {}", adminUsername);
-        log.info("密码: {}（请尽快修改）", adminPassword);
-        log.info("==============================");
+        log.info("===== 管理员账户 [{}] 初始化完成 =====", adminUsername);
+        log.info("密码已通过环境变量 ADMIN_PASSWORD 设置，请妥善保管");
     }
 }

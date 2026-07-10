@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -62,6 +63,7 @@ public class DocumentService {
      * @param file   上传文件
      * @return 上传响应
      */
+    @Transactional(rollbackFor = Exception.class)
     public UploadResponse upload(Long userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "文件不能为空");
@@ -112,6 +114,7 @@ public class DocumentService {
      * @param docId  文档 ID
      * @return 分析结果
      */
+    @Transactional(rollbackFor = Exception.class)
     public DocumentAnalysisVO analyze(Long userId, Long docId) {
         UserDocument doc = getOwnedDocument(userId, docId);
         if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {

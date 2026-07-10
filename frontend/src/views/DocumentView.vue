@@ -234,9 +234,18 @@ onMounted(loadDocuments)
           </div>
         </div>
         <div class="doc-info-bar">
-          <span>类型：{{ currentDoc.fileType || '—' }}</span>
-          <span>大小：{{ formatSize(currentDoc.fileSize) }}</span>
-          <span>上传时间：{{ currentDoc.createdAt?.replace('T', ' ').slice(0, 16) }}</span>
+          <div class="info-item">
+            <span class="info-label">类型</span>
+            <span class="info-val">{{ currentDoc.fileType || '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">大小</span>
+            <span class="info-val">{{ formatSize(currentDoc.fileSize) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">上传时间</span>
+            <span class="info-val">{{ currentDoc.createdAt?.replace('T', ' ').slice(0, 16) }}</span>
+          </div>
         </div>
 
         <!-- 分析报告 -->
@@ -253,7 +262,7 @@ onMounted(loadDocuments)
                 <el-tag size="small" round>{{ analysis.riskPoints?.length || 0 }}</el-tag>
               </div>
               <div v-if="analysis.riskPoints?.length" class="risk-list">
-                <div v-for="(rp, i) in analysis.riskPoints" :key="i" class="risk-card">
+                <div v-for="(rp, i) in analysis.riskPoints" :key="i" class="risk-card" :class="'risk-' + riskTagType(rp.level)">
                   <div class="risk-card-head">
                     <el-tag :type="riskTagType(rp.level)" size="small" effect="dark">
                       {{ riskLabel(rp.level) }}
@@ -284,7 +293,7 @@ onMounted(loadDocuments)
       </template>
 
       <div v-else class="right-empty">
-        <el-icon :size="56" color="#A0AEC0"><DocumentIcon /></el-icon>
+        <el-icon :size="56" color="var(--color-text-secondary)"><DocumentIcon /></el-icon>
         <h3>选择左侧文档查看分析报告</h3>
         <p>上传合同/协议文件，AI 将自动识别风险条款并给出修改建议</p>
       </div>
@@ -317,6 +326,16 @@ onMounted(loadDocuments)
 .upload-wrap :deep(.el-upload-dragger) {
   padding: 18px 12px;
   border-radius: var(--radius-button);
+  border-color: var(--color-accent);
+  background: var(--color-bg-card);
+  transition: var(--transition-base);
+  &:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+}
+.upload-wrap :deep(.el-upload-dragger .el-icon--upload) {
+  color: var(--color-accent);
 }
 .upload-tip {
   margin-top: 6px;
@@ -360,7 +379,7 @@ onMounted(loadDocuments)
     background: var(--color-bg);
   }
   &.active {
-    background: #eef3f8;
+    background: var(--color-accent-light);
   }
 }
 .doc-meta {
@@ -424,12 +443,31 @@ onMounted(loadDocuments)
 }
 .doc-info-bar {
   display: flex;
-  gap: 24px;
-  padding: 10px 20px;
-  background: var(--color-bg);
-  font-size: 13px;
-  color: var(--color-text-regular);
+  padding: 12px 20px;
+  background: var(--color-bg-soft);
   border-bottom: 1px solid var(--color-border);
+  .info-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 0 18px;
+    font-size: 13px;
+    &:first-child {
+      padding-left: 0;
+    }
+    & + .info-item {
+      border-left: 1px solid var(--color-border);
+    }
+  }
+  .info-label {
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+  }
+  .info-val {
+    color: var(--color-text-regular);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
 }
 .report-area {
   flex: 1;
@@ -450,9 +488,9 @@ onMounted(loadDocuments)
 }
 .summary-block {
   padding: 16px;
-  background: #f3f8f8;
-  border-left: 4px solid var(--color-accent);
-  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  background: var(--color-accent-light);
+  border-top: 2px solid var(--color-accent);
+  border-radius: var(--radius-card);
 }
 .summary-text {
   font-size: 14px;
@@ -472,7 +510,19 @@ onMounted(loadDocuments)
   background: var(--color-bg-card);
   transition: box-shadow 0.15s;
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(11, 37, 69, 0.06);
+  }
+  &.risk-danger {
+    background: rgba(155, 44, 44, 0.035);
+    border-top: 2px solid var(--color-danger);
+  }
+  &.risk-warning {
+    background: rgba(156, 107, 11, 0.035);
+    border-top: 2px solid var(--color-warning);
+  }
+  &.risk-success {
+    background: rgba(45, 106, 79, 0.035);
+    border-top: 2px solid var(--color-success);
   }
 }
 .risk-card-head {

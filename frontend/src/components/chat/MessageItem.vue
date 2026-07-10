@@ -37,6 +37,16 @@ const splitContent = computed(() => {
   }
 })
 const detailExpanded = ref(false)
+
+// 格式化时间戳为 HH:MM
+const formattedTime = computed(() => {
+  if (!props.message.createdAt) return ''
+  const d = new Date(props.message.createdAt)
+  if (isNaN(d.getTime())) return ''
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+})
 </script>
 
 <template>
@@ -48,6 +58,12 @@ const detailExpanded = ref(false)
     <!-- AI 消息：左侧全宽卡片 -->
     <div v-else class="assistant-msg">
       <div class="card">
+        <!-- 卡片 header：AI 助手标签 + 时间戳 -->
+        <div class="card-header">
+          <span class="ai-label">AI 助手</span>
+          <span v-if="formattedTime" class="ai-time">{{ formattedTime }}</span>
+        </div>
+        <div class="card-body">
         <!-- 等待首字时显示加载动画 -->
         <span v-if="streaming && !message.content" class="loading-dots">
           <i></i><i></i><i></i>
@@ -61,7 +77,7 @@ const detailExpanded = ref(false)
         <template v-else>
           <MarkdownRenderer v-if="splitContent.main" :content="splitContent.main" />
           <div class="detail-collapse">
-            <div class="detail-header" @click="detailExpanded = !detailExpanded">
+            <div class="detail-header" role="button" tabindex="0" :aria-expanded="detailExpanded" aria-label="详细分析" @click="detailExpanded = !detailExpanded" @keydown.enter="detailExpanded = !detailExpanded">
               <el-icon class="toggle-icon">
                 <ArrowDown v-if="detailExpanded" />
                 <ArrowRight v-else />
@@ -82,6 +98,7 @@ const detailExpanded = ref(false)
           <el-button text size="small" :icon="CopyDocument" @click="copyContent">复制</el-button>
           <el-button text size="small" :icon="RefreshRight" @click="emit('regenerate')">重新生成</el-button>
         </div>
+        </div>
       </div>
     </div>
   </div>
@@ -97,23 +114,57 @@ const detailExpanded = ref(false)
   .bubble {
     max-width: 70%;
     padding: 10px 14px;
-    background: var(--color-primary);
-    color: #fff;
-    border-radius: var(--radius-card);
+    // 墨蓝微妙渐变（同色族深浅，非 AI 紫蓝渐变）
+    background: linear-gradient(135deg, #0B2545 0%, #133159 100%);
+    color: #FAFAF7;
+    // 圆角差异：右上角小圆角，营造气泡方向感
+    border-radius: var(--radius-card) var(--radius-sm) var(--radius-card) var(--radius-card);
     word-break: break-word;
     line-height: 1.6;
     font-size: 14px;
+    box-shadow: var(--shadow-card);
   }
 }
 .assistant-msg {
   .card {
     width: 100%;
-    padding: 16px;
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
+    overflow: hidden;
+    // 顶部古铜色发丝线（替代 border-left 强调，符合 ui-skill.md 4.3）
+    &::before {
+      content: '';
+      display: block;
+      height: 1px;
+      background: var(--color-accent);
+      opacity: 0.6;
+    }
   }
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.ai-label {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  letter-spacing: 0.01em;
+}
+.ai-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.card-body {
+  padding: 14px 16px 16px;
 }
 .detail-collapse {
   margin-top: 12px;
@@ -138,6 +189,7 @@ const detailExpanded = ref(false)
   }
   .toggle-icon {
     font-size: 14px;
+    color: var(--color-accent);
   }
 }
 .detail-body {
@@ -151,7 +203,7 @@ const detailExpanded = ref(false)
   color: var(--color-accent);
   animation: blink 1s steps(2) infinite;
 }
-// 等待加载三点动画
+// 等待加载三点动画（古铜色，非灰色）
 .loading-dots {
   display: inline-flex;
   gap: 4px;
@@ -160,7 +212,7 @@ const detailExpanded = ref(false)
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--color-text-secondary);
+    background: var(--color-accent);
     animation: bounce 1.2s infinite ease-in-out;
     &:nth-child(2) {
       animation-delay: 0.2s;
@@ -173,9 +225,16 @@ const detailExpanded = ref(false)
 .actions {
   margin-top: 12px;
   display: flex;
-  gap: 8px;
-  border-top: 1px solid var(--color-border);
+  gap: 4px;
+  border-top: 1px solid var(--color-border-light);
   padding-top: 8px;
+  :deep(.el-button) {
+    color: var(--color-text-secondary);
+    &:hover {
+      color: var(--color-accent);
+      background: var(--color-accent-light);
+    }
+  }
 }
 @keyframes blink {
   to {

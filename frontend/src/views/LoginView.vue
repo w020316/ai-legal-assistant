@@ -29,6 +29,7 @@ const rules: FormRules = {
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 64, message: '密码长度 6-64 位', trigger: 'blur' },
   ],
+  email: [{ type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }],
 }
 
 async function handleSubmit() {
@@ -46,7 +47,7 @@ async function handleSubmit() {
           role: res.data.role,
         })
         ElMessage.success('登录成功')
-        const redirect = (route.query.redirect as string) || '/chat'
+        const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : '/chat'
         router.push(redirect)
       } else {
         await register({ username: form.username, password: form.password, email: form.email })

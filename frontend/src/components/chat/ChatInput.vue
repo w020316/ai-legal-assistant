@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { Promotion, VideoPause, Loading, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -45,6 +45,14 @@ watch(
     }
   },
 )
+
+// 组件卸载时清理定时器，避免内存泄漏
+onUnmounted(() => {
+  if (stageTimer) {
+    clearInterval(stageTimer)
+    stageTimer = null
+  }
+})
 
 // 发送消息
 function handleSend() {
@@ -154,6 +162,7 @@ function handleImageChange(e: Event) {
 
 <style scoped lang="scss">
 .chat-input {
+  // 顶部发丝线（双层：发丝线 + 极轻渐隐，避免单调）
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-card);
   padding: 14px 32px 10px;
@@ -164,12 +173,16 @@ function handleImageChange(e: Event) {
   gap: 8px;
   padding: 6px 12px;
   font-size: 12px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-soft);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
   border-radius: var(--radius-button);
   margin-bottom: 8px;
+  width: fit-content;
   .loading-icon {
     animation: spin 1s linear infinite;
+  }
+  span {
+    animation: pulse 2s ease-in-out infinite;
   }
 }
 @keyframes spin {
@@ -180,6 +193,14 @@ function handleImageChange(e: Event) {
     transform: rotate(360deg);
   }
 }
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
 .input-wrap {
   :deep(.el-textarea__inner) {
     border-radius: var(--radius-card);
@@ -188,8 +209,8 @@ function handleImageChange(e: Event) {
     border-color: var(--color-border);
     transition: var(--transition-base);
     &:focus {
-      border-color: var(--color-primary-soft);
-      box-shadow: 0 0 0 2px rgba(11, 37, 69, 0.06);
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 2px rgba(140, 106, 63, 0.08);
     }
   }
 }
@@ -203,6 +224,15 @@ function handleImageChange(e: Event) {
   display: flex;
   align-items: center;
   gap: 8px;
+  // 图片上传按钮 hover 古铜色浅底
+  :deep(.el-button.is-circle) {
+    transition: var(--transition-base);
+    &:hover {
+      color: var(--color-accent);
+      background: var(--color-accent-light);
+      border-color: var(--color-accent);
+    }
+  }
 }
 .counter {
   font-family: var(--font-mono);

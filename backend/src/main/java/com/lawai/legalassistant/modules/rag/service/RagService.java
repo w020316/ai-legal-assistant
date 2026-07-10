@@ -9,6 +9,7 @@ import com.lawai.legalassistant.modules.rag.mapper.KnowledgeDocMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,6 +78,7 @@ public class RagService {
      * @param ownerId   PRIVATE 时为用户 ID
      * @return 文档 ID
      */
+    @Transactional(rollbackFor = Exception.class)
     public Long ingestDocument(String title, String docType, String source, String rawText,
                                String ownerType, Long ownerId) {
         // 1. 写文档主表（status=0 待处理）

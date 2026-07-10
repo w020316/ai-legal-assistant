@@ -12,8 +12,17 @@ public class BusinessException extends RuntimeException {
         this.code = code;
     }
 
+    public BusinessException(int code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
     public static BusinessException of(int code, String message) {
         return new BusinessException(code, message);
+    }
+
+    public static BusinessException of(int code, String message, Throwable cause) {
+        return new BusinessException(code, message, cause);
     }
 
     public int getCode() {

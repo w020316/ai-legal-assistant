@@ -110,6 +110,9 @@ public class AuthService {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 已失效");
         }
         Claims claims = jwtUtil.parse(refreshToken);
+        if (claims == null) {
+            throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 无效或已过期");
+        }
         Long userId = jwtUtil.getUserId(claims);
         String username = jwtUtil.getUsername(claims);
         String role = jwtUtil.getRole(claims);

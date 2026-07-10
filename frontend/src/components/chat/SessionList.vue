@@ -235,6 +235,14 @@ async function handleDelete(session: SessionVO) {
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid var(--color-border);
+  // 搜索框样式优化
+  :deep(.el-input__wrapper) {
+    border-radius: var(--radius-button);
+    transition: var(--transition-base);
+    &.is-focus {
+      box-shadow: 0 0 0 2px rgba(140, 106, 63, 0.08);
+    }
+  }
 }
 .top-actions {
   display: flex;
@@ -243,22 +251,27 @@ async function handleDelete(session: SessionVO) {
 }
 .select-info {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--color-accent);
   line-height: 32px;
+  font-weight: 500;
 }
+// 多选选中态：古铜浅底（非墨蓝深色）
 .item.selected {
-  background: var(--color-primary-soft);
+  background: var(--color-accent-light);
 }
 .list-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
 }
+// 时间分组标题：小号衬线 + 古铜色
 .group-title {
-  padding: 8px 8px 4px;
+  padding: 10px 8px 6px;
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--color-accent);
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .item {
   display: flex;
@@ -267,23 +280,25 @@ async function handleDelete(session: SessionVO) {
   padding: 8px 12px;
   border-radius: var(--radius-button);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: var(--transition-base);
   &:hover {
-    background: var(--color-bg);
+    background: var(--color-bg-soft);
     .item-actions {
       opacity: 1;
     }
   }
+  // 激活态：古铜浅底 + 墨蓝文字（非墨蓝深底白字，更克制）
   &.active {
-    background: var(--color-primary);
+    background: var(--color-accent-light);
     .title {
-      color: #fff;
+      color: var(--color-primary);
+      font-weight: 500;
     }
     .star-icon {
-      color: #fff;
+      color: var(--color-accent);
     }
     .item-actions {
-      color: #fff;
+      color: var(--color-text-secondary);
       opacity: 1;
     }
   }
@@ -298,12 +313,17 @@ async function handleDelete(session: SessionVO) {
     font-size: 14px;
     color: var(--color-warning);
     flex-shrink: 0;
+    transition: var(--transition-base);
+    &:hover {
+      color: var(--color-accent);
+    }
   }
   .title {
     font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--color-text-regular);
   }
 }
 .item-actions {
@@ -315,7 +335,7 @@ async function handleDelete(session: SessionVO) {
   .el-icon {
     font-size: 14px;
     &:hover {
-      color: var(--color-primary);
+      color: var(--color-accent);
     }
   }
 }

@@ -14,6 +14,7 @@ import com.lawai.legalassistant.modules.chat.mapper.ChatMessageMapper;
 import com.lawai.legalassistant.modules.chat.mapper.ChatSessionMapper;
 import com.lawai.legalassistant.modules.rag.dto.RetrievedChunk;
 import com.lawai.legalassistant.modules.rag.service.RagService;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 对话服务
@@ -56,6 +60,13 @@ public class ChatService {
         this.agnesClient = agnesClient;
         this.objectMapper = objectMapper;
     }
+
+    /** AI 异步调用专用线程池，避免长阻塞 I/O 耗尽 ForkJoinPool.commonPool() */
+    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(8, r -> {
+        Thread t = new Thread(r, "ai-async-executor");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * 新建会话
@@ -221,6 +232,10 @@ public class ChatService {
                 // 保存错误提示消息
                 saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
             }
+        }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
+            log.error("异步 AI 调用超时: sessionId={}", sessionId, ex);
+            saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            return null;
         });
 
         return userMsg.getId();
@@ -304,6 +319,10 @@ public class ChatService {
                 log.error("图片消息处理失败: sessionId={}", sessionId, e);
                 saveAssistantMessage(sessionId, "图片识别失败，请稍后重试或直接输入您的问题。", null);
             }
+        }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
+            log.error("图片消息处理超时: sessionId={}", sessionId, ex);
+            saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            return null;
         });
 
         return userMsg.getId();
@@ -458,5 +477,21 @@ public class ChatService {
         vo.setCitations(m.getCitations());
         vo.setCreatedAt(m.getCreatedAt());
         return vo;
+    }
+
+    /**
+     * 优雅关闭 AI 异步线程池
+     */
+    @PreDestroy
+    public void shutdown() {
+        aiExecutor.shutdown();
+        try {
+            if (!aiExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                aiExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            aiExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

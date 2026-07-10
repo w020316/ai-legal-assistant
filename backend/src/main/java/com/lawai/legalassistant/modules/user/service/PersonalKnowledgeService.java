@@ -3,7 +3,9 @@ package com.lawai.legalassistant.modules.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
+import com.lawai.legalassistant.modules.rag.entity.KnowledgeChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeDoc;
+import com.lawai.legalassistant.modules.rag.mapper.KnowledgeChunkMapper;
 import com.lawai.legalassistant.modules.rag.mapper.KnowledgeDocMapper;
 import com.lawai.legalassistant.modules.rag.service.RagService;
 import org.apache.pdfbox.Loader;
@@ -14,6 +16,7 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -34,10 +37,13 @@ public class PersonalKnowledgeService {
 
     private final RagService ragService;
     private final KnowledgeDocMapper knowledgeDocMapper;
+    private final KnowledgeChunkMapper knowledgeChunkMapper;
 
-    public PersonalKnowledgeService(RagService ragService, KnowledgeDocMapper knowledgeDocMapper) {
+    public PersonalKnowledgeService(RagService ragService, KnowledgeDocMapper knowledgeDocMapper,
+                                    KnowledgeChunkMapper knowledgeChunkMapper) {
         this.ragService = ragService;
         this.knowledgeDocMapper = knowledgeDocMapper;
+        this.knowledgeChunkMapper = knowledgeChunkMapper;
     }
 
     /**
@@ -49,6 +55,7 @@ public class PersonalKnowledgeService {
      * @param file   上传文件
      * @return 文档 ID
      */
+    @Transactional(rollbackFor = Exception.class)
     public Long upload(Long userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "文件不能为空");
@@ -103,11 +110,14 @@ public class PersonalKnowledgeService {
      * @param userId 用户 ID
      * @param docId  文档 ID
      */
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long userId, Long docId) {
         KnowledgeDoc doc = knowledgeDocMapper.selectById(docId);
         if (doc == null || !"PRIVATE".equals(doc.getOwnerType()) || !userId.equals(doc.getOwnerId())) {
             throw BusinessException.of(ResultCode.NOT_FOUND, "文档不存在或无权限");
         }
+        // 先级联删除切片，避免孤儿数据
+        knowledgeChunkMapper.delete(new LambdaQueryWrapper<KnowledgeChunk>().eq(KnowledgeChunk::getDocId, docId));
         knowledgeDocMapper.deleteById(docId);
         log.info("个人知识库文档删除: userId={}, docId={}", userId, docId);
     }

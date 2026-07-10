@@ -17,12 +17,12 @@ spring:
       password: ${REDIS_PASSWORD}
       timeout: 5000ms
 
-# 生产环境保持 Swagger 可用（方便 API 调试）
+# 生产环境关闭 Swagger，避免接口结构泄露
 springdoc:
   api-docs:
-    enabled: true
+    enabled: false
   swagger-ui:
-    enabled: true
+    enabled: false
 
 logging:
   level:

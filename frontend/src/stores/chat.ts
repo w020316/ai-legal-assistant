@@ -139,6 +139,7 @@ export const useChatStore = defineStore('chat', () => {
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
         if (!sending.value) return // 用户点击了停止
+        if (currentSession.value?.id !== sessionId) return // 会话已切换，停止旧轮询
         const res = await listMessages(sessionId)
         const msgs = res.data
         // 找到最后一条 assistant 消息
@@ -174,7 +175,7 @@ export const useChatStore = defineStore('chat', () => {
   async function sendImageMessage(file: File) {
     if (!currentSession.value || sending.value) return
     // 添加占位消息
-    const userMsg: MessageVO = {
+    const userMsg = reactive<MessageVO>({
       id: 0,
       sessionId: currentSession.value.id,
       role: 'user',
@@ -182,7 +183,7 @@ export const useChatStore = defineStore('chat', () => {
       citations: null,
       tokens: null,
       createdAt: new Date().toISOString(),
-    }
+    })
     messages.value.push(userMsg)
     const aiMsg = reactive<MessageVO>({
       id: 0,
@@ -204,6 +205,7 @@ export const useChatStore = defineStore('chat', () => {
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
         if (!sending.value) return
+        if (currentSession.value?.id !== sessionId) return // 会话已切换，停止旧轮询
         const res = await listMessages(sessionId)
         const msgs = res.data
         // 更新用户消息（识别后的问题）
@@ -282,6 +284,12 @@ export const useChatStore = defineStore('chat', () => {
   // 停止生成（同步模式下仅重置状态，无法中断已发出的后端请求）
   function stopGenerating() {
     sending.value = false
+    // 检查最后一条消息是否为空内容的 assistant 占位消息
+    const msgs = messages.value
+    const last = msgs[msgs.length - 1]
+    if (last && last.role === 'assistant' && !last.content) {
+      last.content = '已停止生成'
+    }
   }
 
   return {

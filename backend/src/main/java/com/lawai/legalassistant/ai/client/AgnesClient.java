@@ -1,5 +1,7 @@
 package com.lawai.legalassistant.ai.client;
 
+import com.lawai.legalassistant.common.exception.BusinessException;
+import com.lawai.legalassistant.common.result.ResultCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -9,7 +11,6 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
@@ -24,6 +25,7 @@ import java.util.List;
  * <p>
  * Agnes AI 兼容 OpenAI V1 协议，通过 Spring AI 的 OpenAI starter 接入。
  * 本类统一封装同步/流式对话与向量化调用，处理重试与降级。
+ * 所有异常统一抛出 BusinessException，错误码与全局规范一致。
  */
 @Component
 public class AgnesClient {
@@ -56,7 +58,7 @@ public class AgnesClient {
             return chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
         } catch (Exception e) {
             log.error("Agnes AI 同步调用失败", e);
-            throw new RuntimeException("AI 服务暂时不可用", e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "AI 服务暂时不可用", e);
         }
     }
 
@@ -81,7 +83,7 @@ public class AgnesClient {
             return chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
         } catch (Exception e) {
             log.error("Agnes AI 图片识别调用失败", e);
-            throw new RuntimeException("AI 图片识别服务暂时不可用", e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "AI 图片识别服务暂时不可用", e);
         }
     }
 
@@ -110,10 +112,15 @@ public class AgnesClient {
     public float[] embed(String text) {
         try {
             EmbeddingResponse response = embeddingModel.embedForResponse(List.of(text));
+            if (response.getResults().isEmpty()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "向量化返回空结果");
+            }
             return response.getResults().get(0).getOutput();
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Agnes AI 向量化失败", e);
-            throw new RuntimeException("文本向量化失败", e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "文本向量化失败", e);
         }
     }
 
@@ -131,7 +138,7 @@ public class AgnesClient {
                     .toList();
         } catch (Exception e) {
             log.error("Agnes AI 批量向量化失败", e);
-            throw new RuntimeException("批量向量化失败", e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "批量向量化失败", e);
         }
     }
 }

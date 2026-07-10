@@ -187,7 +187,7 @@ onMounted(() => loadTemplates())
             <span class="tpl-title" :title="tpl.title">{{ tpl.title }}</span>
           </div>
           <div class="tpl-card-tags">
-            <el-tag size="small" effect="light">{{ tpl.category }}</el-tag>
+            <el-tag size="small" effect="light" class="cat-tag">{{ tpl.category }}</el-tag>
             <span class="tpl-source" :title="tpl.source">来源：{{ tpl.source || '—' }}</span>
           </div>
           <div class="tpl-card-raw">{{ tpl.rawText?.slice(0, 80) }}{{ tpl.rawText?.length > 80 ? '…' : '' }}</div>
@@ -292,7 +292,7 @@ onMounted(() => loadTemplates())
     background: var(--color-bg);
   }
   &.active {
-    background: #eef3f8;
+    background: var(--color-accent-light);
     .cat-label {
       color: var(--color-primary);
       font-weight: 600;
@@ -325,7 +325,9 @@ onMounted(() => loadTemplates())
   .title {
     font-size: 16px;
     font-weight: 600;
+    font-family: var(--font-serif);
     color: var(--color-primary);
+    letter-spacing: -0.01em;
   }
 }
 .tpl-grid {
@@ -350,7 +352,7 @@ onMounted(() => loadTemplates())
   gap: 10px;
   transition: box-shadow 0.15s, transform 0.15s;
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(11, 37, 69, 0.06);
     transform: translateY(-2px);
   }
 }
@@ -362,6 +364,8 @@ onMounted(() => loadTemplates())
 .tpl-title {
   font-size: 15px;
   font-weight: 600;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -371,6 +375,11 @@ onMounted(() => loadTemplates())
   display: flex;
   align-items: center;
   gap: 8px;
+  :deep(.cat-tag) {
+    background: var(--color-accent-light);
+    color: var(--color-accent);
+    border-color: transparent;
+  }
 }
 .tpl-source {
   font-size: 12px;
@@ -380,15 +389,25 @@ onMounted(() => loadTemplates())
   text-overflow: ellipsis;
 }
 .tpl-card-raw {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12.5px;
+  line-height: 1.7;
   color: var(--color-text-regular);
+  font-family: var(--font-mono);
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
   flex: 1;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  &::before {
+    content: '\201C';
+    color: var(--color-accent);
+    margin-right: 2px;
+    opacity: 0.7;
+  }
 }
 .tpl-card-foot {
   display: flex;
@@ -399,13 +418,21 @@ onMounted(() => loadTemplates())
 .gen-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+}
+.gen-section {
+  display: flex;
+  flex-direction: column;
 }
 .gen-section-title {
   font-size: 14px;
   font-weight: 600;
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
   color: var(--color-primary);
-  margin-bottom: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
 }
 .gen-form {
   max-height: 280px;
@@ -414,17 +441,21 @@ onMounted(() => loadTemplates())
 }
 .gen-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 12px 14px;
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-card);
 }
 .gen-result {
   border-top: 1px solid var(--color-border);
-  padding-top: 16px;
+  padding-top: 18px;
 }
 .result-box {
   max-height: 360px;
   overflow-y: auto;
-  padding: 16px;
-  background: var(--color-bg);
+  padding: 16px 18px;
+  background: var(--color-bg-soft);
   border-radius: var(--radius-card);
   border: 1px solid var(--color-border);
 }

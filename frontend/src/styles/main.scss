@@ -148,6 +148,132 @@ a {
 // 空状态：禁止文本选中，避免误操作
 .el-empty {
   user-select: none;
+  .el-empty__description p {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+  }
+}
+
+// ===== 全局容器与标题 =====
+// 页面容器：统一内边距与最大宽度节奏
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+// 页面标题：衬线字体 + 墨蓝 + 底部古铜色短发丝线装饰
+.page-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-primary);
+  letter-spacing: -0.01em;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 32px;
+    height: 2px;
+    background: var(--color-accent);
+    border-radius: 1px;
+  }
+}
+
+// ===== Element Plus 组件精致覆盖 =====
+// 主按钮：墨蓝背景，hover 微微下沉感（translateY + 加深）
+.el-button--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: var(--transition-base);
+  &:hover,
+  &:focus {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary-light);
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(11, 37, 69, 0.08);
+  }
+  &:active {
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+  &.is-disabled,
+  &.is-disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+// 默认按钮：hover 微妙提升
+.el-button--default {
+  transition: var(--transition-base);
+  &:hover,
+  &:focus {
+    color: var(--color-primary);
+    border-color: var(--color-primary-soft);
+    background-color: var(--color-bg-soft);
+  }
+}
+
+// 文字按钮：hover 古铜色
+.el-button.is-text {
+  transition: var(--transition-base);
+  &:hover {
+    color: var(--color-accent);
+    background: transparent;
+  }
+}
+
+// 输入框 focus：古铜色边框 + 极轻光环
+.el-input__wrapper,
+.el-textarea__inner {
+  transition: var(--transition-base);
+}
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px rgba(140, 106, 63, 0.08) !important;
+}
+.el-input__wrapper.is-focus {
+  border-color: var(--color-accent) !important;
+}
+
+// 卡片统一过渡
+.el-card {
+  border-radius: var(--radius-card);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+}
+
+// 标签：更克制的圆角与颜色
+.el-tag {
+  border-radius: var(--radius-tag);
+  font-weight: 500;
+  font-size: 12px;
+  &.el-tag--info {
+    background-color: var(--color-accent-light);
+    border-color: var(--color-accent-light);
+    color: var(--color-accent);
+  }
+}
+
+// 下拉菜单：超弥散阴影
+.el-dropdown-menu {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-popover);
+  border-color: var(--color-border);
+}
+
+// 消息提示：圆角统一
+.el-message {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-popover);
 }
 
 // 无障碍：尊重 reduced-motion

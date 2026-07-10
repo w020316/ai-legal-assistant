@@ -1,8 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPersistedstate from 'pinia-plugin-persistedstate'
-import ElementPlus from 'element-plus'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 import 'highlight.js/styles/github.css'
 import 'katex/dist/katex.min.css'
@@ -17,6 +15,5 @@ pinia.use(piniaPersistedstate)
 
 app.use(pinia)
 app.use(router)
-app.use(ElementPlus, { locale: zhCn })
 
 app.mount('#app')

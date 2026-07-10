@@ -102,7 +102,9 @@ onMounted(() => {
       <div ref="scrollRef" class="message-stream">
         <!-- 空状态引导 -->
         <div v-if="!chatStore.hasSession" class="empty-state">
-          <el-icon :size="48" color="#8C6A3F"><Reading /></el-icon>
+          <span class="empty-icon-badge">
+            <el-icon :size="36" color="#8C6A3F"><Reading /></el-icon>
+          </span>
           <h2>开始您的法律问答</h2>
           <p>面向法律从业者的智能问答平台，基于权威语料检索增强</p>
           <p class="hint">点击下方按钮，开始您的第一次咨询</p>
@@ -116,8 +118,14 @@ onMounted(() => {
           <div v-if="chatStore.messages.length === 0" class="suggestions">
             <div class="suggestions-title">您可以直接提问，或试试以下问题：</div>
             <div class="suggestion-grid">
-              <div v-for="s in suggestions" :key="s" class="suggestion-card" @click="handleSuggestion(s)">
-                {{ s }}
+              <div
+                v-for="(s, i) in suggestions"
+                :key="s"
+                class="suggestion-card"
+                @click="handleSuggestion(s)"
+              >
+                <span class="suggestion-index">{{ i + 1 }}</span>
+                <span class="suggestion-text">{{ s }}</span>
               </div>
             </div>
           </div>
@@ -173,25 +181,30 @@ onMounted(() => {
   padding: 24px 32px;
 }
 .msg-list {
-  max-width: 880px;
+  max-width: 800px;
   margin: 0 auto;
 }
 .suggestions {
-  max-width: 680px;
-  margin: 40px auto;
+  max-width: 720px;
+  margin: 48px auto;
 }
 .suggestions-title {
+  font-family: var(--font-serif);
   font-size: 14px;
   color: var(--color-text-secondary);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   text-align: center;
 }
+// 2 列锯齿网格（非等宽）：奇偶列宽度不等 + 偶数项下沉形成锯齿节奏
 .suggestion-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 12px 16px;
 }
 .suggestion-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 14px 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
@@ -199,12 +212,36 @@ onMounted(() => {
   cursor: pointer;
   font-size: 13px;
   color: var(--color-text-regular);
+  line-height: 1.55;
   transition: var(--transition-base);
-  &:hover {
-    border-color: var(--color-primary-soft);
-    color: var(--color-primary);
-    box-shadow: var(--shadow-card);
+  // 偶数项下沉，形成锯齿错落
+  &:nth-child(even) {
+    margin-top: 20px;
   }
+  &:hover {
+    border-color: var(--color-accent);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+}
+.suggestion-index {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 500;
+}
+.suggestion-text {
+  flex: 1;
 }
 .empty-state {
   height: 100%;
@@ -215,8 +252,17 @@ onMounted(() => {
   color: var(--color-text-regular);
   text-align: center;
   user-select: none;
+  .empty-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-light);
+  }
   h2 {
-    margin: 20px 0 8px;
+    margin: 24px 0 8px;
     font-family: var(--font-serif);
     font-size: 24px;
     font-weight: 600;
