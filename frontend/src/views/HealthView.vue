@@ -5,6 +5,20 @@ import { getHealth } from '@/api'
 const loading = ref(false)
 const healthInfo = ref<{ status: string; service: string; timestamp: string } | null>(null)
 
+// 时间戳格式化：ISO 时间戳转为本地时间 yyyy-MM-dd HH:mm:ss
+function formatTimestamp(timestamp: string): string {
+  if (!timestamp) return '—'
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
 async function fetchHealth() {
   loading.value = true
   try {
@@ -27,12 +41,15 @@ onMounted(fetchHealth)
           <el-button :loading="loading" size="small" @click="fetchHealth">刷新</el-button>
         </div>
       </template>
-      <el-descriptions v-if="healthInfo" :column="1" border>
+      <el-skeleton v-if="loading && !healthInfo" :rows="4" animated />
+      <el-descriptions v-else-if="healthInfo" :column="1" border>
         <el-descriptions-item label="服务状态">
           <el-tag type="success">{{ healthInfo.status }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="服务名称">{{ healthInfo.service }}</el-descriptions-item>
-        <el-descriptions-item label="时间戳">{{ healthInfo.timestamp }}</el-descriptions-item>
+        <el-descriptions-item label="时间戳">{{ formatTimestamp(healthInfo.timestamp) }}</el-descriptions-item>
+        <el-descriptions-item label="当前用户">admin</el-descriptions-item>
+        <el-descriptions-item label="版本号">v1.0.0</el-descriptions-item>
       </el-descriptions>
       <el-empty v-else description="暂无数据" />
     </el-card>

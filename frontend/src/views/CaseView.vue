@@ -23,9 +23,9 @@ const courtLevelOptions = [
   '基层人民法院',
 ]
 
-// 年份选项（近 6 年）
+// 年份选项（当前年份到 2015 年，不包含未来年份）
 const currentYear = new Date().getFullYear()
-const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i)
+const yearOptions = Array.from({ length: currentYear - 2015 + 1 }, (_, i) => currentYear - i)
 
 // 搜索表单
 const form = reactive<CaseSearchRequest>({
@@ -110,6 +110,7 @@ onMounted(handleSearch)
       <el-button type="primary" :loading="loading" @click="handleSearch">搜索</el-button>
       <el-button @click="handleReset">重置</el-button>
     </div>
+    <div class="search-hint">提示：输入关键词可进行语义检索，或按案由/法院/年份筛选</div>
 
     <!-- 案例列表 -->
     <div class="case-list-wrap">
@@ -134,7 +135,7 @@ onMounted(handleSearch)
 
         <el-empty
           v-if="!loading && searched && cases.length === 0"
-          description="未找到相关案例，请调整搜索条件"
+          description="未找到相关案例，试试调整搜索条件或清除筛选"
         />
       </div>
     </div>
@@ -192,6 +193,11 @@ onMounted(handleSearch)
 }
 .year-item {
   width: 120px;
+}
+.search-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 0 20px 8px;
 }
 
 /* 列表 */

@@ -53,15 +53,22 @@ function handleKeydown(e: Event | KeyboardEvent) {
     <div class="toolbar">
       <span class="counter">{{ input.length }} / {{ maxLen }}</span>
       <div class="btn-group">
-        <el-button
+        <el-tooltip
           v-if="!sending"
-          type="primary"
-          :icon="Promotion"
-          :disabled="!canSend"
-          @click="handleSend"
+          content="请先新建或选择会话"
+          :disabled="!disabled"
+          placement="top"
         >
-          发送
-        </el-button>
+          <el-button
+            type="primary"
+            :icon="Promotion"
+            :disabled="!canSend"
+            :class="{ disabled: disabled }"
+            @click="handleSend"
+          >
+            发送
+          </el-button>
+        </el-tooltip>
         <el-button v-else type="danger" :icon="VideoPause" @click="emit('stop')">停止生成</el-button>
       </div>
     </div>
@@ -103,6 +110,10 @@ function handleKeydown(e: Event | KeyboardEvent) {
 .btn-group {
   display: flex;
   gap: 8px;
+  :deep(.el-button.disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 .disclaimer {
   margin-top: 8px;

@@ -5,7 +5,7 @@ import type { SessionVO } from '@/api'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageItem from '@/components/chat/MessageItem.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
-import { ChatDotRound } from '@element-plus/icons-vue'
+import { Reading } from '@element-plus/icons-vue'
 
 const chatStore = useChatStore()
 const scrollRef = ref<HTMLElement>()
@@ -79,10 +79,13 @@ onMounted(() => {
       <div ref="scrollRef" class="message-stream">
         <!-- 空状态引导 -->
         <div v-if="!chatStore.hasSession" class="empty-state">
-          <el-icon :size="48" color="#8C6A3F"><ChatDotRound /></el-icon>
+          <el-icon :size="48" color="#8C6A3F"><Reading /></el-icon>
           <h2>开始您的法律问答</h2>
           <p>面向法律从业者的智能问答平台，基于权威语料检索增强</p>
-          <p class="hint">请选择左侧会话，或点击「新建」开始对话</p>
+          <p class="hint">点击下方按钮，开始您的第一次咨询</p>
+          <el-button type="primary" size="large" class="create-btn" @click="handleCreate">
+            新建对话
+          </el-button>
         </div>
         <!-- 消息列表 -->
         <div v-else class="msg-list">
@@ -146,6 +149,7 @@ onMounted(() => {
   justify-content: center;
   color: var(--color-text-regular);
   text-align: center;
+  user-select: none;
   h2 {
     margin: 20px 0 8px;
     font-family: var(--font-serif);
@@ -162,6 +166,9 @@ onMounted(() => {
     margin-top: 16px;
     color: var(--color-text-secondary);
     font-size: 13px;
+  }
+  .create-btn {
+    margin-top: 24px;
   }
 }
 </style>

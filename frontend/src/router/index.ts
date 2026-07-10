@@ -60,6 +60,7 @@ const router = createRouter({
 
 // 路由守卫：未登录跳转登录页
 router.beforeEach((to, _from, next) => {
+  document.body.style.cursor = 'wait'
   const userStore = useUserStore()
   document.title = `${to.meta.title || ''} - AI 法律助手`
   if (to.meta.public || userStore.isLogin) {
@@ -67,6 +68,11 @@ router.beforeEach((to, _from, next) => {
   } else {
     next({ name: 'Login', query: { redirect: to.fullPath } })
   }
+})
+
+// 路由后置钩子：恢复光标
+router.afterEach(() => {
+  document.body.style.cursor = 'default'
 })
 
 export default router

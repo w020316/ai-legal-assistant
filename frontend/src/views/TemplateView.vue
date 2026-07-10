@@ -22,6 +22,8 @@ const categories = [
 const activeCategory = ref('')
 const templates = ref<TemplateVO[]>([])
 const loading = ref(false)
+// 分类缓存：key 为分类字符串（空串表示全部）
+const cacheMap = ref(new Map<string, TemplateVO[]>())
 
 // 生成对话框
 const genDialogVisible = ref(false)
@@ -40,12 +42,18 @@ function categoryCount(key: string): number {
   return templates.value.filter((t) => t.category === key).length
 }
 
-// 加载模板列表
-async function loadTemplates(category?: string) {
+// 加载模板列表（force=true 时强制重新加载，忽略缓存）
+async function loadTemplates(category?: string, force = false) {
+  const cacheKey = category || ''
+  if (!force && cacheMap.value.has(cacheKey)) {
+    templates.value = cacheMap.value.get(cacheKey) || []
+    return
+  }
   loading.value = true
   try {
     const res = await listTemplates(category)
     templates.value = res.data || []
+    cacheMap.value.set(cacheKey, templates.value)
   } finally {
     loading.value = false
   }
@@ -155,7 +163,12 @@ onMounted(() => loadTemplates())
           @click="handleSelectCategory(c.key)"
         >
           <span class="cat-label">{{ c.label }}</span>
-          <el-tag size="small" round effect="plain">{{ categoryCount(c.key) }}</el-tag>
+          <el-tag
+            size="small"
+            round
+            effect="plain"
+            :type="categoryCount(c.key) === 0 ? 'info' : undefined"
+          >{{ categoryCount(c.key) }}</el-tag>
         </div>
       </div>
     </div>
@@ -164,7 +177,7 @@ onMounted(() => loadTemplates())
     <div class="tpl-panel">
       <div class="tpl-panel-header">
         <span class="title">{{ categories.find((c) => c.key === activeCategory)?.label || '全部' }}模板</span>
-        <el-button :loading="loading" size="small" @click="loadTemplates(activeCategory || undefined)">刷新</el-button>
+        <el-button :loading="loading" size="small" @click="loadTemplates(activeCategory || undefined, true)">刷新</el-button>
       </div>
 
       <div v-loading="loading" class="tpl-grid">
@@ -185,7 +198,8 @@ onMounted(() => loadTemplates())
 
         <el-empty
           v-if="!loading && filteredTemplates.length === 0"
-          description="暂无模板"
+          description="该分类暂无模板，敬请期待"
+          :image-size="80"
           class="grid-empty"
         />
       </div>
