@@ -6,7 +6,6 @@ import com.lawai.legalassistant.ai.client.AgnesClient;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
-import com.lawai.legalassistant.common.sse.SseHelper;
 import com.lawai.legalassistant.modules.chat.dto.MessageVO;
 import com.lawai.legalassistant.modules.chat.dto.SessionVO;
 import com.lawai.legalassistant.modules.chat.entity.ChatMessage;
@@ -18,7 +17,6 @@ import com.lawai.legalassistant.modules.rag.service.RagService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -145,105 +143,65 @@ public class ChatService {
     }
 
     /**
-     * 发送消息（核心方法，流式输出）
+     * 发送消息（同步模式）
      * <p>
-     * 流程：保存用户消息 → 加载历史 → RAG 检索 → 构造 Prompt → 流式输出 → 保存 AI 消息。
-     * 所有错误通过 SSE error 事件返回，避免内容协商问题。
+     * 流程：保存用户消息 → 加载历史 → RAG 检索 → 构造 Prompt → 同步调用 AI → 保存 AI 消息。
+     * 返回完整的 AI 回复（含引用来源），前端用 loading 等待。
+     * 不使用 SSE，避免 Fly.io proxy 缓冲流式响应导致客户端收不到数据。
      *
-     * @param userId    用户 ID（可能为 null，未登录）
+     * @param userId    用户 ID
      * @param sessionId 会话 ID
      * @param content   用户消息内容
-     * @return SseEmitter
+     * @return AI 回复消息 VO
      */
-    public SseEmitter sendMessage(Long userId, Long sessionId, String content) {
-        SseEmitter emitter = SseHelper.create();
-
+    public MessageVO sendMessageSync(Long userId, Long sessionId, String content) {
         // 校验登录
         if (userId == null) {
-            SseHelper.send(emitter, SseHelper.EVENT_ERROR,
-                    Map.of("code", ResultCode.UNAUTHORIZED, "message", "请先登录"));
-            SseHelper.complete(emitter);
-            return emitter;
+            throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
         }
         // 校验内容
         if (content == null || content.isBlank()) {
-            SseHelper.send(emitter, SseHelper.EVENT_ERROR,
-                    Map.of("code", ResultCode.PARAM_ERROR, "message", "消息内容不能为空"));
-            SseHelper.complete(emitter);
-            return emitter;
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "消息内容不能为空");
         }
         // 校验会话
-        try {
-            getSession(userId, sessionId);
-        } catch (BusinessException e) {
-            SseHelper.send(emitter, SseHelper.EVENT_ERROR,
-                    Map.of("code", e.getCode(), "message", e.getMessage()));
-            SseHelper.complete(emitter);
-            return emitter;
-        }
+        getSession(userId, sessionId);
 
-        try {
-            // 1. 加载近 6 轮历史（在保存当前用户消息前加载，避免包含当前问题）
-            List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
-            Collections.reverse(recent);
-            String history = buildHistory(recent);
+        // 1. 加载近 6 轮历史（在保存当前用户消息前加载，避免包含当前问题）
+        List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
+        Collections.reverse(recent);
+        String history = buildHistory(recent);
 
-            // 2. 保存用户消息
-            ChatMessage userMsg = new ChatMessage();
-            userMsg.setSessionId(sessionId);
-            userMsg.setRole("user");
-            userMsg.setContent(content);
-            messageMapper.insertMessage(userMsg);
-            touchSession(sessionId);
+        // 2. 保存用户消息
+        ChatMessage userMsg = new ChatMessage();
+        userMsg.setSessionId(sessionId);
+        userMsg.setRole("user");
+        userMsg.setContent(content);
+        messageMapper.insertMessage(userMsg);
+        touchSession(sessionId);
 
-            // 3. RAG 检索 Top5
-            List<RetrievedChunk> chunks = ragService.retrieve(content, RAG_TOP_K);
-            String context = buildContext(chunks);
-            String citationsJson = buildCitationsJson(chunks);
+        // 3. RAG 检索 Top5
+        List<RetrievedChunk> chunks = ragService.retrieve(content, RAG_TOP_K);
+        String context = buildContext(chunks);
+        String citationsJson = buildCitationsJson(chunks);
 
-            // 4. 构造 Prompt
-            String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
-                    Map.of("context", context, "history", history, "question", content));
+        // 4. 构造 Prompt
+        String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
+                Map.of("context", context, "history", history, "question", content));
 
-            // 5. 先推送引用来源
-            SseHelper.send(emitter, SseHelper.EVENT_CITATIONS,
-                    Map.of("citations", chunks));
+        // 5. 同步调用 AI
+        String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
 
-            // 6. 流式输出
-            StringBuilder fullContent = new StringBuilder();
-            agnesClient.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
-                    .subscribe(
-                            token -> {
-                                fullContent.append(token);
-                                SseHelper.send(emitter, SseHelper.EVENT_TOKEN,
-                                        Map.of("content", token));
-                            },
-                            error -> {
-                                log.error("AI 流式输出失败", error);
-                                SseHelper.send(emitter, SseHelper.EVENT_ERROR,
-                                        Map.of("code", ResultCode.AI_SERVICE_ERROR, "message", "AI 服务暂时不可用"));
-                                // 保存已生成的部分内容
-                                if (fullContent.length() > 0) {
-                                    saveAssistantMessage(sessionId, fullContent.toString(), citationsJson);
-                                }
-                                SseHelper.complete(emitter);
-                            },
-                            () -> {
-                                // 7. 流结束，保存 AI 消息
-                                Long msgId = saveAssistantMessage(sessionId, fullContent.toString(), citationsJson);
-                                SseHelper.send(emitter, SseHelper.EVENT_DONE,
-                                        Map.of("messageId", msgId != null ? msgId : 0,
-                                                "tokens", fullContent.length()));
-                                SseHelper.complete(emitter);
-                            }
-                    );
-        } catch (Exception e) {
-            log.error("发送消息处理失败", e);
-            SseHelper.send(emitter, SseHelper.EVENT_ERROR,
-                    Map.of("code", ResultCode.UNKNOWN, "message", "处理失败，请重试"));
-            SseHelper.complete(emitter);
-        }
-        return emitter;
+        // 6. 保存 AI 消息
+        Long msgId = saveAssistantMessage(sessionId, aiContent, citationsJson);
+
+        // 7. 构造返回 VO
+        MessageVO vo = new MessageVO();
+        vo.setId(msgId);
+        vo.setRole("assistant");
+        vo.setContent(aiContent);
+        vo.setCitations(citationsJson);
+        vo.setCreatedAt(Instant.now());
+        return vo;
     }
 
     /**

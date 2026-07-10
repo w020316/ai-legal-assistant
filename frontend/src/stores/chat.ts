@@ -7,10 +7,9 @@ import {
   updateSession,
   deleteSession,
   listMessages,
-  sendMessageStream,
+  sendMessage as sendMessageApi,
   type SessionVO,
   type MessageVO,
-  type Citation,
 } from '@/api'
 
 export const useChatStore = defineStore('chat', () => {
@@ -20,10 +19,8 @@ export const useChatStore = defineStore('chat', () => {
   const currentSession = ref<SessionVO | null>(null)
   // 当前会话消息列表
   const messages = ref<MessageVO[]>([])
-  // 是否正在发送（流式生成中）
+  // 是否正在发送（等待 AI 回复中）
   const sending = ref(false)
-  // 中断控制器（用于停止生成）
-  let abortController: AbortController | null = null
 
   // 是否有选中会话
   const hasSession = computed(() => !!currentSession.value)
@@ -99,9 +96,9 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // 流式接收 AI 回复（内部方法）
-  // 用 reactive 创建 AI 消息，确保流式追加内容时触发响应式更新
-  async function streamAssistant(content: string) {
+  // 同步获取 AI 回复（内部方法）
+  // 使用 reactive 创建 AI 消息占位，请求完成后一次性填充内容
+  async function fetchAssistantReply(content: string) {
     if (!currentSession.value) return
     const sessionId = currentSession.value.id
     const aiMsg = reactive<MessageVO>({
@@ -115,50 +112,26 @@ export const useChatStore = defineStore('chat', () => {
     })
     messages.value.push(aiMsg)
     sending.value = true
-    abortController = new AbortController()
     try {
-      await sendMessageStream(
-        sessionId,
-        content,
-        {
-          onToken: (t) => {
-            aiMsg.content += t
-          },
-          onCitations: (c: Citation[]) => {
-            aiMsg.citations = c
-          },
-          onDone: (data) => {
-            aiMsg.id = data.messageId
-            aiMsg.tokens = data.tokens
-          },
-          onError: (err) => {
-            ElMessage.error(err.message)
-            // AI 消息为空时移除占位消息
-            if (!aiMsg.content) {
-              const idx = messages.value.lastIndexOf(aiMsg)
-              if (idx >= 0) messages.value.splice(idx, 1)
-            }
-          },
-        },
-        abortController.signal,
-      )
+      const res = await sendMessageApi(sessionId, content)
+      aiMsg.id = res.data.id
+      aiMsg.content = res.data.content
+      aiMsg.citations = res.data.citations
+      aiMsg.tokens = res.data.tokens
+      aiMsg.createdAt = res.data.createdAt
     } catch (e) {
-      // 中断或网络错误
-      if ((e as Error).name !== 'AbortError') {
-        ElMessage.error('发送失败，请重试')
-      }
-      // 中断时若 AI 消息为空，移除占位
+      ElMessage.error('发送失败，请重试')
+      // AI 消息为空时移除占位消息
       if (!aiMsg.content) {
         const idx = messages.value.lastIndexOf(aiMsg)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
     } finally {
       sending.value = false
-      abortController = null
     }
   }
 
-  // 发送消息（插入用户消息 + 流式请求 AI 回复）
+  // 发送消息（插入用户消息 + 同步请求 AI 回复）
   async function sendMessage(content: string) {
     if (!currentSession.value || sending.value) return
     const userMsg: MessageVO = {
@@ -171,7 +144,7 @@ export const useChatStore = defineStore('chat', () => {
       createdAt: new Date().toISOString(),
     }
     messages.value.push(userMsg)
-    await streamAssistant(content)
+    await fetchAssistantReply(content)
   }
 
   // 重新生成最后一条 AI 回复
@@ -192,16 +165,12 @@ export const useChatStore = defineStore('chat', () => {
     if (msgs.length > lastUserIdx + 1 && msgs[msgs.length - 1].role === 'assistant') {
       msgs.splice(msgs.length - 1, 1)
     }
-    await streamAssistant(content)
+    await fetchAssistantReply(content)
   }
 
-  // 停止生成
+  // 停止生成（同步模式下仅重置状态，无法中断已发出的后端请求）
   function stopGenerating() {
-    if (abortController) {
-      abortController.abort()
-      abortController = null
-      sending.value = false
-    }
+    sending.value = false
   }
 
   return {

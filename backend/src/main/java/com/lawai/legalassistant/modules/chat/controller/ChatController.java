@@ -11,9 +11,7 @@ import com.lawai.legalassistant.modules.chat.dto.SessionVO;
 import com.lawai.legalassistant.modules.chat.dto.UpdateSessionRequest;
 import com.lawai.legalassistant.modules.chat.entity.ChatSession;
 import com.lawai.legalassistant.modules.chat.service.ChatService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +20,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -100,21 +97,14 @@ public class ChatController {
     }
 
     /**
-     * 发送消息（SSE 流式输出）
+     * 发送消息（同步模式）
      * <p>
-     * 事件类型：token / citations / done / error，对应设计方案 4.5 节。
-     * 注意：错误通过 SSE error 事件返回，不抛异常以免与 text/event-stream 内容协商冲突。
+     * 返回完整的 AI 回复（含引用来源）。不使用 SSE，避免 Fly.io proxy 缓冲流式响应。
      */
-    @PostMapping(value = "/{id}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req,
-                                  HttpServletResponse response) {
-        // 禁止代理缓冲 SSE 流式响应，确保 token 实时推送到客户端
-        response.setHeader("X-Accel-Buffering", "no");
-        response.setHeader("Cache-Control", "no-cache");
-        response.setHeader("Connection", "keep-alive");
-        // 登录态在 Service 内通过 SSE error 事件处理，避免内容协商问题
-        Long userId = SecurityUtil.getCurrentUserId();
-        return chatService.sendMessage(userId, id, req.getContent());
+    @PostMapping("/{id}/messages")
+    public Result<MessageVO> sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
+        Long userId = requireLogin();
+        return Result.success(chatService.sendMessageSync(userId, id, req.getContent()));
     }
 
     /**
