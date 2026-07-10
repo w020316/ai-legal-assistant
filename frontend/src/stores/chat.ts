@@ -6,8 +6,10 @@ import {
   createSession,
   updateSession,
   deleteSession,
+  deleteSessions,
   listMessages,
   sendMessage as sendMessageApi,
+  sendMessageWithImage,
   type SessionVO,
   type MessageVO,
 } from '@/api'
@@ -98,6 +100,20 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // 批量删除会话
+  async function removeSessions(ids: number[]) {
+    try {
+      await deleteSessions(ids)
+      sessionList.value = sessionList.value.filter((s) => !ids.includes(s.id))
+      if (currentSession.value && ids.includes(currentSession.value.id)) {
+        currentSession.value = null
+        messages.value = []
+      }
+    } catch {
+      // 错误已处理
+    }
+  }
+
   // 异步获取 AI 回复（轮询模式）
   // POST 立即返回用户消息 ID，后台异步调用 AI，前端轮询消息列表获取回复
   async function fetchAssistantReply(content: string) {
@@ -130,6 +146,8 @@ export const useChatStore = defineStore('chat', () => {
         if (lastAssistant && lastAssistant.content) {
           aiMsg.id = lastAssistant.id
           aiMsg.content = lastAssistant.content
+          // AI 回复成功后刷新会话列表（获取自动命名的标题）
+          loadSessions()
           aiMsg.citations = lastAssistant.citations
           aiMsg.tokens = lastAssistant.tokens
           aiMsg.createdAt = lastAssistant.createdAt
@@ -146,6 +164,78 @@ export const useChatStore = defineStore('chat', () => {
       if (!aiMsg.content) {
         const idx = messages.value.lastIndexOf(aiMsg)
         if (idx >= 0) messages.value.splice(idx, 1)
+      }
+    } finally {
+      sending.value = false
+    }
+  }
+
+  // 发送图片消息
+  async function sendImageMessage(file: File) {
+    if (!currentSession.value || sending.value) return
+    // 添加占位消息
+    const userMsg: MessageVO = {
+      id: 0,
+      sessionId: currentSession.value.id,
+      role: 'user',
+      content: '📷 [图片识别中...]',
+      citations: null,
+      tokens: null,
+      createdAt: new Date().toISOString(),
+    }
+    messages.value.push(userMsg)
+    const aiMsg = reactive<MessageVO>({
+      id: 0,
+      sessionId: currentSession.value.id,
+      role: 'assistant',
+      content: '',
+      citations: null,
+      tokens: null,
+      createdAt: new Date().toISOString(),
+    })
+    messages.value.push(aiMsg)
+    sending.value = true
+    try {
+      const sessionId = currentSession.value.id
+      await sendMessageWithImage(sessionId, file)
+      // 轮询消息列表
+      const maxAttempts = 60
+      const interval = 2000
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => setTimeout(resolve, interval))
+        if (!sending.value) return
+        const res = await listMessages(sessionId)
+        const msgs = res.data
+        // 更新用户消息（识别后的问题）
+        const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
+        if (lastUser && !lastUser.content.includes('[图片消息]')) {
+          userMsg.content = lastUser.content
+        }
+        // 查找 AI 回复
+        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
+        if (lastAssistant && lastAssistant.content) {
+          aiMsg.id = lastAssistant.id
+          aiMsg.content = lastAssistant.content
+          aiMsg.citations = lastAssistant.citations
+          aiMsg.tokens = lastAssistant.tokens
+          aiMsg.createdAt = lastAssistant.createdAt
+          break
+        }
+      }
+      if (!aiMsg.content) {
+        aiMsg.content = '图片识别超时，请稍后重试。'
+      }
+      // 刷新会话列表（获取自动命名的标题）
+      loadSessions()
+    } catch (e) {
+      ElMessage.error('图片上传失败，请重试')
+      if (!aiMsg.content) {
+        const idx = messages.value.lastIndexOf(aiMsg)
+        if (idx >= 0) messages.value.splice(idx, 1)
+      }
+      if (messages.value.lastIndexOf(userMsg) >= 0 && userMsg.content.includes('[图片')) {
+        const uIdx = messages.value.lastIndexOf(userMsg)
+        if (uIdx >= 0) messages.value.splice(uIdx, 1)
       }
     } finally {
       sending.value = false
@@ -206,7 +296,9 @@ export const useChatStore = defineStore('chat', () => {
     renameSession,
     toggleStar,
     removeSession,
+    removeSessions,
     sendMessage,
+    sendImageMessage,
     regenerate,
     stopGenerating,
   }

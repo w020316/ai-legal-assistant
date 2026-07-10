@@ -15,9 +15,60 @@ const emit = defineEmits<{
   (e: 'rename', id: number, title: string): void
   (e: 'toggleStar', session: SessionVO): void
   (e: 'delete', id: number): void
+  (e: 'batchDelete', ids: number[]): void
 }>()
 
 const keyword = ref('')
+
+// 多选模式
+const multiSelectMode = ref(false)
+const selectedIds = ref<Set<number>>(new Set())
+const isAllChecked = computed(() => {
+  const list = filtered.value
+  return list.length > 0 && selectedIds.value.size === list.length
+})
+
+function toggleMultiSelect() {
+  multiSelectMode.value = !multiSelectMode.value
+  if (!multiSelectMode.value) {
+    selectedIds.value = new Set()
+  }
+}
+
+function toggleSelect(id: number) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  // 触发响应式更新
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function toggleSelectAll() {
+  if (isAllChecked.value) {
+    selectedIds.value = new Set()
+  } else {
+    selectedIds.value = new Set(filtered.value.map((s) => s.id))
+  }
+}
+
+async function handleBatchDelete() {
+  if (selectedIds.value.size === 0) return
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.size} 个会话吗？此操作不可恢复。`, '批量删除确认', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--danger',
+    })
+    emit('batchDelete', [...selectedIds.value])
+    selectedIds.value = new Set()
+    multiSelectMode.value = false
+  } catch {
+    // 用户取消
+  }
+}
 
 // 按关键词过滤
 const filtered = computed(() => {
@@ -89,10 +140,25 @@ async function handleDelete(session: SessionVO) {
 
 <template>
   <div class="session-list">
-    <!-- 搜索 + 新建 -->
+    <!-- 搜索 + 新建 + 批量操作 -->
     <div class="top-bar">
-      <el-input v-model="keyword" placeholder="搜索会话" :prefix-icon="Search" clearable size="small" />
-      <el-button type="primary" :icon="Plus" size="small" @click="emit('create')">新建</el-button>
+      <el-input v-if="!multiSelectMode" v-model="keyword" placeholder="搜索会话" :prefix-icon="Search" clearable size="small" />
+      <span v-else class="select-info">已选 {{ selectedIds.size }} 项</span>
+      <div class="top-actions">
+        <template v-if="!multiSelectMode">
+          <el-button size="small" @click="toggleMultiSelect">批量</el-button>
+          <el-button type="primary" :icon="Plus" size="small" @click="emit('create')">新建</el-button>
+        </template>
+        <template v-else>
+          <el-button size="small" @click="toggleSelectAll">
+            {{ isAllChecked ? '取消全选' : '全选' }}
+          </el-button>
+          <el-button type="danger" size="small" :disabled="selectedIds.size === 0" @click="handleBatchDelete">
+            删除选中
+          </el-button>
+          <el-button size="small" @click="toggleMultiSelect">退出</el-button>
+        </template>
+      </div>
     </div>
     <!-- 列表 -->
     <div class="list-scroll">
@@ -103,14 +169,21 @@ async function handleDelete(session: SessionVO) {
           v-for="s in starredList"
           :key="s.id"
           class="item"
-          :class="{ active: s.id === currentId }"
-          @click="emit('select', s)"
+          :class="{ active: s.id === currentId, selected: selectedIds.has(s.id) }"
+          @click="multiSelectMode ? toggleSelect(s.id) : emit('select', s)"
         >
           <div class="item-main">
+            <el-checkbox
+              v-if="multiSelectMode"
+              :model-value="selectedIds.has(s.id)"
+              @change="toggleSelect(s.id)"
+              @click.stop
+              size="small"
+            />
             <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><StarFilled /></el-icon>
             <span class="title">{{ s.title }}</span>
           </div>
-          <div class="item-actions">
+          <div v-if="!multiSelectMode" class="item-actions">
             <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
             <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
           </div>
@@ -124,14 +197,21 @@ async function handleDelete(session: SessionVO) {
             v-for="s in g.items"
             :key="s.id"
             class="item"
-            :class="{ active: s.id === currentId }"
-            @click="emit('select', s)"
+            :class="{ active: s.id === currentId, selected: selectedIds.has(s.id) }"
+            @click="multiSelectMode ? toggleSelect(s.id) : emit('select', s)"
           >
             <div class="item-main">
+              <el-checkbox
+                v-if="multiSelectMode"
+                :model-value="selectedIds.has(s.id)"
+                @change="toggleSelect(s.id)"
+                @click.stop
+                size="small"
+              />
               <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><Star /></el-icon>
               <span class="title">{{ s.title }}</span>
             </div>
-            <div class="item-actions">
+            <div v-if="!multiSelectMode" class="item-actions">
               <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
               <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
             </div>
@@ -155,6 +235,19 @@ async function handleDelete(session: SessionVO) {
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid var(--color-border);
+}
+.top-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.select-info {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 32px;
+}
+.item.selected {
+  background: var(--color-primary-soft);
 }
 .list-scroll {
   flex: 1;

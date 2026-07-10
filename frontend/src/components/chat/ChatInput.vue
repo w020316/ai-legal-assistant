@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Promotion, VideoPause, Loading } from '@element-plus/icons-vue'
+import { Promotion, VideoPause, Loading, Picture } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
   sending: boolean
   disabled?: boolean
+  imageEnabled?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'send', content: string): void
   (e: 'stop'): void
+  (e: 'uploadImage', file: File): void
 }>()
 
 const input = ref('')
@@ -59,6 +62,32 @@ function handleKeydown(e: Event | KeyboardEvent) {
     handleSend()
   }
 }
+
+const imageInput = ref<HTMLInputElement | null>(null)
+
+function triggerImageUpload() {
+  if (props.disabled || props.sending) return
+  imageInput.value?.click()
+}
+
+function handleImageChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  // 校验文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+  // 校验文件大小（限制 10MB）
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 10MB')
+    return
+  }
+  emit('uploadImage', file)
+  // 重置 input 以便重复选择同一文件
+  target.value = ''
+}
 </script>
 
 <template>
@@ -80,7 +109,18 @@ function handleKeydown(e: Event | KeyboardEvent) {
       />
     </div>
     <div class="toolbar">
-      <span class="counter">{{ input.length }} / {{ maxLen }}</span>
+      <div class="toolbar-left">
+        <el-tooltip content="上传图片识别法律问题" placement="top">
+          <el-button
+            :icon="Picture"
+            circle
+            size="small"
+            :disabled="disabled || sending"
+            @click="triggerImageUpload"
+          />
+        </el-tooltip>
+        <span class="counter">{{ input.length }} / {{ maxLen }}</span>
+      </div>
       <div class="btn-group">
         <el-tooltip
           v-if="!sending"
@@ -101,6 +141,13 @@ function handleKeydown(e: Event | KeyboardEvent) {
         <el-button v-else type="danger" :icon="VideoPause" @click="emit('stop')">停止生成</el-button>
       </div>
     </div>
+    <input
+      ref="imageInput"
+      type="file"
+      accept="image/*"
+      style="display: none"
+      @change="handleImageChange"
+    />
     <div class="disclaimer">本回答由 AI 生成，仅供参考，不构成法律意见。</div>
   </div>
 </template>
@@ -151,6 +198,11 @@ function handleKeydown(e: Event | KeyboardEvent) {
   align-items: center;
   justify-content: space-between;
   margin-top: 10px;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .counter {
   font-family: var(--font-mono);

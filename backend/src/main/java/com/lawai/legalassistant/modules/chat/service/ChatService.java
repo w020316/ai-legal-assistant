@@ -128,6 +128,20 @@ public class ChatService {
     }
 
     /**
+     * 批量删除会话
+     */
+    public void deleteSessions(Long userId, List<Long> sessionIds) {
+        for (Long id : sessionIds) {
+            try {
+                getSession(userId, id);
+                sessionMapper.deleteById(id);
+            } catch (Exception e) {
+                log.warn("批量删除会话跳过: id={}, {}", id, e.getMessage());
+            }
+        }
+    }
+
+    /**
      * 消息历史（按时间正序）
      */
     public List<MessageVO> listMessages(Long userId, Long sessionId) {
@@ -206,6 +220,89 @@ public class ChatService {
                 log.error("异步 AI 调用失败: sessionId={}", sessionId, e);
                 // 保存错误提示消息
                 saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
+            }
+        });
+
+        return userMsg.getId();
+    }
+
+    /**
+     * 发送图片消息（异步模式）
+     * <p>
+     * 先调用 AI 识别图片中的法律问题，保存识别出的问题为用户消息，
+     * 再调用 AI 生成法律回答，保存为助手消息。
+     *
+     * @param userId    用户 ID
+     * @param sessionId 会话 ID
+     * @param imageBytes 图片字节数组
+     * @param mimeType  图片 MIME 类型
+     * @return 用户消息 ID
+     */
+    public Long sendMessageWithImage(Long userId, Long sessionId, byte[] imageBytes, String mimeType) {
+        if (userId == null) {
+            throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
+        }
+        getSession(userId, sessionId);
+
+        List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
+        Collections.reverse(recent);
+        String history = buildHistory(recent);
+
+        // 先保存一条占位用户消息
+        ChatMessage userMsg = new ChatMessage();
+        userMsg.setSessionId(sessionId);
+        userMsg.setRole("user");
+        userMsg.setContent("[图片消息] 正在识别图片内容...");
+        messageMapper.insertMessage(userMsg);
+        touchSession(sessionId);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 第一步：识别图片中的法律问题
+                String extractPrompt = "请识别图片中的法律问题或法律相关内容，提取并整理为一个清晰的法律问题。只输出问题本身，不要附加解释。如果图片中没有法律相关问题，请回复：未识别到法律相关问题。";
+                String recognizedQuestion = agnesClient.chatWithImage(
+                        "你是一个法律问题识别助手，请从图片中提取法律问题。",
+                        extractPrompt, imageBytes, mimeType);
+
+                // 更新用户消息为识别出的问题
+                ChatMessage updateUserMsg = new ChatMessage();
+                updateUserMsg.setId(userMsg.getId());
+                updateUserMsg.setContent(recognizedQuestion);
+                messageMapper.updateById(updateUserMsg);
+
+                // 如果未识别到法律问题，保存提示消息
+                if (recognizedQuestion.contains("未识别到法律相关问题")) {
+                    saveAssistantMessage(sessionId,
+                            "抱歉，未能从图片中识别到法律相关问题。请上传包含法律内容的图片，或直接输入您的问题。",
+                            null);
+                    return;
+                }
+
+                // 第二步：RAG 检索 + AI 回答
+                List<RetrievedChunk> chunks = Collections.emptyList();
+                String citationsJson = null;
+                try {
+                    chunks = ragService.retrieve(recognizedQuestion, RAG_TOP_K);
+                    citationsJson = buildCitationsJson(chunks);
+                } catch (Exception e) {
+                    log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
+                }
+                String context = buildContext(chunks);
+                String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
+                        Map.of("context", context, "history", history, "question", recognizedQuestion));
+                String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
+                saveAssistantMessage(sessionId, aiContent, citationsJson);
+
+                // 第三步：自动命名
+                ChatSession session = sessionMapper.selectById(sessionId);
+                if (session != null && "新对话".equals(session.getTitle())) {
+                    autoRenameSession(sessionId, recognizedQuestion);
+                }
+
+                log.info("图片消息处理完成: sessionId={}", sessionId);
+            } catch (Exception e) {
+                log.error("图片消息处理失败: sessionId={}", sessionId, e);
+                saveAssistantMessage(sessionId, "图片识别失败，请稍后重试或直接输入您的问题。", null);
             }
         });
 

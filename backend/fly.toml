@@ -2,7 +2,7 @@ app = "lawai-backend"
 primary_region = "nrt"
 
 [build]
-  dockerfile = "../../backend/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   SPRING_PROFILES_ACTIVE = "prod"

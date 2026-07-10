@@ -11,7 +11,10 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
+import org.springframework.ai.content.Media;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MimeType;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -54,6 +57,31 @@ public class AgnesClient {
         } catch (Exception e) {
             log.error("Agnes AI 同步调用失败", e);
             throw new RuntimeException("AI 服务暂时不可用", e);
+        }
+    }
+
+    /**
+     * 带图片的同步对话（多模态）
+     * <p>
+     * 将图片和文字一起发送给 AI，支持图片内容识别。
+     *
+     * @param systemPrompt 系统提示词
+     * @param userMessage  用户消息
+     * @param imageBytes   图片字节数组
+     * @param mimeType     图片 MIME 类型（如 image/png、image/jpeg）
+     * @return AI 回复文本
+     */
+    public String chatWithImage(String systemPrompt, String userMessage, byte[] imageBytes, String mimeType) {
+        try {
+            Media media = new Media(MimeType.valueOf(mimeType), new ByteArrayResource(imageBytes));
+            List<Message> messages = List.of(
+                    new SystemMessage(systemPrompt),
+                    UserMessage.builder().text(userMessage).media(List.of(media)).build()
+            );
+            return chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
+        } catch (Exception e) {
+            log.error("Agnes AI 图片识别调用失败", e);
+            throw new RuntimeException("AI 图片识别服务暂时不可用", e);
         }
     }
 

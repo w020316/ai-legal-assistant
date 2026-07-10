@@ -4,6 +4,7 @@ import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.Result;
 import com.lawai.legalassistant.common.result.ResultCode;
 import com.lawai.legalassistant.common.utils.SecurityUtil;
+import com.lawai.legalassistant.modules.chat.dto.BatchDeleteRequest;
 import com.lawai.legalassistant.modules.chat.dto.CreateSessionRequest;
 import com.lawai.legalassistant.modules.chat.dto.MessageVO;
 import com.lawai.legalassistant.modules.chat.dto.SendMessageRequest;
@@ -19,8 +20,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +92,16 @@ public class ChatController {
     }
 
     /**
+     * 批量删除会话
+     */
+    @DeleteMapping("/batch")
+    public Result<Void> deleteBatch(@Valid @RequestBody BatchDeleteRequest req) {
+        Long userId = requireLogin();
+        chatService.deleteSessions(userId, req.getIds());
+        return Result.success();
+    }
+
+    /**
      * 消息历史
      */
     @GetMapping("/{id}/messages")
@@ -106,6 +120,30 @@ public class ChatController {
     public Result<Long> sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
         Long userId = requireLogin();
         return Result.success(chatService.sendMessageAsync(userId, id, req.getContent()));
+    }
+
+    /**
+     * 发送图片消息（AI 识别图片中的法律问题并回答）
+     * <p>
+     * 异步模式：上传图片后立即返回用户消息 ID，
+     * 后台异步进行图片识别 + 法律问答，前端轮询获取结果。
+     */
+    @PostMapping("/{id}/messages/image")
+    public Result<Long> sendMessageWithImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        Long userId = requireLogin();
+        if (file.isEmpty()) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "请上传图片");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "仅支持图片文件");
+        }
+        try {
+            byte[] imageBytes = file.getBytes();
+            return Result.success(chatService.sendMessageWithImage(userId, id, imageBytes, contentType));
+        } catch (IOException e) {
+            throw BusinessException.of(ResultCode.UNKNOWN, "文件读取失败");
+        }
     }
 
     /**

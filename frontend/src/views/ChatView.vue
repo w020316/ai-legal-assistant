@@ -42,6 +42,16 @@ async function handleRegenerate() {
   scrollToBottom()
 }
 
+// 批量删除会话
+function handleBatchDelete(ids: number[]) {
+  chatStore.removeSessions(ids)
+}
+
+// 上传图片识别
+function handleUploadImage(file: File) {
+  chatStore.sendImageMessage(file)
+}
+
 // 推荐问题
 const suggestions = [
   '什么是诉讼时效？',
@@ -83,6 +93,7 @@ onMounted(() => {
         @rename="chatStore.renameSession"
         @toggle-star="chatStore.toggleStar"
         @delete="chatStore.removeSession"
+        @batch-delete="handleBatchDelete"
       />
     </div>
     <!-- 右侧消息区 -->
@@ -124,8 +135,10 @@ onMounted(() => {
       <ChatInput
         :sending="chatStore.sending"
         :disabled="!chatStore.hasSession"
+        image-enabled
         @send="handleSend"
         @stop="chatStore.stopGenerating"
+        @upload-image="handleUploadImage"
       />
     </div>
   </div>

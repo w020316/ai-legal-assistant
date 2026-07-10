@@ -116,6 +116,10 @@ export const updateSession = (id: number, data: UpdateSessionRequest) =>
 // 删除会话
 export const deleteSession = (id: number) => http.delete<void>(`/sessions/${id}`)
 
+// 批量删除会话
+export const deleteSessions = (ids: number[]) =>
+  http.delete<void>('/sessions/batch', { data: { ids } })
+
 // 获取会话消息历史
 export const listMessages = (sessionId: number) =>
   http.get<MessageVO[]>(`/sessions/${sessionId}/messages`)
@@ -127,6 +131,15 @@ export const exportSession = (sessionId: number) =>
 // 发送消息（异步模式，返回用户消息 ID，AI 回复通过轮询获取）
 export const sendMessage = (sessionId: number, content: string) =>
   http.post<number>(`/sessions/${sessionId}/messages`, { content } satisfies SendMessageRequest)
+
+// 发送图片消息（AI 识别图片中的法律问题并回答）
+export const sendMessageWithImage = (sessionId: number, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post<number>(`/sessions/${sessionId}/messages/image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 // ==================== 文档分析相关 ====================
 
