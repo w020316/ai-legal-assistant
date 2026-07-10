@@ -137,7 +137,7 @@ const sections: LegalSection[] = [
       <h1 class="page-title">隐私政策</h1>
       <p class="doc-meta">最近更新：<span class="meta-val">{{ lastUpdated }}</span></p>
       <p class="doc-intro">
-        本隐私政策说明 LawAI 法律智能问答平台（以下简称"本平台"）如何收集、使用、存储和保护您的个人信息。请您在使用本平台前仔细阅读本政策。一旦您开始使用本平台提供的服务，即视为您已理解并同意本政策所述内容。
+        本隐私政策说明 linzAI 法律智能问答平台（以下简称"本平台"）如何收集、使用、存储和保护您的个人信息。请您在使用本平台前仔细阅读本政策。一旦您开始使用本平台提供的服务，即视为您已理解并同意本政策所述内容。
       </p>
     </header>
 

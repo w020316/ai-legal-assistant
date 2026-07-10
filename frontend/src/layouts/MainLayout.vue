@@ -70,9 +70,9 @@ function handleLogout() {
           <Menu />
         </el-icon>
         <span class="logo-badge">
-          <el-icon :size="18" color="#0B2545"><Reading /></el-icon>
+          <el-icon :size="18" color="#C8893E"><Reading /></el-icon>
         </span>
-        <span class="logo">LawAI 法律助手</span>
+        <span class="logo">linzAI 法律助手</span>
       </div>
       <div class="header-right">
         <el-dropdown @command="(cmd: string) => cmd === 'logout' && handleLogout()">
@@ -110,7 +110,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">LawAI v1.0</div>
+          <div class="version">linzAI v1.0</div>
         </div>
       </el-aside>
 
@@ -149,7 +149,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">LawAI v1.0</div>
+          <div class="version">linzAI v1.0</div>
         </div>
       </div>
     </el-drawer>
@@ -164,8 +164,8 @@ function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--color-bg-card);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-sidebar-bg);
+  border-bottom: none;
   padding: 0 32px;
   height: 64px;
   box-shadow: none;
@@ -182,13 +182,13 @@ function handleLogout() {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-full);
-  background: var(--color-accent-light);
+  background: rgba(200, 137, 62, 0.15);
 }
 .header-left .logo {
   font-family: var(--font-serif);
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-primary);
+  color: #F0EBE0;
   letter-spacing: 0.01em;
 }
 .header-right .user-info {
@@ -196,21 +196,21 @@ function handleLogout() {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  color: var(--color-text-regular);
+  color: var(--color-sidebar-text);
   padding: 6px 12px;
   border-radius: var(--radius-button);
   transition: var(--transition-base);
   &:hover {
-    background: var(--color-bg-soft);
-    color: var(--color-primary);
+    background: rgba(200, 192, 180, 0.08);
+    color: #F0EBE0;
   }
 }
 .username {
   font-size: 14px;
 }
 .aside {
-  background-color: var(--color-bg-card);
-  border-right: 1px solid var(--color-border);
+  background-color: var(--color-sidebar-bg);
+  border-right: none;
   transition: width 0.2s var(--ease-out);
   display: flex;
   flex-direction: column;
@@ -218,7 +218,7 @@ function handleLogout() {
 .aside-footer {
   margin-top: auto;
   padding: 16px 20px;
-  border-top: 1px solid var(--color-border-light);
+  border-top: 1px solid rgba(200, 192, 180, 0.1);
 }
 .footer-links {
   display: flex;
@@ -226,54 +226,56 @@ function handleLogout() {
   gap: 6px;
   font-size: 12px;
   a {
-    color: var(--color-text-secondary);
+    color: var(--color-sidebar-text);
     transition: var(--transition-base);
     &:hover {
-      color: var(--color-accent);
+      color: var(--color-sidebar-active);
     }
   }
   .dot {
-    color: var(--color-text-secondary);
+    color: rgba(200, 192, 180, 0.3);
   }
 }
 .version {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: rgba(200, 192, 180, 0.4);
   margin-top: 8px;
   letter-spacing: 0.02em;
 }
 .aside :deep(.el-menu) {
   border-right: none;
   padding: 12px 8px;
+  background-color: transparent;
 }
 .aside :deep(.el-menu-item) {
   height: 44px;
   line-height: 44px;
   border-radius: var(--radius-button);
   margin-bottom: 2px;
-  color: var(--color-text-regular);
+  color: var(--color-sidebar-text);
+  background-color: transparent;
   position: relative;
   transition: var(--transition-base);
   &:hover {
-    background: var(--color-bg-soft);
-    color: var(--color-primary);
+    background: rgba(200, 192, 180, 0.08);
+    color: #F0EBE0;
   }
   &.is-active {
-    background: var(--color-accent-light);
-    color: var(--color-primary);
+    background: rgba(200, 137, 62, 0.12);
+    color: var(--color-sidebar-active);
     font-weight: 500;
-    // 左侧古铜色小圆点指示器（非 border-left 强调，符合 ui-skill.md 4.3）
+    // 左侧琥珀色竖条指示器（从圆点升级为竖条，更具引导力）
     &::before {
       content: '';
       position: absolute;
       left: 4px;
       top: 50%;
       transform: translateY(-50%);
-      width: 4px;
-      height: 4px;
-      border-radius: var(--radius-full);
-      background: var(--color-accent);
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: var(--color-sidebar-active);
     }
   }
 }
@@ -293,13 +295,13 @@ function handleLogout() {
 /* 移动端汉堡按钮 */
 .menu-toggle {
   cursor: pointer;
-  color: var(--color-primary);
+  color: #F0EBE0;
   padding: 4px;
   border-radius: var(--radius-sm);
   transition: var(--transition-base);
   &:hover {
-    color: var(--color-accent);
-    background: var(--color-bg-soft);
+    color: var(--color-sidebar-active);
+    background: rgba(200, 192, 180, 0.08);
   }
 }
 
@@ -308,6 +310,7 @@ function handleLogout() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--color-sidebar-bg);
   .aside-footer {
     margin-top: auto;
   }
@@ -316,22 +319,24 @@ function handleLogout() {
 .drawer-inner :deep(.el-menu) {
   border-right: none;
   padding: 12px 8px;
+  background-color: transparent;
 }
 .drawer-inner :deep(.el-menu-item) {
   height: 44px;
   line-height: 44px;
   border-radius: var(--radius-button);
   margin-bottom: 2px;
-  color: var(--color-text-regular);
+  color: var(--color-sidebar-text);
+  background-color: transparent;
   position: relative;
   transition: var(--transition-base);
   &:hover {
-    background: var(--color-bg-soft);
-    color: var(--color-primary);
+    background: rgba(200, 192, 180, 0.08);
+    color: #F0EBE0;
   }
   &.is-active {
-    background: var(--color-accent-light);
-    color: var(--color-primary);
+    background: rgba(200, 137, 62, 0.12);
+    color: var(--color-sidebar-active);
     font-weight: 500;
     &::before {
       content: '';
@@ -339,10 +344,10 @@ function handleLogout() {
       left: 4px;
       top: 50%;
       transform: translateY(-50%);
-      width: 4px;
-      height: 4px;
-      border-radius: var(--radius-full);
-      background: var(--color-accent);
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: var(--color-sidebar-active);
     }
   }
 }

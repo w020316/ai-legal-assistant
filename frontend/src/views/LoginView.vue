@@ -74,22 +74,22 @@ function toggleMode() {
     <aside class="brand-panel">
       <div class="brand-inner">
         <div class="brand-mark">
-          <el-icon :size="28" color="#8C6A3F"><Reading /></el-icon>
-          <span class="brand-name">LawAI</span>
+          <el-icon :size="28" color="#C8893E"><Reading /></el-icon>
+          <span class="brand-name">linzAI</span>
         </div>
         <h1 class="brand-title">法律智能<br />问答平台</h1>
         <p class="brand-sub">面向法律从业者的检索增强问答与文书分析工具，基于权威法律语料训练，提供可追溯的引用来源。</p>
         <ul class="brand-features">
           <li>
-            <el-icon :size="16" color="#8C6A3F"><ChatDotRound /></el-icon>
+            <el-icon :size="16" color="#C8893E"><ChatDotRound /></el-icon>
             <span>智能问答，流式输出，引用可溯</span>
           </li>
           <li>
-            <el-icon :size="16" color="#8C6A3F"><Document /></el-icon>
+            <el-icon :size="16" color="#C8893E"><Document /></el-icon>
             <span>文书分析，风险识别，条款建议</span>
           </li>
           <li>
-            <el-icon :size="16" color="#8C6A3F"><Lock /></el-icon>
+            <el-icon :size="16" color="#C8893E"><Lock /></el-icon>
             <span>数据隔离，权限可控，本地部署</span>
           </li>
         </ul>
@@ -144,14 +144,14 @@ function toggleMode() {
   background: var(--color-bg);
 }
 
-// 左半品牌叙事
+// 左半品牌叙事（深色面板）
 .brand-panel {
   position: relative;
-  background: var(--color-bg);
+  background: var(--color-sidebar-bg);
   padding: 64px 56px;
   display: flex;
   align-items: center;
-  border-right: 1px solid var(--color-border);
+  border-right: none;
 }
 .brand-inner {
   max-width: 460px;
@@ -167,22 +167,22 @@ function toggleMode() {
   font-family: var(--font-serif);
   font-size: 20px;
   font-weight: 600;
-  color: var(--color-primary);
+  color: #F0EBE0;
   letter-spacing: 0.02em;
 }
 .brand-title {
   font-family: var(--font-serif);
-  font-size: 48px;
-  font-weight: 600;
+  font-size: 52px;
+  font-weight: 700;
   line-height: 1.15;
-  color: var(--color-primary);
+  color: #F0EBE0;
   margin-bottom: 24px;
   letter-spacing: -0.02em;
 }
 .brand-sub {
   font-size: 15px;
   line-height: 1.75;
-  color: var(--color-text-regular);
+  color: rgba(200, 192, 180, 0.7);
   max-width: 42ch;
   margin-bottom: 40px;
 }
@@ -198,14 +198,14 @@ function toggleMode() {
     align-items: center;
     gap: 12px;
     font-size: 14px;
-    color: var(--color-text-regular);
+    color: rgba(200, 192, 180, 0.8);
   }
 }
 .brand-foot {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: rgba(200, 192, 180, 0.4);
   padding-top: 24px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(200, 192, 180, 0.1);
   max-width: 50ch;
 }
 
@@ -226,7 +226,7 @@ function toggleMode() {
   h2 {
     font-family: var(--font-serif);
     font-size: 26px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-primary);
     margin-bottom: 8px;
   }

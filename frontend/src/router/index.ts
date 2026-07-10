@@ -74,7 +74,7 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   document.body.style.cursor = 'wait'
   const userStore = useUserStore()
-  document.title = `${to.meta.title || ''} - AI 法律助手`
+  document.title = `${to.meta.title || ''} - linzAI 法律助手`
   if (to.meta.public || userStore.isLogin) {
     next()
   } else {

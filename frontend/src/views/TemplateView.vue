@@ -32,6 +32,7 @@ const elementFields = ref<string[]>([])
 const elementValues = ref<Record<string, string>>({})
 const generatedContent = ref('')
 const generating = ref(false)
+const activeTab = ref('preview')
 
 // 过滤后的模板列表
 const filteredTemplates = computed(() => templates.value)
@@ -91,6 +92,7 @@ function handleOpenGen(tpl: TemplateVO) {
     elementValues.value[f] = ''
   }
   generatedContent.value = ''
+  activeTab.value = 'preview'
   genDialogVisible.value = true
 }
 
@@ -227,35 +229,53 @@ onMounted(() => loadTemplates())
       destroy-on-close
     >
       <div class="gen-body">
-        <!-- 要素表单 -->
-        <div class="gen-section">
-          <div class="gen-section-title">填写要素</div>
-          <el-form v-if="elementFields.length" label-position="top" class="gen-form">
-            <el-form-item v-for="f in elementFields" :key="f" :label="f" required>
-              <el-input v-model="elementValues[f]" :placeholder="`请输入${f}`" />
-            </el-form-item>
-          </el-form>
-          <el-empty v-else description="该模板未定义要素字段，可直接生成" :image-size="56" />
-        </div>
+        <el-tabs v-model="activeTab" class="tpl-tabs">
+          <!-- 标签页一：查看模板原文 -->
+          <el-tab-pane label="模板原文" name="preview">
+            <div class="tpl-preview">
+              <div class="tpl-preview-meta">
+                <el-tag size="small" effect="light">{{ currentTemplate?.category || '未分类' }}</el-tag>
+                <span v-if="currentTemplate?.source" class="tpl-preview-source">来源：{{ currentTemplate.source }}</span>
+              </div>
+              <div class="tpl-preview-content">
+                <MarkdownRenderer :content="currentTemplate?.rawText || ''" />
+              </div>
+              <div class="tpl-preview-actions">
+                <el-button type="primary" plain @click="activeTab = 'generate'">前往生成文书 →</el-button>
+              </div>
+            </div>
+          </el-tab-pane>
 
-        <!-- 生成操作 -->
-        <div class="gen-actions">
-          <el-button type="primary" :loading="generating" @click="handleGenerate">
-            {{ generating ? '生成中…' : '生成文书' }}
-          </el-button>
-          <template v-if="generatedContent">
-            <el-button :icon="CopyDocument" plain @click="handleCopy">复制</el-button>
-            <el-button :icon="Download" plain @click="handleDownload">下载</el-button>
-          </template>
-        </div>
+          <!-- 标签页二：生成文书 -->
+          <el-tab-pane label="生成文书" name="generate">
+            <div class="gen-section">
+              <div class="gen-section-title">填写要素</div>
+              <el-form v-if="elementFields.length" label-position="top" class="gen-form">
+                <el-form-item v-for="f in elementFields" :key="f" :label="f" required>
+                  <el-input v-model="elementValues[f]" :placeholder="`请输入${f}`" />
+                </el-form-item>
+              </el-form>
+              <el-empty v-else description="该模板未定义要素字段，可直接生成" :image-size="56" />
+            </div>
 
-        <!-- 生成结果 -->
-        <div v-if="generatedContent" class="gen-result">
-          <div class="gen-section-title">生成结果</div>
-          <div class="result-box">
-            <MarkdownRenderer :content="generatedContent" />
-          </div>
-        </div>
+            <div class="gen-actions">
+              <el-button type="primary" :loading="generating" @click="handleGenerate">
+                {{ generating ? '生成中…' : '生成文书' }}
+              </el-button>
+              <template v-if="generatedContent">
+                <el-button :icon="CopyDocument" plain @click="handleCopy">复制</el-button>
+                <el-button :icon="Download" plain @click="handleDownload">下载</el-button>
+              </template>
+            </div>
+
+            <div v-if="generatedContent" class="gen-result">
+              <div class="gen-section-title">生成结果</div>
+              <div class="result-box">
+                <MarkdownRenderer :content="generatedContent" />
+              </div>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-dialog>
   </div>
@@ -504,7 +524,49 @@ onMounted(() => loadTemplates())
 .gen-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+}
+.tpl-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+  :deep(.el-tabs__item) {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+}
+.tpl-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tpl-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.tpl-preview-source {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.tpl-preview-content {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 16px 18px;
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--color-text-regular);
+  white-space: pre-wrap;
+}
+.tpl-preview-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
 }
 .gen-section {
   display: flex;

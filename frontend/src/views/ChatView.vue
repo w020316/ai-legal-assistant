@@ -103,7 +103,7 @@ onMounted(() => {
         <!-- 空状态引导 -->
         <div v-if="!chatStore.hasSession" class="empty-state">
           <span class="empty-icon-badge">
-            <el-icon :size="36" color="#8C6A3F"><Reading /></el-icon>
+            <el-icon :size="36" color="#C8893E"><Reading /></el-icon>
           </span>
           <h2>开始您的法律问答</h2>
           <p>面向法律从业者的智能问答平台，基于权威语料检索增强</p>
@@ -264,13 +264,13 @@ onMounted(() => {
     width: 72px;
     height: 72px;
     border-radius: var(--radius-full);
-    background: var(--color-accent-light);
+    background: rgba(200, 137, 62, 0.12);
   }
   h2 {
     margin: 24px 0 8px;
     font-family: var(--font-serif);
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-primary);
   }
   p {
