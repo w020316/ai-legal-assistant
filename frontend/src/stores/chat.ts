@@ -29,7 +29,9 @@ export const useChatStore = defineStore('chat', () => {
   async function loadSessions() {
     try {
       const res = await listSessions()
-      sessionList.value = res.data.records
+      // 后端返回纯数组，兼容分页结构
+      const data = res.data as any
+      sessionList.value = Array.isArray(data) ? data : (data.records ?? [])
     } catch {
       // 错误已由请求拦截器统一提示
     }

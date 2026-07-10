@@ -76,7 +76,11 @@ function handleLogout() {
 
       <!-- 主内容区：暖白背景 -->
       <el-main class="main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="route-fade" mode="out-in">
+            <component :is="Component" :key="$route.path" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -154,5 +158,13 @@ function handleLogout() {
 .main {
   background-color: var(--color-bg);
   padding: 20px;
+}
+.route-fade-enter-active,
+.route-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.route-fade-enter-from,
+.route-fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -5,18 +5,12 @@ import { getHealth } from '@/api'
 const loading = ref(false)
 const healthInfo = ref<{ status: string; service: string; timestamp: string } | null>(null)
 
-// 时间戳格式化：ISO 时间戳转为本地时间 yyyy-MM-dd HH:mm:ss
+// 时间戳格式化：ISO 时间戳转为本地时间 yyyy-MM-dd HH:mm:ss CST
 function formatTimestamp(timestamp: string): string {
   if (!timestamp) return '—'
-  return new Date(timestamp).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
+  const d = new Date(timestamp)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} CST`
 }
 
 async function fetchHealth() {
