@@ -1,5 +1,7 @@
 package com.lawai.legalassistant.common.compliance;
 
+import org.springframework.stereotype.Component;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -9,6 +11,7 @@ import java.util.Set;
  * 内置一份基础敏感词列表，支持动态添加。filter 方法将命中的敏感词替换为 ***。
  * 生产环境建议接入专业敏感词服务或 DFA 算法。
  */
+@Component
 public class SensitiveWordFilter {
 
     private static final Set<String> DEFAULT_WORDS = new HashSet<>();

@@ -13,6 +13,8 @@ import com.lawai.legalassistant.modules.chat.dto.UpdateSessionRequest;
 import com.lawai.legalassistant.modules.chat.entity.ChatSession;
 import com.lawai.legalassistant.modules.chat.service.ChatService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,6 +40,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/sessions")
 public class ChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatService chatService;
 
@@ -144,6 +149,34 @@ public class ChatController {
         } catch (IOException e) {
             throw BusinessException.of(ResultCode.UNKNOWN, "文件读取失败");
         }
+    }
+
+    /**
+     * SSE 流式问答
+     * <p>
+     * 发送消息并通过 Server-Sent Events 流式返回 AI 回复。
+     * 事件类型：
+     * - citations: RAG 引用来源（JSON）
+     * - chunk: AI 回复文本片段
+     * - done: 流结束标记 [DONE]
+     * - error: 错误信息
+     *
+     * @param id      会话 ID
+     * @param req     消息请求体
+     * @return SSE 流
+     */
+    @PostMapping(value = "/{id}/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
+        Long userId = requireLogin();
+        SseEmitter emitter = new SseEmitter(120_000L);
+        emitter.onCompletion(() -> log.debug("SSE 连接关闭: sessionId={}", id));
+        emitter.onTimeout(() -> {
+            log.warn("SSE 连接超时: sessionId={}", id);
+            emitter.complete();
+        });
+        emitter.onError(ex -> log.error("SSE 连接错误: sessionId={}", id, ex));
+        chatService.streamChat(userId, id, req.getContent(), emitter);
+        return emitter;
     }
 
     /**

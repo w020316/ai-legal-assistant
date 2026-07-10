@@ -174,6 +174,8 @@ const sections: LegalSection[] = [
   max-width: 860px;
   padding-top: 32px;
   padding-bottom: 48px;
+  // 章节编号计数器，用于卡片左上角装饰
+  counter-reset: section-counter;
 }
 
 /* 文档头 */
@@ -199,16 +201,42 @@ const sections: LegalSection[] = [
 
 /* 章节卡片 */
 .section-card {
+  position: relative;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   padding: 26px 30px;
   margin-bottom: 18px;
+  counter-increment: section-counter;
   transition: box-shadow 0.2s var(--ease-out);
   &:hover {
     box-shadow: var(--shadow-hover);
   }
+  // 左上角大号章节编号装饰：等宽字体 + 古铜色 20% 透明度
+  &::before {
+    content: counter(section-counter, decimal-leading-zero);
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--color-accent);
+    opacity: 0.2;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+.section-head {
+  position: relative;
+  z-index: 1;
+}
+.section-body {
+  position: relative;
+  z-index: 1;
 }
 .section-head {
   display: flex;

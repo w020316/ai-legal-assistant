@@ -124,7 +124,7 @@ onMounted(() => {
                 class="suggestion-card"
                 @click="handleSuggestion(s)"
               >
-                <span class="suggestion-index">{{ i + 1 }}</span>
+                <span class="suggestion-index">{{ String(i + 1).padStart(2, '0') }}</span>
                 <span class="suggestion-text">{{ s }}</span>
               </div>
             </div>
@@ -204,9 +204,11 @@ onMounted(() => {
 .suggestion-card {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--color-border);
+  // 预留 2px 左边框，hover 时染色为古铜竖线，避免布局抖动
+  border-left: 2px solid transparent;
   border-radius: var(--radius-card);
   background: var(--color-bg-card);
   cursor: pointer;
@@ -219,26 +221,29 @@ onMounted(() => {
     margin-top: 20px;
   }
   &:hover {
-    border-color: var(--color-accent);
+    border-color: var(--color-border);
+    // 左侧出现 2px 古铜色竖线
+    border-left: 2px solid var(--color-accent);
     color: var(--color-primary);
     box-shadow: var(--shadow-hover);
     transform: translateY(-1px);
+    .suggestion-index {
+      opacity: 1;
+    }
   }
 }
+// 序号编号：01/02/03 编辑典籍风，等宽字体 + 古铜色
 .suggestion-index {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-light);
-  color: var(--color-accent);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+  opacity: 0.7;
+  transition: opacity 0.2s var(--ease-out);
 }
 .suggestion-text {
   flex: 1;
@@ -280,6 +285,46 @@ onMounted(() => {
   }
   .create-btn {
     margin-top: 24px;
+  }
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .chat-view {
+    border-radius: 0;
+    border: none;
+  }
+  .left-panel {
+    width: 72px;
+  }
+  .message-stream {
+    padding: 16px 14px;
+  }
+  /* 消息宽度改为 100% */
+  .msg-list {
+    max-width: 100%;
+  }
+  .suggestions {
+    max-width: 100%;
+    margin: 24px auto;
+  }
+  /* 推荐问题网格改为单列 */
+  .suggestion-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .suggestion-card {
+    &:nth-child(even) {
+      margin-top: 0;
+    }
+  }
+  .empty-state {
+    h2 {
+      font-size: 20px;
+    }
+    p {
+      font-size: 13px;
+    }
   }
 }
 </style>

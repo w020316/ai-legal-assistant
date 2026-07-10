@@ -6,6 +6,8 @@
   --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
   --font-sans: 'PingFang SC', 'Microsoft YaHei', -apple-system, 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  // 展示字体：法律典籍标题专用，更厚重的衬线
+  --font-display: 'Noto Serif SC', 'Source Han Serif SC', var(--font-serif);
   --font-family: var(--font-sans);
 
   // 配色（OKLCH 思维，hex 落地，无纯黑纯白，向暖色调色）
@@ -182,6 +184,21 @@ a {
     background: var(--color-accent);
     border-radius: 1px;
   }
+  // 首字下沉：编辑典籍感，首字加大并染色为古铜
+  &::first-letter {
+    font-family: var(--font-display);
+    font-size: 1.35em;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-right: 2px;
+  }
+}
+
+// 正文阅读宽度工具类：限宽 720px 居中，适合长文阅读
+.content-width {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 // ===== Element Plus 组件精致覆盖 =====

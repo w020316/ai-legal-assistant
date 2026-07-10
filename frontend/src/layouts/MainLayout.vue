@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
@@ -11,12 +11,34 @@ import {
   User,
   SwitchButton,
   Reading,
+  Menu,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const isCollapse = ref(false)
+
+// 移动端响应式：768px 以下侧边栏改为抽屉式导航
+const isMobile = ref(false)
+const drawerVisible = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+function updateMobile(e: MediaQueryListEvent | MediaQueryList) {
+  isMobile.value = e.matches
+  // 切回桌面端时关闭抽屉
+  if (!e.matches) drawerVisible.value = false
+}
+
+onMounted(() => {
+  mediaQuery = window.matchMedia('(max-width: 768px)')
+  isMobile.value = mediaQuery.matches
+  mediaQuery.addEventListener('change', updateMobile)
+})
+
+onUnmounted(() => {
+  mediaQuery?.removeEventListener('change', updateMobile)
+})
 
 const menus = [
   { index: '/chat', title: '智能问答', icon: ChatDotRound },
@@ -28,6 +50,8 @@ const menus = [
 
 function handleMenuSelect(index: string) {
   router.push(index)
+  // 抽屉模式下点击菜单项后自动关闭抽屉
+  if (isMobile.value) drawerVisible.value = false
 }
 
 function handleLogout() {
@@ -41,6 +65,10 @@ function handleLogout() {
     <!-- 顶部栏：纯白 + 底部发丝线，64px 高 -->
     <el-header class="header">
       <div class="header-left">
+        <!-- 移动端汉堡菜单按钮 -->
+        <el-icon v-if="isMobile" class="menu-toggle" :size="22" @click="drawerVisible = true">
+          <Menu />
+        </el-icon>
         <span class="logo-badge">
           <el-icon :size="18" color="#0B2545"><Reading /></el-icon>
         </span>
@@ -62,8 +90,8 @@ function handleLogout() {
     </el-header>
 
     <el-container>
-      <!-- 侧边栏：纯白 + 右侧发丝线，240px -->
-      <el-aside :width="isCollapse ? '64px' : '240px'" class="aside">
+      <!-- 侧边栏：纯白 + 右侧发丝线，240px（移动端隐藏，改为抽屉） -->
+      <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '240px'" class="aside">
         <el-menu
           :default-active="route.path"
           :collapse="isCollapse"
@@ -95,6 +123,36 @@ function handleLogout() {
         </router-view>
       </el-main>
     </el-container>
+
+    <!-- 移动端抽屉式导航 -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="ltr"
+      size="240px"
+      :with-header="false"
+      class="mobile-drawer"
+    >
+      <div class="drawer-inner">
+        <el-menu
+          :default-active="route.path"
+          @select="handleMenuSelect"
+        >
+          <el-menu-item v-for="m in menus" :key="m.index" :index="m.index">
+            <el-icon><component :is="m.icon" /></el-icon>
+            <template #title>{{ m.title }}</template>
+          </el-menu-item>
+        </el-menu>
+        <!-- 抽屉底部同样展示法律链接 + 版本 -->
+        <div class="aside-footer">
+          <div class="footer-links">
+            <router-link to="/privacy" @click="drawerVisible = false">隐私政策</router-link>
+            <span class="dot">·</span>
+            <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
+          </div>
+          <div class="version">LawAI v1.0</div>
+        </div>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -230,5 +288,79 @@ function handleLogout() {
 .route-fade-enter-from,
 .route-fade-leave-to {
   opacity: 0;
+}
+
+/* 移动端汉堡按钮 */
+.menu-toggle {
+  cursor: pointer;
+  color: var(--color-primary);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-base);
+  &:hover {
+    color: var(--color-accent);
+    background: var(--color-bg-soft);
+  }
+}
+
+/* 抽屉内部布局：菜单 + 底部 footer 撑满高度 */
+.drawer-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .aside-footer {
+    margin-top: auto;
+  }
+}
+/* 抽屉内部菜单样式（锚定 .drawer-inner，teleport 后仍生效） */
+.drawer-inner :deep(.el-menu) {
+  border-right: none;
+  padding: 12px 8px;
+}
+.drawer-inner :deep(.el-menu-item) {
+  height: 44px;
+  line-height: 44px;
+  border-radius: var(--radius-button);
+  margin-bottom: 2px;
+  color: var(--color-text-regular);
+  position: relative;
+  transition: var(--transition-base);
+  &:hover {
+    background: var(--color-bg-soft);
+    color: var(--color-primary);
+  }
+  &.is-active {
+    background: var(--color-accent-light);
+    color: var(--color-primary);
+    font-weight: 500;
+    &::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: var(--radius-full);
+      background: var(--color-accent);
+    }
+  }
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+    height: 56px;
+  }
+  .header-left {
+    gap: 10px;
+  }
+  .logo {
+    font-size: 16px;
+  }
+  .main {
+    padding: 12px;
+  }
 }
 </style>

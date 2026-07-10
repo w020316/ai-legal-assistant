@@ -155,18 +155,26 @@ const formattedTime = computed(() => {
 .assistant-msg {
   .card {
     width: 100%;
-    background: var(--color-bg-card);
+    background-color: var(--color-bg-card);
+    // 微妙纸质纹理：极浅古铜色横线，模拟古籍纸张质感
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(140, 106, 63, 0.012) 0px,
+      rgba(140, 106, 63, 0.012) 1px,
+      transparent 1px,
+      transparent 4px
+    );
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     overflow: hidden;
-    // 顶部古铜色发丝线（替代 border-left 强调，符合 ui-skill.md 4.3）
+    // 顶部发丝线：古铜色渐变到透明，编辑典籍感
     &::before {
       content: '';
       display: block;
       height: 1px;
-      background: var(--color-accent);
-      opacity: 0.6;
+      background: linear-gradient(90deg, var(--color-accent), transparent);
+      opacity: 0.8;
     }
   }
 }

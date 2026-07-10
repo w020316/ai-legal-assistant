@@ -13,6 +13,7 @@ import {
   type SessionVO,
   type MessageVO,
 } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 export const useChatStore = defineStore('chat', () => {
   // 会话列表
@@ -114,9 +115,121 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // 异步获取 AI 回复（轮询模式）
+  // SSE 流式获取 AI 回复（优先模式）
+  // 通过 fetch + ReadableStream 接收 Server-Sent Events，逐字显示 AI 回复
+  async function fetchAssistantReplyStream(content: string): Promise<boolean> {
+    if (!currentSession.value) return false
+    const sessionId = currentSession.value.id
+    const userStore = useUserStore()
+
+    const aiMsg = reactive<MessageVO>({
+      id: 0,
+      sessionId,
+      role: 'assistant',
+      content: '',
+      citations: null,
+      tokens: null,
+      createdAt: new Date().toISOString(),
+    })
+    messages.value.push(aiMsg)
+    sending.value = true
+
+    try {
+      const resp = await fetch(`/api/v1/sessions/${sessionId}/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userStore.token}`,
+        },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!resp.ok || !resp.body) {
+        throw new Error(`SSE 请求失败: ${resp.status}`)
+      }
+
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let receivedChunk = false
+
+      while (true) {
+        if (!sending.value) {
+          // 用户点击了停止
+          reader.cancel()
+          if (!aiMsg.content) aiMsg.content = '已停止生成'
+          break
+        }
+        if (currentSession.value?.id !== sessionId) {
+          // 会话已切换，停止旧流
+          reader.cancel()
+          break
+        }
+
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        // SSE 事件以双换行分隔
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+
+        for (const eventStr of events) {
+          const lines = eventStr.split('\n')
+          let eventName = 'message'
+          let eventData = ''
+          for (const line of lines) {
+            if (line.startsWith('event:')) eventName = line.slice(6).trim()
+            else if (line.startsWith('data:')) eventData = line.slice(5).trim()
+          }
+
+          if (eventName === 'chunk') {
+            receivedChunk = true
+            aiMsg.content += eventData
+          } else if (eventName === 'citations') {
+            try {
+              aiMsg.citations = JSON.parse(eventData)
+            } catch {
+              // JSON 解析失败时忽略
+            }
+          } else if (eventName === 'done') {
+            sending.value = false
+            loadSessions()
+            return true
+          } else if (eventName === 'error') {
+            throw new Error(eventData || 'AI 服务错误')
+          }
+        }
+      }
+
+      // 流正常结束但没收到 done 事件
+      if (receivedChunk && aiMsg.content) {
+        loadSessions()
+        return true
+      }
+      // 没收到任何内容
+      if (!aiMsg.content) {
+        aiMsg.content = 'AI 回复为空，请稍后重试。'
+      }
+      return true
+    } catch (e) {
+      // SSE 失败，移除占位消息，返回 false 让调用方回退到轮询模式
+      const idx = messages.value.lastIndexOf(aiMsg)
+      if (idx >= 0) messages.value.splice(idx, 1)
+      return false
+    } finally {
+      sending.value = false
+    }
+  }
+
+  // 异步获取 AI 回复（轮询模式，SSE 失败时的降级方案）
   // POST 立即返回用户消息 ID，后台异步调用 AI，前端轮询消息列表获取回复
   async function fetchAssistantReply(content: string) {
+    // 优先尝试 SSE 流式
+    const sseOk = await fetchAssistantReplyStream(content)
+    if (sseOk) return
+
+    // SSE 失败，降级为轮询模式
     if (!currentSession.value) return
     const sessionId = currentSession.value.id
     const aiMsg = reactive<MessageVO>({

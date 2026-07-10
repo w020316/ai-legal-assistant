@@ -403,4 +403,51 @@ onMounted(handleSearch)
   color: var(--color-text-regular);
   white-space: pre-wrap;
 }
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .page-header {
+    padding: 2px 2px 0;
+  }
+  .page-title {
+    font-size: 20px;
+  }
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .keyword-input {
+    min-width: 0;
+    width: 100%;
+  }
+  .filter-item,
+  .year-item {
+    width: 100%;
+  }
+  .search-bar :deep(.el-button) {
+    width: 100%;
+  }
+  .search-hint {
+    padding: 0 14px 8px;
+    font-size: 11px;
+  }
+  .case-list {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .list-meta {
+    padding: 10px 14px;
+  }
+  .case-card {
+    padding: 12px 14px;
+  }
+  .case-title {
+    font-size: 14px;
+  }
+  .pagination-wrap {
+    padding: 10px 14px 12px;
+  }
+}
 </style>

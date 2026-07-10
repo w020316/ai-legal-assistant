@@ -173,6 +173,20 @@ onMounted(() => loadTemplates())
       </div>
     </div>
 
+    <!-- 移动端水平滚动分类标签条（仅 768px 以下显示） -->
+    <div class="cat-bar-mobile">
+      <div
+        v-for="c in categories"
+        :key="c.key"
+        class="cat-tag-mobile"
+        :class="{ active: activeCategory === c.key }"
+        @click="handleSelectCategory(c.key)"
+      >
+        {{ c.label }}
+        <span class="cat-tag-count">{{ categoryCount(c.key) }}</span>
+      </div>
+    </div>
+
     <!-- 右侧模板列表 -->
     <div class="tpl-panel">
       <div class="tpl-panel-header">
@@ -412,6 +426,78 @@ onMounted(() => loadTemplates())
 .tpl-card-foot {
   display: flex;
   justify-content: flex-end;
+}
+
+/* 移动端水平滚动分类标签条：默认隐藏，768px 以下显示 */
+.cat-bar-mobile {
+  display: none;
+}
+.cat-tag-mobile {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: var(--color-bg-card);
+  font-size: 13px;
+  color: var(--color-text-regular);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-base);
+  .cat-tag-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+  &.active {
+    background: var(--color-accent-light);
+    border-color: var(--color-accent);
+    color: var(--color-primary);
+    font-weight: 600;
+    .cat-tag-count {
+      color: var(--color-accent);
+    }
+  }
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .tpl-view {
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* 隐藏左侧分类面板，改为顶部水平滚动标签条 */
+  .cat-panel {
+    display: none;
+  }
+  .cat-bar-mobile {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    &::-webkit-scrollbar {
+      height: 0;
+    }
+  }
+  .tpl-panel-header {
+    padding: 12px 14px;
+    .title {
+      font-size: 15px;
+    }
+  }
+  /* 模板网格单列 */
+  .tpl-grid {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
 }
 
 /* 生成对话框 */

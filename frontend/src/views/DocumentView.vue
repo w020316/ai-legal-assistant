@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRawFile, UploadRequestOptions } from 'element-plus'
 import { UploadFilled, Document as DocumentIcon } from '@element-plus/icons-vue'
@@ -18,6 +18,17 @@ const analysis = ref<DocumentAnalysis | null>(null)
 const loading = ref(false)
 const uploading = ref(false)
 const analyzing = ref(false)
+
+// 文档分析进度反馈
+const analyzeProgress = ref<{ stage: string; percent: number } | null>(null)
+let analyzeTimer: ReturnType<typeof setInterval> | null = null
+const analyzeStages = [
+  { stage: '正在提取文档内容', percent: 10 },
+  { stage: '正在识别关键条款', percent: 30 },
+  { stage: '正在分析法律风险', percent: 55 },
+  { stage: '正在生成修改建议', percent: 80 },
+  { stage: '正在整理分析报告', percent: 95 },
+]
 
 // 文件大小格式化
 function formatSize(bytes: number): string {
@@ -141,22 +152,51 @@ async function fetchAnalysis(id: number) {
 // 触发分析
 async function handleAnalyze() {
   if (!currentDoc.value) return
+  const docId = currentDoc.value.id
   analyzing.value = true
+  // 开始进度反馈
+  analyzeProgress.value = { stage: '正在提取文档内容', percent: 10 }
+  let stageIdx = 0
+  // 每 2 秒推进进度阶段
+  analyzeTimer = setInterval(() => {
+    stageIdx = Math.min(stageIdx + 1, analyzeStages.length - 1)
+    analyzeProgress.value = { ...analyzeStages[stageIdx] }
+  }, 2000)
   try {
-    await analyzeDocument(currentDoc.value.id)
+    await analyzeDocument(docId)
     ElMessage.success('分析任务已启动，正在生成报告…')
-    await fetchAnalysis(currentDoc.value.id)
-    if (currentDoc.value) {
+    // 等待 3 秒后开始轮询分析结果
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+    // 每 3 秒轮询一次，最多 10 次
+    for (let i = 0; i < 10; i++) {
+      await fetchAnalysis(docId)
+      if (analysis.value) break
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+    }
+    if (currentDoc.value && currentDoc.value.id === docId) {
       currentDoc.value.analysisStatus = 'completed'
     }
   } catch {
     // 错误已由拦截器提示
   } finally {
     analyzing.value = false
+    // 清理 timer
+    if (analyzeTimer) {
+      clearInterval(analyzeTimer)
+      analyzeTimer = null
+    }
+    analyzeProgress.value = null
   }
 }
 
 onMounted(loadDocuments)
+
+onUnmounted(() => {
+  if (analyzeTimer) {
+    clearInterval(analyzeTimer)
+    analyzeTimer = null
+  }
+})
 </script>
 
 <template>
@@ -246,6 +286,12 @@ onMounted(loadDocuments)
             <span class="info-label">上传时间</span>
             <span class="info-val">{{ currentDoc.createdAt?.replace('T', ' ').slice(0, 16) }}</span>
           </div>
+        </div>
+
+        <!-- 分析进度反馈 -->
+        <div v-if="analyzeProgress" class="analyze-progress">
+          <el-progress :percentage="analyzeProgress.percent" striped striped-flow />
+          <div class="progress-stage">{{ analyzeProgress.stage }}</div>
         </div>
 
         <!-- 分析报告 -->
@@ -469,6 +515,29 @@ onMounted(loadDocuments)
     font-variant-numeric: tabular-nums;
   }
 }
+/* 分析进度反馈区 */
+.analyze-progress {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-soft);
+}
+.progress-stage {
+  margin-top: 10px;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
+  animation: pulse-stage 1.6s var(--ease-out) infinite;
+}
+@keyframes pulse-stage {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
 .report-area {
   flex: 1;
   overflow-y: auto;
@@ -565,6 +634,46 @@ onMounted(loadDocuments)
   p {
     font-size: 13px;
     color: var(--color-text-secondary);
+  }
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .doc-view {
+    flex-direction: column;
+    gap: 12px;
+  }
+  /* 左右布局改为上下布局 */
+  .left-panel {
+    width: 100%;
+    flex-shrink: 1;
+  }
+  .right-panel {
+    flex: 1;
+  }
+  /* doc-info-bar 改为垂直排列 */
+  .doc-info-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    .info-item {
+      padding: 0;
+      & + .info-item {
+        border-left: none;
+      }
+    }
+  }
+  .doc-header {
+    padding: 12px 14px;
+  }
+  .doc-title {
+    font-size: 15px;
+  }
+  .report-area {
+    padding: 14px;
+  }
+  .doc-list {
+    max-height: 240px;
   }
 }
 </style>

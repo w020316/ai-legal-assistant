@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lawai.legalassistant.ai.client.AgnesClient;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
+import com.lawai.legalassistant.common.compliance.SensitiveWordFilter;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
 import com.lawai.legalassistant.modules.chat.dto.MessageVO;
@@ -18,7 +19,9 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,14 +54,17 @@ public class ChatService {
     private final RagService ragService;
     private final AgnesClient agnesClient;
     private final ObjectMapper objectMapper;
+    private final SensitiveWordFilter sensitiveWordFilter;
 
     public ChatService(ChatSessionMapper sessionMapper, ChatMessageMapper messageMapper,
-                       RagService ragService, AgnesClient agnesClient, ObjectMapper objectMapper) {
+                       RagService ragService, AgnesClient agnesClient, ObjectMapper objectMapper,
+                       SensitiveWordFilter sensitiveWordFilter) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
         this.ragService = ragService;
         this.agnesClient = agnesClient;
         this.objectMapper = objectMapper;
+        this.sensitiveWordFilter = sensitiveWordFilter;
     }
 
     /** AI 异步调用专用线程池，避免长阻塞 I/O 耗尽 ForkJoinPool.commonPool() */
@@ -189,6 +195,12 @@ public class ChatService {
         if (content == null || content.isBlank()) {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "消息内容不能为空");
         }
+        // 敏感词过滤：命中则拒绝发送
+        if (sensitiveWordFilter.contains(content)) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "消息包含敏感内容，请修改后重试");
+        }
+        // 过滤处理（即使未命中也执行，确保内容安全）
+        final String filteredContent = sensitiveWordFilter.filter(content);
         // 校验会话
         ChatSession session = getSession(userId, sessionId);
 
@@ -201,7 +213,7 @@ public class ChatService {
         ChatMessage userMsg = new ChatMessage();
         userMsg.setSessionId(sessionId);
         userMsg.setRole("user");
-        userMsg.setContent(content);
+        userMsg.setContent(filteredContent);
         messageMapper.insertMessage(userMsg);
         touchSession(sessionId);
 
@@ -212,20 +224,20 @@ public class ChatService {
                 List<RetrievedChunk> chunks = Collections.emptyList();
                 String citationsJson = null;
                 try {
-                    chunks = ragService.retrieve(content, RAG_TOP_K);
+                    chunks = ragService.retrieve(filteredContent, RAG_TOP_K);
                     citationsJson = buildCitationsJson(chunks);
                 } catch (Exception e) {
                     log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
                 }
                 String context = buildContext(chunks);
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
-                        Map.of("context", context, "history", history, "question", content));
+                        Map.of("context", context, "history", history, "question", filteredContent));
                 String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
                 saveAssistantMessage(sessionId, aiContent, citationsJson);
                 log.info("异步 AI 回复完成: sessionId={}", sessionId);
                 // 如果会话标题是默认的"新对话"，自动生成标题
                 if ("新对话".equals(session.getTitle())) {
-                    autoRenameSession(sessionId, content);
+                    autoRenameSession(sessionId, filteredContent);
                 }
             } catch (Exception e) {
                 log.error("异步 AI 调用失败: sessionId={}", sessionId, e);
@@ -326,6 +338,137 @@ public class ChatService {
         });
 
         return userMsg.getId();
+    }
+
+    /**
+     * SSE 流式问答
+     * <p>
+     * 同步保存用户消息，通过 SseEmitter 流式返回 AI 回复。
+     * RAG 检索在流式调用前同步执行，检索结果随首批数据返回。
+     * 流结束后异步保存完整 AI 消息。
+     *
+     * @param userId    用户 ID
+     * @param sessionId 会话 ID
+     * @param content   用户消息内容
+     * @param emitter   SSE 发射器
+     */
+    public void streamChat(Long userId, Long sessionId, String content, SseEmitter emitter) {
+        if (userId == null) {
+            emitter.completeWithError(BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录"));
+            return;
+        }
+        if (content == null || content.isBlank()) {
+            emitter.completeWithError(BusinessException.of(ResultCode.PARAM_ERROR, "消息内容不能为空"));
+            return;
+        }
+        // 敏感词过滤
+        if (sensitiveWordFilter.contains(content)) {
+            emitter.completeWithError(BusinessException.of(ResultCode.PARAM_ERROR, "消息包含敏感内容，请修改后重试"));
+            return;
+        }
+        final String filteredContent = sensitiveWordFilter.filter(content);
+
+        ChatSession session;
+        try {
+            session = getSession(userId, sessionId);
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+            return;
+        }
+
+        // 加载历史
+        List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
+        Collections.reverse(recent);
+        String history = buildHistory(recent);
+
+        // 保存用户消息
+        ChatMessage userMsg = new ChatMessage();
+        userMsg.setSessionId(sessionId);
+        userMsg.setRole("user");
+        userMsg.setContent(filteredContent);
+        messageMapper.insertMessage(userMsg);
+        touchSession(sessionId);
+
+        // 异步执行流式 AI 调用
+        CompletableFuture.runAsync(() -> {
+            StringBuilder fullContent = new StringBuilder();
+            try {
+                // RAG 检索
+                List<RetrievedChunk> chunks = Collections.emptyList();
+                final String[] citationsHolder = {null};
+                try {
+                    chunks = ragService.retrieve(filteredContent, RAG_TOP_K);
+                    citationsHolder[0] = buildCitationsJson(chunks);
+                } catch (Exception e) {
+                    log.warn("SSE RAG 检索失败，降级为无上下文: {}", e.getMessage());
+                }
+                final String citationsJson = citationsHolder[0];
+                String context = buildContext(chunks);
+                String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
+                        Map.of("context", context, "history", history, "question", filteredContent));
+
+                // 发送引用来源（如果有）
+                if (citationsJson != null) {
+                    try {
+                        emitter.send(SseEmitter.event().name("citations").data(citationsJson));
+                    } catch (IOException e) {
+                        log.warn("SSE 发送引用失败: {}", e.getMessage());
+                    }
+                }
+
+                // 流式调用 AI
+                agnesClient.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
+                        .doOnNext(chunk -> {
+                            try {
+                                fullContent.append(chunk);
+                                emitter.send(SseEmitter.event().name("chunk").data(chunk));
+                            } catch (IOException e) {
+                                log.warn("SSE 发送 chunk 失败: {}", e.getMessage());
+                            }
+                        })
+                        .doOnComplete(() -> {
+                            try {
+                                // 保存完整 AI 消息
+                                saveAssistantMessage(sessionId, fullContent.toString(), citationsJson);
+                                // 发送完成事件
+                                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                                emitter.complete();
+                                // 自动命名
+                                if ("新对话".equals(session.getTitle())) {
+                                    autoRenameSession(sessionId, filteredContent);
+                                }
+                                log.info("SSE 流式回复完成: sessionId={}", sessionId);
+                            } catch (IOException e) {
+                                log.warn("SSE 发送 done 失败: {}", e.getMessage());
+                                emitter.complete();
+                            }
+                        })
+                        .doOnError(e -> {
+                            log.error("SSE 流式调用失败: sessionId={}", sessionId, e);
+                            try {
+                                emitter.send(SseEmitter.event().name("error").data("AI 服务暂时不可用"));
+                            } catch (IOException ignored) {
+                            }
+                            emitter.completeWithError(e);
+                        })
+                        .subscribe();
+            } catch (Exception e) {
+                log.error("SSE 流式问答异常: sessionId={}", sessionId, e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data("AI 服务暂时不可用"));
+                } catch (IOException ignored) {
+                }
+                emitter.completeWithError(e);
+            }
+        }, aiExecutor).orTimeout(120, TimeUnit.SECONDS).exceptionally(ex -> {
+            log.error("SSE 流式问答超时: sessionId={}", sessionId, ex);
+            try {
+                emitter.send(SseEmitter.event().name("error").data("AI 回复超时"));
+            } catch (IOException ignored) {
+            }
+            emitter.completeWithError(ex);
+            return null;
+        });
     }
 
     /**
