@@ -1,0 +1,11 @@
+app = "lawai-frontend"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile.fly"
+
+[http_service]
+  internal_port = 80
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
