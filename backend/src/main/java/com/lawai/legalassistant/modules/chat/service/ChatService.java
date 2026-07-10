@@ -255,7 +255,7 @@ public class ChatService {
             String titlePrompt = "请将以下用户问题概括为4-8个字的标题，直接输出标题文字，不要加引号或标点：\n" + userMessage;
             String title = agnesClient.chat("你是一个标题生成助手，只输出简短标题。", titlePrompt);
             // 清理标题：去除引号、换行、首尾空格，截断到8字
-            title = title.replaceAll("[\"'""''「」【】]", "").replaceAll("[\\r\\n]", "").trim();
+            title = title.replaceAll("[\"'\\u201c\\u201d\\u2018\\u2019\\u300c\\u300d\\u3010\\u3011]", "").replaceAll("[\\r\\n]", "").trim();
             if (title.length() > 8) {
                 title = title.substring(0, 8);
             }
