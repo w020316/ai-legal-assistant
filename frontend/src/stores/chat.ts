@@ -96,8 +96,8 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // 同步获取 AI 回复（内部方法）
-  // 使用 reactive 创建 AI 消息占位，请求完成后一次性填充内容
+  // 异步获取 AI 回复（轮询模式）
+  // POST 立即返回用户消息 ID，后台异步调用 AI，前端轮询消息列表获取回复
   async function fetchAssistantReply(content: string) {
     if (!currentSession.value) return
     const sessionId = currentSession.value.id
@@ -113,12 +113,31 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(aiMsg)
     sending.value = true
     try {
-      const res = await sendMessageApi(sessionId, content)
-      aiMsg.id = res.data.id
-      aiMsg.content = res.data.content
-      aiMsg.citations = res.data.citations
-      aiMsg.tokens = res.data.tokens
-      aiMsg.createdAt = res.data.createdAt
+      // 发送消息，后端立即返回用户消息 ID
+      await sendMessageApi(sessionId, content)
+      // 轮询消息列表，等待 AI 回复出现
+      const maxAttempts = 60 // 最多轮询 60 次（约 120 秒）
+      const interval = 2000 // 每 2 秒轮询一次
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => setTimeout(resolve, interval))
+        if (!sending.value) return // 用户点击了停止
+        const res = await listMessages(sessionId)
+        const msgs = res.data
+        // 找到最后一条 assistant 消息
+        const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
+        if (lastAssistant && lastAssistant.content) {
+          aiMsg.id = lastAssistant.id
+          aiMsg.content = lastAssistant.content
+          aiMsg.citations = lastAssistant.citations
+          aiMsg.tokens = lastAssistant.tokens
+          aiMsg.createdAt = lastAssistant.createdAt
+          break
+        }
+      }
+      // 超时仍未收到回复
+      if (!aiMsg.content) {
+        aiMsg.content = 'AI 回复超时，请稍后重试。'
+      }
     } catch (e) {
       ElMessage.error('发送失败，请重试')
       // AI 消息为空时移除占位消息

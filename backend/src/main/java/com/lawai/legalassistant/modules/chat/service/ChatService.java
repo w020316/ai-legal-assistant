@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 对话服务
@@ -143,18 +144,18 @@ public class ChatService {
     }
 
     /**
-     * 发送消息（同步模式）
+     * 发送消息（异步模式）
      * <p>
-     * 流程：保存用户消息 → 加载历史 → RAG 检索 → 构造 Prompt → 同步调用 AI → 保存 AI 消息。
-     * 返回完整的 AI 回复（含引用来源），前端用 loading 等待。
-     * 不使用 SSE，避免 Fly.io proxy 缓冲流式响应导致客户端收不到数据。
+     * 同步保存用户消息后立即返回用户消息 ID，AI 调用在后台异步执行。
+     * 前端通过轮询 GET /sessions/{id}/messages 获取 AI 回复。
+     * 避免同步调用 AI 超过 Fly.io proxy 60 秒超时。
      *
      * @param userId    用户 ID
      * @param sessionId 会话 ID
      * @param content   用户消息内容
-     * @return AI 回复消息 VO
+     * @return 用户消息 ID
      */
-    public MessageVO sendMessageSync(Long userId, Long sessionId, String content) {
+    public Long sendMessageAsync(Long userId, Long sessionId, String content) {
         // 校验登录
         if (userId == null) {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
@@ -179,29 +180,25 @@ public class ChatService {
         messageMapper.insertMessage(userMsg);
         touchSession(sessionId);
 
-        // 3. RAG 检索 Top5
-        List<RetrievedChunk> chunks = ragService.retrieve(content, RAG_TOP_K);
-        String context = buildContext(chunks);
-        String citationsJson = buildCitationsJson(chunks);
+        // 3. 异步执行 RAG 检索 + AI 调用 + 保存 AI 消息
+        CompletableFuture.runAsync(() -> {
+            try {
+                List<RetrievedChunk> chunks = ragService.retrieve(content, RAG_TOP_K);
+                String context = buildContext(chunks);
+                String citationsJson = buildCitationsJson(chunks);
+                String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
+                        Map.of("context", context, "history", history, "question", content));
+                String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
+                saveAssistantMessage(sessionId, aiContent, citationsJson);
+                log.info("异步 AI 回复完成: sessionId={}", sessionId);
+            } catch (Exception e) {
+                log.error("异步 AI 调用失败: sessionId={}", sessionId, e);
+                // 保存错误提示消息
+                saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
+            }
+        });
 
-        // 4. 构造 Prompt
-        String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
-                Map.of("context", context, "history", history, "question", content));
-
-        // 5. 同步调用 AI
-        String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
-
-        // 6. 保存 AI 消息
-        Long msgId = saveAssistantMessage(sessionId, aiContent, citationsJson);
-
-        // 7. 构造返回 VO
-        MessageVO vo = new MessageVO();
-        vo.setId(msgId);
-        vo.setRole("assistant");
-        vo.setContent(aiContent);
-        vo.setCitations(citationsJson);
-        vo.setCreatedAt(Instant.now());
-        return vo;
+        return userMsg.getId();
     }
 
     /**

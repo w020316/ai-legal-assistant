@@ -124,9 +124,9 @@ export const listMessages = (sessionId: number) =>
 export const exportSession = (sessionId: number) =>
   http.post<ExportResult>(`/sessions/${sessionId}/export`)
 
-// 发送消息（同步模式，返回完整 AI 回复）
+// 发送消息（异步模式，返回用户消息 ID，AI 回复通过轮询获取）
 export const sendMessage = (sessionId: number, content: string) =>
-  http.post<MessageVO>(`/sessions/${sessionId}/messages`, { content } satisfies SendMessageRequest)
+  http.post<number>(`/sessions/${sessionId}/messages`, { content } satisfies SendMessageRequest)
 
 // ==================== 文档分析相关 ====================
 

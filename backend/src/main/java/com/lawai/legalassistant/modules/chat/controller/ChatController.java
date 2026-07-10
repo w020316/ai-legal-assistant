@@ -97,14 +97,15 @@ public class ChatController {
     }
 
     /**
-     * 发送消息（同步模式）
+     * 发送消息（异步模式）
      * <p>
-     * 返回完整的 AI 回复（含引用来源）。不使用 SSE，避免 Fly.io proxy 缓冲流式响应。
+     * 同步保存用户消息后立即返回用户消息 ID，AI 调用在后台异步执行。
+     * 前端通过轮询 GET /sessions/{id}/messages 获取 AI 回复。
      */
     @PostMapping("/{id}/messages")
-    public Result<MessageVO> sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
+    public Result<Long> sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
         Long userId = requireLogin();
-        return Result.success(chatService.sendMessageSync(userId, id, req.getContent()));
+        return Result.success(chatService.sendMessageAsync(userId, id, req.getContent()));
     }
 
     /**
