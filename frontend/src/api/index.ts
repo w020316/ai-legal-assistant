@@ -35,6 +35,10 @@ export interface RegisterParams {
 
 export const register = (data: RegisterParams) => http.post<void>('/auth/register', data)
 
+// 刷新 Token
+export const refreshAuthToken = (refreshToken: string) =>
+  http.post<LoginResult>('/auth/refresh', { refreshToken })
+
 // ==================== 对话相关 ====================
 
 // 引用来源（对应后端 RAG 检索片段）

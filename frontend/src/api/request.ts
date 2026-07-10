@@ -35,8 +35,52 @@ service.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
-// 响应拦截：统一处理业务码
-// 成功时直接返回 ApiResult（而非 AxiosResponse），调用处用 res.data 取业务数据
+// ===== Token 自动刷新机制 =====
+let isRefreshing = false
+let pendingRequests: Array<(token: string) => void> = []
+
+function onTokenRefreshed(newToken: string) {
+  pendingRequests.forEach((cb) => cb(newToken))
+  pendingRequests = []
+}
+
+function addPendingRequest(cb: (token: string) => void) {
+  pendingRequests.push(cb)
+}
+
+// 尝试用 refreshToken 续期；成功返回新 token，失败返回 null
+async function tryRefreshToken(): Promise<string | null> {
+  const userStore = useUserStore()
+  if (!userStore.refreshToken) return null
+  try {
+    const res = await axios.post<ApiResult<{ accessToken: string; refreshToken: string; username: string; role: string }>>(
+      '/api/v1/auth/refresh',
+      { refreshToken: userStore.refreshToken },
+      { headers: { 'Content-Type': 'application/json' } },
+    )
+    if (res.data.code === 0 && res.data.data.accessToken) {
+      userStore.setAuth({
+        accessToken: res.data.data.accessToken,
+        refreshToken: res.data.data.refreshToken,
+        username: res.data.data.username || userStore.username,
+        role: res.data.data.role || userStore.role,
+      })
+      return res.data.data.accessToken
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// 清除登录态并跳转登录页
+function forceLogout() {
+  const userStore = useUserStore()
+  userStore.logout()
+  window.location.href = '/login'
+}
+
+// 响应拦截：统一处理业务码 + 401 自动刷新
 service.interceptors.response.use(
   (response) => {
     const res = response.data as ApiResult
@@ -50,17 +94,64 @@ service.interceptors.response.use(
     }
     // 业务错误
     const msg = ERROR_MESSAGES[res.code] || res.message || '请求失败'
-    ElMessage.error(msg)
-    // 401：清除登录态并跳转登录
+    // 1002：Token 过期 — 尝试自动刷新
     if (res.code === 1002) {
-      const userStore = useUserStore()
-      userStore.logout()
-      window.location.href = '/login'
+      const originalConfig = response.config
+      if (!isRefreshing) {
+        isRefreshing = true
+        tryRefreshToken().then((newToken) => {
+          if (newToken) {
+            onTokenRefreshed(newToken)
+            // 静默续期，不弹消息
+          } else {
+            pendingRequests = []
+            forceLogout()
+          }
+          isRefreshing = false
+        })
+      }
+      // 将当前请求挂起，等 refresh 完成后自动重试
+      return new Promise((resolve, reject) => {
+        addPendingRequest((token) => {
+          originalConfig.headers.Authorization = `Bearer ${token}`
+          service(originalConfig).then(resolve).catch(reject)
+        })
+      })
     }
+    ElMessage.error(msg)
     return Promise.reject(new Error(msg))
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status
+    const originalConfig = error.config
+
+    // HTTP 401：尝试自动刷新 Token 后重试一次
+    const retried = (originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })?._retried
+    if (status === 401 && originalConfig && !retried) {
+      if (!isRefreshing) {
+        isRefreshing = true
+        const newToken = await tryRefreshToken()
+        isRefreshing = false
+        if (newToken) {
+          onTokenRefreshed(newToken)
+          ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
+          originalConfig.headers.Authorization = `Bearer ${newToken}`
+          return service(originalConfig)
+        }
+        pendingRequests = []
+        forceLogout()
+        return Promise.reject(error)
+      }
+      // 正在刷新：挂起等待
+      return new Promise((resolve, reject) => {
+        addPendingRequest((token) => {
+          ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
+          originalConfig.headers.Authorization = `Bearer ${token}`
+          service(originalConfig).then(resolve).catch(reject)
+        })
+      })
+    }
+
     let msg = '网络异常，请检查连接'
     if (status === 401) msg = '登录已过期，请重新登录'
     else if (status === 403) msg = '无权限访问'
@@ -90,4 +181,3 @@ const http = {
 }
 
 export default http
-

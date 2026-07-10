@@ -13,6 +13,16 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'regenerate'): void }>()
 
+// 用户反馈状态（点赞/点踩）
+const feedback = ref<'like' | 'dislike' | null>(null)
+
+function handleFeedback(type: 'like' | 'dislike') {
+  feedback.value = feedback.value === type ? null : type
+  if (feedback.value) {
+    ElMessage.success(feedback.value === 'like' ? '感谢您的肯定' : '已记录您的反馈')
+  }
+}
+
 // 复制消息内容到剪贴板
 async function copyContent() {
   try {
@@ -97,6 +107,23 @@ const formattedTime = computed(() => {
         <div v-if="!streaming && message.content" class="actions">
           <el-button text size="small" :icon="CopyDocument" @click="copyContent">复制</el-button>
           <el-button text size="small" :icon="RefreshRight" @click="emit('regenerate')">重新生成</el-button>
+          <span class="action-divider"></span>
+          <button
+            class="feedback-btn"
+            :class="{ active: feedback === 'like' }"
+            aria-label="点赞"
+            @click="handleFeedback('like')"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+          </button>
+          <button
+            class="feedback-btn"
+            :class="{ active: feedback === 'dislike' }"
+            aria-label="点踩"
+            @click="handleFeedback('dislike')"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+          </button>
         </div>
         </div>
       </div>
@@ -225,6 +252,7 @@ const formattedTime = computed(() => {
 .actions {
   margin-top: 12px;
   display: flex;
+  align-items: center;
   gap: 4px;
   border-top: 1px solid var(--color-border-light);
   padding-top: 8px;
@@ -234,6 +262,33 @@ const formattedTime = computed(() => {
       color: var(--color-accent);
       background: var(--color-accent-light);
     }
+  }
+}
+.action-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border);
+  margin: 0 4px;
+}
+.feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-base);
+  &:hover {
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+  &.active {
+    color: var(--color-accent);
+    background: var(--color-accent-light);
   }
 }
 @keyframes blink {

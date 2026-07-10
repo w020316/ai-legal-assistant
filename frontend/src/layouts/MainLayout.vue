@@ -75,6 +75,15 @@ function handleLogout() {
             <template #title>{{ m.title }}</template>
           </el-menu-item>
         </el-menu>
+        <!-- 侧边栏底部：法律链接 + 版本 -->
+        <div v-if="!isCollapse" class="aside-footer">
+          <div class="footer-links">
+            <router-link to="/privacy">隐私政策</router-link>
+            <span class="dot">·</span>
+            <router-link to="/terms">用户协议</router-link>
+          </div>
+          <div class="version">LawAI v1.0</div>
+        </div>
       </el-aside>
 
       <!-- 主内容区：暖白背景 -->
@@ -145,6 +154,36 @@ function handleLogout() {
   background-color: var(--color-bg-card);
   border-right: 1px solid var(--color-border);
   transition: width 0.2s var(--ease-out);
+  display: flex;
+  flex-direction: column;
+}
+.aside-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border-light);
+}
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  a {
+    color: var(--color-text-secondary);
+    transition: var(--transition-base);
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+  .dot {
+    color: var(--color-text-secondary);
+  }
+}
+.version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  letter-spacing: 0.02em;
 }
 .aside :deep(.el-menu) {
   border-right: none;

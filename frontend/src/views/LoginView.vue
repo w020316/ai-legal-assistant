@@ -126,6 +126,11 @@ function toggleMode() {
             {{ isLogin ? '去注册' : '去登录' }}
           </el-link>
         </div>
+        <div class="legal-links">
+          <router-link to="/privacy">隐私政策</router-link>
+          <span>·</span>
+          <router-link to="/terms">用户协议</router-link>
+        </div>
       </div>
     </main>
   </div>
@@ -242,6 +247,23 @@ function toggleMode() {
   margin-top: 24px;
   font-size: 13px;
   color: var(--color-text-regular);
+}
+.legal-links {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  a {
+    color: var(--color-text-secondary);
+    transition: var(--transition-base);
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+  span {
+    color: var(--color-text-secondary);
+  }
 }
 
 // 响应式：移动端塌缩为单列，隐藏品牌叙事

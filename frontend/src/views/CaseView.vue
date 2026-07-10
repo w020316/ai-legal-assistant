@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { searchCases, type CaseVO, type CaseSearchRequest } from '@/api'
 
@@ -41,6 +41,14 @@ const cases = ref<CaseVO[]>([])
 const loading = ref(false)
 const searched = ref(false)
 
+// 前端分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pagedCases = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return cases.value.slice(start, start + pageSize.value)
+})
+
 // 请求 ID：用于丢弃过期的搜索响应，避免旧结果覆盖新结果
 const requestId = ref(0)
 // 防抖计时器
@@ -55,6 +63,7 @@ async function handleSearch() {
   const currentId = ++requestId.value
   loading.value = true
   searched.value = true
+  currentPage.value = 1
   try {
     const params: CaseSearchRequest = {
       keyword: form.keyword?.trim() || undefined,
@@ -146,7 +155,7 @@ onMounted(handleSearch)
         <span>共找到 {{ cases.length }} 条案例</span>
       </div>
       <div v-loading="loading" class="case-list">
-        <div v-for="c in cases" :key="c.id" class="case-card" @click="handleViewDetail(c)">
+        <div v-for="c in pagedCases" :key="c.id" class="case-card" @click="handleViewDetail(c)">
           <div class="case-card-head">
             <span class="case-title" :title="c.title">{{ c.title }}</span>
             <el-tag size="small" effect="light">{{ c.caseCause || '未分类' }}</el-tag>
@@ -164,6 +173,18 @@ onMounted(handleSearch)
         <el-empty
           v-if="!loading && searched && cases.length === 0"
           description="未找到相关案例，试试调整搜索条件或清除筛选"
+        />
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="cases.length > pageSize" class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="cases.length"
+          layout="prev, pager, next"
+          background
+          small
         />
       </div>
     </div>
@@ -321,6 +342,14 @@ onMounted(handleSearch)
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 分页 */
+.pagination-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 /* 详情抽屉 */
