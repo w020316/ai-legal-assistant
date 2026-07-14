@@ -235,12 +235,12 @@ async function handleDelete(session: SessionVO) {
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid var(--color-border);
-  // 搜索框样式优化
+  // 搜索框样式优化：focus 时牛血红环
   :deep(.el-input__wrapper) {
     border-radius: var(--radius-button);
     transition: var(--transition-base);
     &.is-focus {
-      box-shadow: 0 0 0 2px rgba(140, 106, 63, 0.08);
+      box-shadow: 0 0 0 2px rgba(122, 31, 43, 0.12);
     }
   }
 }
@@ -264,14 +264,27 @@ async function handleDelete(session: SessionVO) {
   overflow-y: auto;
   padding: 8px;
 }
-// 时间分组标题：小号衬线 + 古铜色
+// 时间分组标题：公报 eyebrow 式（小型大写字母 + 牛血红 + 字距加宽 + 双线分隔）
 .group-title {
-  padding: 10px 8px 6px;
-  font-family: var(--font-serif);
-  font-size: 12px;
+  padding: 14px 8px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
   color: var(--color-accent);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  position: relative;
+  &::after {
+    content: '';
+    display: block;
+    margin-top: 6px;
+    height: 1px;
+    background: linear-gradient(to right, var(--color-accent) 0%, var(--color-accent) 24px, transparent 24px);
+    opacity: 0.4;
+  }
+  &:not(:first-child) {
+    margin-top: 6px;
+  }
 }
 .item {
   position: relative;

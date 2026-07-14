@@ -61,11 +61,11 @@ const formattedTime = computed(() => {
 
 <template>
   <div class="message-item" :class="message.role">
-    <!-- 用户消息：右侧气泡 -->
+    <!-- 用户消息：右侧气泡（深墨实色，公报式） -->
     <div v-if="message.role === 'user'" class="user-msg">
       <div class="bubble">{{ message.content }}</div>
     </div>
-    <!-- AI 消息：左侧全宽卡片 -->
+    <!-- AI 消息：左侧全宽卡片（公报式，左侧牛血红竖线） -->
     <div v-else class="assistant-msg">
       <div class="card">
         <!-- 卡片 header：AI 助手标签 + 时间戳 -->
@@ -133,53 +133,38 @@ const formattedTime = computed(() => {
 
 <style scoped lang="scss">
 .message-item {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
+// 用户消息：深墨气泡（公报式，修复原 #0B2545 硬编码）
 .user-msg {
   display: flex;
   justify-content: flex-end;
   .bubble {
     max-width: 70%;
     padding: 10px 14px;
-    // 墨蓝微妙渐变（同色族深浅，非 AI 紫蓝渐变）
-    background: linear-gradient(135deg, #0B2545 0%, #133159 100%);
-    color: #FAFAF7;
-    // 圆角差异：右上角小圆角，营造气泡方向感
-    border-radius: var(--radius-card) var(--radius-sm) var(--radius-card) var(--radius-card);
+    background: var(--color-primary);
+    color: #FBF8F1;
+    border-radius: var(--radius-sm) var(--radius-card) var(--radius-card) var(--radius-card);
     word-break: break-word;
     line-height: 1.6;
     font-size: 14px;
+    font-family: var(--font-serif);
     box-shadow: var(--shadow-card);
-    // 用户消息从右滑入
     animation: slideInRight 0.35s var(--ease-out) both;
   }
 }
+// AI 消息：公报式卡片（左侧牛血红竖线 + 象牙纸底）
 .assistant-msg {
   .card {
     width: 100%;
     background-color: var(--color-bg-card);
-    // 微妙纸质纹理：极浅古铜色横线，模拟古籍纸张质感
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(140, 106, 63, 0.012) 0px,
-      rgba(140, 106, 63, 0.012) 1px,
-      transparent 1px,
-      transparent 4px
-    );
     border: 1px solid var(--color-border);
+    // 左侧牛血红竖线（公报式引文标记）
+    border-left: 3px solid var(--color-accent);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     overflow: hidden;
-    // AI 消息从左滑入
     animation: slideInLeft 0.35s var(--ease-out) both;
-    // 顶部发丝线：古铜色渐变到透明，编辑典籍感
-    &::before {
-      content: '';
-      display: block;
-      height: 1px;
-      background: linear-gradient(90deg, var(--color-accent), transparent);
-      opacity: 0.8;
-    }
   }
 }
 .card-header {
@@ -188,18 +173,20 @@ const formattedTime = computed(() => {
   justify-content: space-between;
   padding: 10px 16px 8px;
   border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-soft);
 }
 .ai-label {
-  font-family: var(--font-serif);
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-primary);
+  font-style: italic;
+  color: var(--color-accent);
   letter-spacing: 0.01em;
 }
 .ai-time {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-text-secondary);
 }
 .card-body {
@@ -217,14 +204,17 @@ const formattedTime = computed(() => {
   gap: 6px;
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-primary);
-  background: var(--color-bg);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-bg-soft);
   user-select: none;
-  transition: background 0.15s;
+  transition: var(--transition-fast);
   &:hover {
-    background: var(--color-bg-soft);
+    background: var(--color-accent-light);
   }
   .toggle-icon {
     font-size: 14px;
@@ -242,7 +232,7 @@ const formattedTime = computed(() => {
   color: var(--color-accent);
   animation: blink 1s steps(2) infinite;
 }
-// 等待加载三点脉冲动画（古铜色，统一使用全局 pulseDot 关键帧）
+// 等待加载三点脉冲动画
 .loading-dots {
   display: inline-flex;
   gap: 4px;
@@ -270,6 +260,7 @@ const formattedTime = computed(() => {
   padding-top: 8px;
   :deep(.el-button) {
     color: var(--color-text-secondary);
+    font-family: var(--font-sans);
     &:hover {
       color: var(--color-accent);
       background: var(--color-accent-light);
@@ -293,7 +284,7 @@ const formattedTime = computed(() => {
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: var(--transition-base);
+  transition: var(--transition-fast);
   &:hover {
     color: var(--color-accent);
     background: var(--color-accent-light);
@@ -301,11 +292,6 @@ const formattedTime = computed(() => {
   &.active {
     color: var(--color-accent);
     background: var(--color-accent-light);
-  }
-}
-@keyframes blink {
-  to {
-    opacity: 0;
   }
 }
 </style>

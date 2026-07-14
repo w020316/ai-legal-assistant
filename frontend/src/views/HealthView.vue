@@ -50,7 +50,7 @@ onMounted(fetchHealth)
   <div class="health-view">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h1 class="page-title">系统状态</h1>
+      <h1 class="page-title" data-eyebrow="STATUS · 系统监控">系统状态</h1>
       <el-button :loading="loading" size="small" @click="fetchHealth">刷新</el-button>
     </div>
 
@@ -148,31 +148,31 @@ onMounted(fetchHealth)
   }
 }
 .status-card.is-ok .status-badge {
-  background: rgba(45, 106, 79, 0.08);
+  background: rgba(61, 92, 58, 0.08);
   color: var(--color-success);
   .status-dot {
     background: var(--color-success);
   }
 }
 .status-card.is-err .status-badge {
-  background: rgba(155, 44, 44, 0.08);
+  background: rgba(139, 30, 30, 0.08);
   color: var(--color-danger);
   .status-dot {
     background: var(--color-danger);
   }
 }
 .status-card.is-warn .status-badge {
-  background: rgba(156, 107, 11, 0.08);
+  background: rgba(139, 105, 20, 0.08);
   color: var(--color-warning);
   .status-dot {
     background: var(--color-warning);
   }
 }
 .status-service {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-text-primary);
 }
 .status-time {
@@ -209,12 +209,18 @@ onMounted(fetchHealth)
   gap: 6px;
 }
 .detail-label {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
 }
 .detail-val {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
   &.mono {
     font-family: var(--font-mono);

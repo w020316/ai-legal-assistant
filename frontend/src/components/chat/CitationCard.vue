@@ -38,24 +38,28 @@ const expanded = ref(false)
 .citation-card {
   margin-top: 12px;
   border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-accent);
   border-radius: var(--radius-card);
-  // 古铜色浅底
+  // 牛血红浅底（公报引文式）
   background: var(--color-accent-light);
   overflow: hidden;
 }
 .header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 8px 14px;
   cursor: pointer;
   color: var(--color-accent);
-  font-size: 13px;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   user-select: none;
   transition: background 0.15s;
   &:hover {
-    background: rgba(140, 106, 63, 0.06);
+    background: rgba(122, 31, 43, 0.06);
   }
   .el-icon {
     color: var(--color-accent);
@@ -69,12 +73,12 @@ const expanded = ref(false)
   }
 }
 .list {
-  border-top: 1px solid rgba(140, 106, 63, 0.15);
-  padding: 8px 12px;
+  border-top: 1px solid rgba(122, 31, 43, 0.15);
+  padding: 10px 14px;
   background: var(--color-bg-card);
 }
 .item {
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--color-border-light);
   &:last-child {
     border-bottom: none;
@@ -83,16 +87,17 @@ const expanded = ref(false)
 .item-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 10px;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
   color: var(--color-text-primary);
   .index {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: var(--radius-full);
     background: var(--color-accent);
     color: #FAFAF7;
@@ -108,16 +113,23 @@ const expanded = ref(false)
 }
 .item-source {
   margin-top: 4px;
-  padding-left: 26px;
-  font-size: 12px;
+  padding-left: 30px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   color: var(--color-text-secondary);
 }
 .item-snippet {
-  margin-top: 4px;
-  padding-left: 26px;
+  margin-top: 6px;
+  padding-left: 30px;
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: 13px;
   color: var(--color-text-regular);
-  line-height: 1.6;
+  line-height: 1.7;
+  // 公报引文式：左侧古铜金短竖线
+  border-left: 2px solid var(--color-gilt);
+  padding-left: 12px;
+  margin-left: 16px;
 }
 // 平滑展开动画
 .cite-expand-enter-active,

@@ -170,11 +170,16 @@ function handleImageChange(e: Event) {
 .stage-hint {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
+  gap: 10px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--color-accent);
   background: var(--color-accent-light);
+  border-left: 2px solid var(--color-accent);
   border-radius: var(--radius-button);
   margin-bottom: 8px;
   width: fit-content;
@@ -204,13 +209,14 @@ function handleImageChange(e: Event) {
 .input-wrap {
   :deep(.el-textarea__inner) {
     border-radius: var(--radius-card);
-    font-family: var(--font-sans);
-    line-height: 1.6;
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.7;
     border-color: var(--color-border);
     transition: var(--transition-base);
     &:focus {
       border-color: var(--color-accent);
-      box-shadow: 0 0 0 2px rgba(140, 106, 63, 0.08);
+      box-shadow: 0 0 0 2px rgba(122, 31, 43, 0.12);
     }
   }
 }
@@ -250,9 +256,18 @@ function handleImageChange(e: Event) {
 }
 .disclaimer {
   margin-top: 8px;
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: 12px;
   color: var(--color-text-secondary);
   text-align: center;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  &::before,
+  &::after {
+    content: '—';
+    margin: 0 8px;
+    color: var(--color-gilt);
+    font-style: normal;
+  }
 }
 </style>

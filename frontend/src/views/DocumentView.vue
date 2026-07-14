@@ -37,12 +37,12 @@ function formatSize(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(2) + ' MB'
 }
 
-// 文件类型图标颜色
+// 文件类型图标颜色：使用设计系统语义色
 function fileIconColor(type: string): string {
   const t = type.toLowerCase()
-  if (t.includes('pdf')) return '#C53030'
-  if (t.includes('doc')) return '#2D5485'
-  return '#2C7A7B'
+  if (t.includes('pdf')) return '#8B1E1E' // var(--color-danger)
+  if (t.includes('doc')) return '#4A4038' // var(--color-primary-soft)
+  return '#3D5C3A' // var(--color-success)
 }
 
 // 分析状态 -> 标签类型
@@ -403,9 +403,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
   font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
 .list-body {
@@ -471,8 +474,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-primary);
   min-width: 0;
   span {
@@ -523,10 +528,12 @@ onUnmounted(() => {
 }
 .progress-stage {
   margin-top: 10px;
-  font-family: var(--font-serif);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--color-accent);
-  letter-spacing: 0.02em;
   animation: pulse-stage 1.6s var(--ease-out) infinite;
 }
 @keyframes pulse-stage {
@@ -550,15 +557,29 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-primary);
   margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 32px;
+    height: 2px;
+    background: var(--color-accent);
+  }
 }
 .summary-block {
-  padding: 16px;
+  padding: 16px 18px;
   background: var(--color-accent-light);
-  border-top: 2px solid var(--color-accent);
+  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-card);
 }
 .summary-text {
@@ -579,18 +600,18 @@ onUnmounted(() => {
   background: var(--color-bg-card);
   transition: box-shadow 0.15s;
   &:hover {
-    box-shadow: 0 2px 8px rgba(11, 37, 69, 0.06);
+    box-shadow: 0 2px 8px rgba(20, 17, 15, 0.06);
   }
   &.risk-danger {
-    background: rgba(155, 44, 44, 0.035);
+    background: rgba(139, 30, 30, 0.035);
     border-top: 2px solid var(--color-danger);
   }
   &.risk-warning {
-    background: rgba(156, 107, 11, 0.035);
+    background: rgba(139, 105, 20, 0.035);
     border-top: 2px solid var(--color-warning);
   }
   &.risk-success {
-    background: rgba(45, 106, 79, 0.035);
+    background: rgba(61, 92, 58, 0.035);
     border-top: 2px solid var(--color-success);
   }
 }
@@ -628,12 +649,18 @@ onUnmounted(() => {
   color: var(--color-text-regular);
   h3 {
     margin: 16px 0 8px;
-    font-size: 16px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
     color: var(--color-primary);
   }
   p {
+    font-family: var(--font-serif);
+    font-style: italic;
     font-size: 13px;
     color: var(--color-text-secondary);
+    max-width: 36ch;
   }
 }
 

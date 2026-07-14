@@ -134,7 +134,7 @@ const sections: LegalSection[] = [
   <div class="page-container legal-page">
     <!-- 文档头 -->
     <header class="doc-head">
-      <h1 class="page-title">隐私政策</h1>
+      <h1 class="page-title" data-eyebrow="PRIVACY · 隐私声明">隐私政策</h1>
       <p class="doc-meta">最近更新：<span class="meta-val">{{ lastUpdated }}</span></p>
       <p class="doc-intro">
         本隐私政策说明 linzAI 法律智能问答平台（以下简称"本平台"）如何收集、使用、存储和保护您的个人信息。请您在使用本平台前仔细阅读本政策。一旦您开始使用本平台提供的服务，即视为您已理解并同意本政策所述内容。
@@ -213,18 +213,18 @@ const sections: LegalSection[] = [
   &:hover {
     box-shadow: var(--shadow-hover);
   }
-  // 左上角大号章节编号装饰：等宽字体 + 古铜色 20% 透明度
+  // 左上角大号章节编号装饰：罗马数字 + 牛血红 18% 透明度（公报纸印水印感）
   &::before {
-    content: counter(section-counter, decimal-leading-zero);
+    content: counter(section-counter, upper-roman);
     position: absolute;
     top: 10px;
     left: 14px;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    font-size: 42px;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 48px;
+    font-weight: 600;
     color: var(--color-accent);
-    opacity: 0.2;
+    opacity: 0.18;
     line-height: 1;
     pointer-events: none;
     z-index: 0;
@@ -249,17 +249,18 @@ const sections: LegalSection[] = [
 .section-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-accent);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .section-title {
-  font-family: var(--font-serif);
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 /* 章节正文 */
@@ -304,6 +305,8 @@ const sections: LegalSection[] = [
     }
   }
   .term {
+    font-family: var(--font-display);
+    font-style: italic;
     font-weight: 600;
     color: var(--color-primary);
   }

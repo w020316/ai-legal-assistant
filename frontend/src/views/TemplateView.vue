@@ -192,7 +192,10 @@ onMounted(() => loadTemplates())
     <!-- 右侧模板列表 -->
     <div class="tpl-panel">
       <div class="tpl-panel-header">
-        <span class="title">{{ categories.find((c) => c.key === activeCategory)?.label || '全部' }}模板</span>
+        <div class="header-text">
+          <span class="header-eyebrow">FORMS · 文书范本</span>
+          <span class="title">{{ categories.find((c) => c.key === activeCategory)?.label || '全部' }}模板</span>
+        </div>
         <el-button :loading="loading" size="small" @click="loadTemplates(activeCategory || undefined, true)">刷新</el-button>
       </div>
 
@@ -307,6 +310,9 @@ onMounted(() => loadTemplates())
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
   font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: -0.01em;
   color: var(--color-primary);
 }
 .cat-list {
@@ -370,12 +376,25 @@ onMounted(() => loadTemplates())
   justify-content: space-between;
   padding: 14px 20px;
   border-bottom: 1px solid var(--color-border);
-  .title {
-    font-size: 16px;
+  .header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .header-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
     font-weight: 600;
-    font-family: var(--font-serif);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .title {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: var(--font-display);
     color: var(--color-primary);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
 }
 .tpl-grid {
@@ -409,7 +428,7 @@ onMounted(() => loadTemplates())
   &:nth-child(4) { animation-delay: 0.16s; }
   &:nth-child(5) { animation-delay: 0.2s; }
   &:nth-child(n+6) { animation-delay: 0.24s; }
-  // 右上角文档折角装饰（HyperUI 风格）
+  // 右上角文档折角装饰（公报页面折角）
   &::after {
     content: '';
     position: absolute;
@@ -419,15 +438,15 @@ onMounted(() => loadTemplates())
     height: 0;
     border-style: solid;
     border-width: 0 18px 18px 0;
-    border-color: transparent rgba(200, 137, 62, 0.14) transparent transparent;
+    border-color: transparent rgba(122, 31, 43, 0.14) transparent transparent;
     transition: border-color 0.25s var(--ease-out);
   }
   &:hover {
-    box-shadow: 0 4px 12px rgba(26, 23, 20, 0.06), 0 0 0 1px rgba(200, 137, 62, 0.12), 0 0 18px rgba(200, 137, 62, 0.1);
+    box-shadow: 0 4px 12px rgba(20, 17, 15, 0.06), 0 0 0 1px rgba(122, 31, 43, 0.12), 0 0 18px rgba(122, 31, 43, 0.08);
     transform: translateY(-2px);
-    border-color: rgba(200, 137, 62, 0.4);
+    border-color: rgba(122, 31, 43, 0.4);
     &::after {
-      border-right-color: rgba(200, 137, 62, 0.3);
+      border-right-color: rgba(122, 31, 43, 0.3);
     }
   }
 }
@@ -437,10 +456,10 @@ onMounted(() => loadTemplates())
   gap: 8px;
 }
 .tpl-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -614,14 +633,24 @@ onMounted(() => loadTemplates())
   flex-direction: column;
 }
 .gen-section-title {
-  font-size: 14px;
   font-weight: 600;
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: -0.015em;
   color: var(--color-primary);
   padding-bottom: 8px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--color-border);
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 32px;
+    height: 2px;
+    background: var(--color-accent);
+  }
 }
 .gen-form {
   max-height: 280px;

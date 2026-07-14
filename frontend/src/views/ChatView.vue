@@ -64,6 +64,26 @@ function handleSuggestion(text: string) {
   handleSend(text)
 }
 
+// 阿拉伯数字转罗马数字（公报章节编号风）
+function toRoman(num: number): string {
+  const map: [number, string][] = [
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
+  ]
+  let result = ''
+  let n = num
+  for (const [v, s] of map) {
+    while (n >= v) {
+      result += s
+      n -= v
+    }
+  }
+  return result
+}
+
 // 消息列表变化时自动滚动
 watch(
   () => chatStore.messages.length,
@@ -100,23 +120,26 @@ onMounted(() => {
     <div class="right-panel">
       <!-- 消息流 -->
       <div ref="scrollRef" class="message-stream">
-        <!-- 空状态引导 -->
+        <!-- 空状态引导：公报封面式 -->
         <div v-if="!chatStore.hasSession" class="empty-state">
+          <span class="empty-eyebrow">EST. MMXXVI · INQUIRY</span>
           <span class="empty-icon-badge">
-            <el-icon :size="36" color="#C8893E"><Reading /></el-icon>
+            <el-icon :size="36" color="var(--color-accent)"><Reading /></el-icon>
           </span>
           <h2>开始您的法律问答</h2>
-          <p>面向法律从业者的智能问答平台，基于权威语料检索增强</p>
+          <p class="empty-sub">面向法律从业者的智能问答平台，基于权威语料检索增强</p>
+          <div class="gazette-divider" aria-hidden="true">❦</div>
           <p class="hint">点击下方按钮，开始您的第一次咨询</p>
           <el-button type="primary" size="large" class="create-btn" @click="handleCreate">
-            新建对话
+            新 建 对 话
           </el-button>
         </div>
         <!-- 消息列表 -->
         <div v-else class="msg-list">
-          <!-- 空会话推荐问题 -->
+          <!-- 空会话推荐问题：公报目录式 -->
           <div v-if="chatStore.messages.length === 0" class="suggestions">
-            <div class="suggestions-title">您可以直接提问，或试试以下问题：</div>
+            <div class="suggestions-eyebrow">TABLE OF INQUIRIES</div>
+            <div class="suggestions-title">您可以直接提问，或试试以下问题</div>
             <div class="suggestion-grid">
               <div
                 v-for="(s, i) in suggestions"
@@ -124,7 +147,7 @@ onMounted(() => {
                 class="suggestion-card"
                 @click="handleSuggestion(s)"
               >
-                <span class="suggestion-index">{{ String(i + 1).padStart(2, '0') }}</span>
+                <span class="suggestion-index">{{ toRoman(i + 1) }}</span>
                 <span class="suggestion-text">{{ s }}</span>
               </div>
             </div>
@@ -187,34 +210,56 @@ onMounted(() => {
 .suggestions {
   max-width: 720px;
   margin: 48px auto;
+  text-align: center;
+}
+// 公报目录式 eyebrow：小型大写字母 + 古铜金 + 字距加宽
+.suggestions-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gilt);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 .suggestions-title {
-  font-family: var(--font-serif);
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  margin-bottom: 20px;
-  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-style: italic;
+  color: var(--color-primary);
+  margin-bottom: 24px;
+  letter-spacing: -0.01em;
+  &::after {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 1px;
+    background: var(--color-accent);
+    margin: 14px auto 0;
+  }
 }
 // 2 列锯齿网格（非等宽）：奇偶列宽度不等 + 偶数项下沉形成锯齿节奏
 .suggestion-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   gap: 12px 16px;
+  text-align: left;
 }
 .suggestion-card {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 16px 18px;
   border: 1px solid var(--color-border);
-  // 预留 2px 左边框，hover 时染色为古铜竖线，避免布局抖动
-  border-left: 2px solid transparent;
+  // 预留 3px 左边框，hover 时染色为牛血红竖线（公报引文标记）
+  border-left: 3px solid transparent;
   border-radius: var(--radius-card);
   background: var(--color-bg-card);
   cursor: pointer;
-  font-size: 13px;
+  font-family: var(--font-serif);
+  font-size: 14px;
   color: var(--color-text-regular);
-  line-height: 1.55;
+  line-height: 1.6;
   transition: var(--transition-base);
   // staggered 入场动画（每个卡片延迟 0.05s）
   animation: fadeInUp 0.5s var(--ease-out) both;
@@ -228,32 +273,35 @@ onMounted(() => {
   }
   &:hover {
     border-color: var(--color-border);
-    // 左侧出现 2px 古铜色竖线
-    border-left: 2px solid var(--color-accent);
+    // 左侧出现 3px 牛血红竖线（公报引文式）
+    border-left: 3px solid var(--color-accent);
     color: var(--color-primary);
     box-shadow: var(--shadow-hover);
     transform: translateY(-1px);
     .suggestion-index {
+      color: var(--color-accent);
       opacity: 1;
-      transform: scale(1.12);
+      transform: scale(1.05);
     }
   }
 }
-// 序号编号：01/02/03 编辑典籍风，等宽字体 + 古铜色
+// 罗马数字编号：公报章节式，衬线展示字体 + 古铜金
 .suggestion-index {
   flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 600;
-  color: var(--color-accent);
-  letter-spacing: 0.04em;
-  line-height: 1.55;
-  opacity: 0.7;
-  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+  font-style: italic;
+  color: var(--color-gilt);
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  opacity: 0.75;
+  min-width: 28px;
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out), color 0.2s var(--ease-out);
 }
 .suggestion-text {
   flex: 1;
+  font-family: var(--font-serif);
 }
 .empty-state {
   height: 100%;
@@ -264,6 +312,17 @@ onMounted(() => {
   color: var(--color-text-regular);
   text-align: center;
   user-select: none;
+  // 公报封面式 eyebrow：小型大写字母 + 古铜金 + 字距加宽
+  .empty-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-gilt);
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    animation: fadeInUp 0.5s var(--ease-out) both;
+  }
   .empty-icon-badge {
     display: inline-flex;
     align-items: center;
@@ -271,18 +330,39 @@ onMounted(() => {
     width: 72px;
     height: 72px;
     border-radius: var(--radius-full);
-    background: rgba(200, 137, 62, 0.12);
+    background: rgba(122, 31, 43, 0.08);
+    border: 1px solid rgba(122, 31, 43, 0.18);
     // 脉冲呼吸动画（LottieFiles 风格）
     animation: breathe 3s ease-in-out infinite;
   }
   h2 {
     margin: 24px 0 8px;
-    font-family: var(--font-serif);
-    font-size: 24px;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 38px;
+    font-weight: 600;
     color: var(--color-primary);
+    letter-spacing: -0.015em;
     animation: fadeInUp 0.5s var(--ease-out) both;
     animation-delay: 0.1s;
+  }
+  .empty-sub {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 15px;
+    margin: 4px 0;
+    max-width: 52ch;
+    color: var(--color-text-secondary);
+    animation: fadeInUp 0.5s var(--ease-out) both;
+    animation-delay: 0.15s;
+  }
+  // 公报式花纹分隔
+  .gazette-divider {
+    margin: 18px 0 6px;
+    font-size: 18px;
+    color: var(--color-gilt);
+    opacity: 0.7;
+    animation: fadeInUp 0.5s var(--ease-out) both;
+    animation-delay: 0.2s;
   }
   p {
     font-size: 14px;
@@ -292,12 +372,17 @@ onMounted(() => {
     animation-delay: 0.15s;
   }
   .hint {
-    margin-top: 16px;
+    margin-top: 8px;
     color: var(--color-text-secondary);
     font-size: 13px;
+    font-family: var(--font-serif);
+    font-style: italic;
   }
   .create-btn {
     margin-top: 24px;
+    letter-spacing: 0.18em;
+    font-family: var(--font-display);
+    font-weight: 500;
     // 微妙悬浮动画
     animation: floatBtn 3.5s ease-in-out infinite;
   }

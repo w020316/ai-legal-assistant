@@ -1,58 +1,85 @@
-// 全局样式与设计变量
-// Dark Editorial 设计语言：浓缩咖啡黑 + 明亮琥珀 + 暖纸色背景
+// ============================================================
+// The Verdict — Editorial Legal Gazette Design System
+// linzAI 法律助手 v1.4.0
+// 设计理念：法律公报 / 司法典籍的编辑式美学
+// 象牙纸 + 深墨黑 + 牛血红 + 戏剧化衬线
+// ============================================================
+
 :root {
-  // 字体栈
-  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
-  --font-sans: 'PingFang SC', 'Microsoft YaHei', -apple-system, 'Inter', sans-serif;
+  // ===== 字体栈 =====
+  // 展示字体：戏剧化高对比衬线（拉丁），法律典籍标题专用
+  --font-display: 'Cormorant Garamond', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', Georgia, serif;
+  // 正文衬线：可读性优先（法律文书阅读体验）
+  --font-serif: 'Source Serif 4', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', Georgia, serif;
+  // 无衬线：UI 控件 / 标签 / 小字
+  --font-sans: 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  // 等宽：法条编号 / 时间戳 / 数据
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
-  // 展示字体：法律典籍标题专用，更厚重的衬线
-  --font-display: 'Noto Serif SC', 'Source Han Serif SC', var(--font-serif);
-  --font-family: var(--font-sans);
+  --font-family: var(--font-serif);
 
-  // 配色（Dark Editorial：浓缩咖啡黑主色 + 明亮琥珀强调）
-  --color-primary: #1A1714;          // 浓缩咖啡黑（暖调深色，非冷蓝）
-  --color-primary-light: #2D2823;    // 主色悬浮
-  --color-primary-soft: #4A4038;     // 主色浅化
-  --color-accent: #C8893E;           // 明亮琥珀（比古铜更鲜明、更有活力）
-  --color-accent-light: #FBF3E7;     // 琥珀浅底
-  --color-danger: #9B2C2C;           // 深酒红
-  --color-warning: #9C6B0B;          // 深琥珀
-  --color-success: #2D6A4F;          // 深森林绿
+  // ===== 配色（The Verdict：象牙纸 + 深墨 + 牛血红）=====
+  // 主色：深墨黑（暖调，非冷蓝黑），如法典印刷油墨
+  --color-primary: #14110F;
+  --color-primary-light: #2A2520;
+  --color-primary-soft: #4A4038;
+  // 强调色：牛血红（法官法袍 / 司法印章色），庄重权威
+  --color-accent: #7A1F2B;
+  --color-accent-light: #F5E8EA;
+  --color-accent-soft: #B85968;
+  // 辅助色：古铜金（法典烫金书脊），仅用于装饰
+  --color-gilt: #9A6B2F;
+  --color-gilt-light: #F0E6D2;
 
-  // 背景（暖纸色，更有质感）
-  --color-bg: #F5F1E8;
-  --color-bg-card: #FFFFFF;
-  --color-bg-soft: #EFEBE0;
+  // 语义色
+  --color-danger: #8B1E1E;
+  --color-warning: #8B6914;
+  --color-success: #3D5C3A;
 
-  // 文字（近黑非纯黑，向暖色调色）
-  --color-text-primary: #1A1714;
-  --color-text-regular: #3D3530;
-  --color-text-secondary: #8C847A;
+  // ===== 背景（象牙纸，模拟古籍纸张）=====
+  --color-bg: #FBF8F1;
+  --color-bg-card: #FEFCF6;
+  --color-bg-soft: #F4EFE3;
+  --color-bg-deep: #14110F;  // 深色面板（登录页左半 / 品牌区）
 
-  // 边框（暖灰发丝线，非冷灰）
-  --color-border: #E0DCD0;
-  --color-border-light: #EDE9DE;
+  // ===== 文字 =====
+  --color-text-primary: #14110F;
+  --color-text-regular: #3A352F;
+  --color-text-secondary: #7A726A;
+  --color-text-faint: #A89F95;
 
-  // 侧边栏深色系统（Dark Editorial 核心）
-  --color-sidebar-bg: #1A1714;       // 侧边栏背景（浓缩咖啡黑）
-  --color-sidebar-text: #C8C0B4;     // 侧边栏文字
-  --color-sidebar-active: #C8893E;   // 侧边栏激活态（明亮琥珀）
+  // ===== 边框（暖灰发丝线，公报式竖线分隔）=====
+  --color-border: #D9D2C2;
+  --color-border-light: #E8E2D5;
+  --color-border-strong: #14110F;
+  --color-rule: #14110F;  // 公报竖线分隔（实线深墨）
 
-  // 圆角（一套系统，法律克制感，默认 6px）
-  --radius-sm: 3px;
-  --radius-card: 6px;
-  --radius-button: 6px;
-  --radius-lg: 10px;
-  --radius-tag: 3px;
+  // ===== 圆角（克制：法律典籍直角感，仅 2-4px）=====
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-card: 3px;
+  --radius-button: 2px;
+  --radius-lg: 4px;
+  --radius-tag: 1px;
+  --radius-full: 9999px;
 
-  // 阴影（超弥散，rgba 基于浓缩咖啡黑，暖调）
-  --shadow-card: 0 1px 2px rgba(26, 23, 20, 0.04), 0 2px 8px rgba(26, 23, 20, 0.03);
-  --shadow-hover: 0 2px 4px rgba(26, 23, 20, 0.06), 0 8px 24px rgba(26, 23, 20, 0.06);
-  --shadow-popover: 0 4px 12px rgba(26, 23, 20, 0.08), 0 16px 48px rgba(26, 23, 20, 0.08);
+  // ===== 阴影（极克制，几乎无阴影，靠竖线与留白分区）=====
+  --shadow-card: 0 1px 2px rgba(20, 17, 15, 0.03);
+  --shadow-hover: 0 2px 8px rgba(20, 17, 15, 0.06), 0 0 0 1px rgba(122, 31, 43, 0.08);
+  --shadow-popover: 0 4px 16px rgba(20, 17, 15, 0.08), 0 0 0 1px rgba(20, 17, 15, 0.06);
 
-  // 过渡（MOTION_INTENSITY=4，流畅 CSS，cubic-bezier 弹簧物理）
+  // ===== 过渡 =====
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-base: all 0.2s var(--ease-out);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --transition-base: all 0.25s var(--ease-out);
+  --transition-fast: all 0.15s var(--ease-out);
+
+  // ===== 间距节奏（基于 4px 基线）=====
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
 }
 
 * {
@@ -69,22 +96,33 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   background-color: var(--color-bg);
+  // 纸张纹理：极浅的纤维质感（模拟古籍纸张）
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(154, 107, 47, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(122, 31, 43, 0.012) 0%, transparent 50%);
   color: var(--color-text-primary);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern', 'liga', 'onum';  // 旧式数字，古籍感
 }
 
-// 标题统一用衬线，传递法律典籍权威感
+// ===== 标题：戏剧化衬线，法律典籍权威感 =====
 h1, h2, h3, h4 {
-  font-family: var(--font-serif);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-primary);
+  line-height: 1.2;
 }
+h1 { font-size: 2.2rem; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.05rem; }
 
 // 数字与代码等宽
 code, pre, .num {
@@ -95,218 +133,264 @@ code, pre, .num {
 a {
   color: var(--color-accent);
   text-decoration: none;
-  transition: var(--transition-base);
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-fast);
   &:hover {
     color: var(--color-primary);
+    border-bottom-color: var(--color-accent);
   }
 }
 
-// Element Plus 主题覆盖（浓缩咖啡黑主色 + 明亮琥珀强调 + 暖灰边框 + 6px 圆角）
+// ============================================================
+// Element Plus 主题覆盖（The Verdict 配色）
+// ============================================================
 :root {
-  --el-color-primary: #1A1714;
-  --el-color-primary-light-3: #4A4038;
-  --el-color-primary-light-5: #7A7068;
-  --el-color-primary-light-7: #ABA39C;
-  --el-color-primary-light-9: #D8D2C8;
-  --el-color-primary-dark-2: #0D0B09;
+  --el-color-primary: #7A1F2B;
+  --el-color-primary-light-3: #9E4450;
+  --el-color-primary-light-5: #C2858E;
+  --el-color-primary-light-7: #D9BCC1;
+  --el-color-primary-light-9: #F5E8EA;
+  --el-color-primary-dark-2: #5C1620;
 
-  --el-color-success: #2D6A4F;
-  --el-color-warning: #9C6B0B;
-  --el-color-danger: #9B2C2C;
-  --el-color-info: #C8893E;
+  --el-color-success: #3D5C3A;
+  --el-color-warning: #8B6914;
+  --el-color-danger: #8B1E1E;
+  --el-color-info: #7A726A;
 
-  --el-border-radius-base: 6px;
-  --el-border-radius-small: 3px;
-  --el-border-radius-round: 10px;
+  --el-border-radius-base: 3px;
+  --el-border-radius-small: 2px;
+  --el-border-radius-round: 4px;
 
-  --el-font-family: var(--font-sans);
+  --el-font-family: var(--font-serif);
 
-  --el-border-color: #E0DCD0;
-  --el-border-color-light: #EDE9DE;
-  --el-border-color-lighter: #EFEBE0;
+  --el-border-color: #D9D2C2;
+  --el-border-color-light: #E8E2D5;
+  --el-border-color-lighter: #F0EDE3;
 
-  --el-text-color-primary: #1A1714;
-  --el-text-color-regular: #3D3530;
-  --el-text-color-secondary: #8C847A;
-  --el-text-color-placeholder: #757575;
+  --el-text-color-primary: #14110F;
+  --el-text-color-regular: #3A352F;
+  --el-text-color-secondary: #7A726A;
+  --el-text-color-placeholder: #A89F95;
 
-  --el-bg-color: #FFFFFF;
-  --el-bg-color-page: #F5F1E8;
-  --el-fill-color-light: #EFEBE0;
+  --el-bg-color: #FEFCF6;
+  --el-bg-color-page: #FBF8F1;
+  --el-fill-color-light: #F4EFE3;
+  --el-fill-color: #F4EFE3;
+  --el-fill-color-blank: #FEFCF6;
 }
 
-// 滚动条（极简，暖灰）
+// ===== 滚动条（极简，暖灰）=====
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C8C0B4;
-  border-radius: 4px;
+  background: #D9D2C2;
+  border-radius: 0;
+  border: 3px solid var(--color-bg);
   &:hover {
-    background: #ABA39C;
+    background: #7A1F2B;
   }
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-// 空状态：禁止文本选中，避免误操作
+// ===== 空状态 =====
 .el-empty {
   user-select: none;
   .el-empty__description p {
     color: var(--color-text-secondary);
-    font-size: 13px;
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-style: italic;
   }
 }
 
-// ===== 全局容器与标题 =====
-// 页面容器：统一内边距与最大宽度节奏
+// ============================================================
+// 公报式布局工具类
+// ============================================================
+
+// 页面容器
 .page-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 32px;
+  padding: var(--space-lg) var(--space-xl);
 }
 
-// 页面标题：衬线字体 + 浓缩咖啡黑 + 底部琥珀色短发丝线装饰
+// 页面标题：公报式刊头
+// 上方小型大写字母 eyebrow + 下方深墨粗衬线标题 + 牛血红短发丝线
 .page-title {
-  font-family: var(--font-serif);
-  font-size: 26px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
   color: var(--color-primary);
-  letter-spacing: -0.01em;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  padding-bottom: 14px;
+  margin-bottom: var(--space-lg);
   position: relative;
+  // 标题上方 eyebrow（小型大写字母标签）
+  &::before {
+    content: attr(data-eyebrow);
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--color-accent);
+    margin-bottom: 8px;
+  }
+  // 底部牛血红双线（粗 + 细，公报刊头感）
   &::after {
     content: '';
     position: absolute;
     left: 0;
     bottom: 0;
-    width: 32px;
-    height: 2px;
+    width: 48px;
+    height: 3px;
     background: var(--color-accent);
-    border-radius: 1px;
-  }
-  // 首字下沉：编辑典籍感，首字加大并染色为古铜
-  &::first-letter {
-    font-family: var(--font-display);
-    font-size: 1.35em;
-    font-weight: 700;
-    color: var(--color-accent);
-    margin-right: 2px;
+    border-radius: 0;
+    box-shadow: 0 5px 0 -2px var(--color-accent);
   }
 }
 
-// 正文阅读宽度工具类：限宽 720px 居中，适合长文阅读
+// 正文阅读宽度
 .content-width {
-  max-width: 720px;
+  max-width: 68ch;
   margin-left: auto;
   margin-right: auto;
 }
 
-// ===== Element Plus 组件精致覆盖 =====
-// 主按钮：浓缩咖啡黑背景，hover 微微下沉感（translateY + 加深）+ 光泽扫过（ibelick 风格）
+// 公报竖线分隔（用于侧边栏与主内容之间）
+.gazette-rule {
+  border-right: 1px solid var(--color-rule);
+}
+
+// 章节编号（罗马数字）
+.roman-numeral {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-accent);
+  letter-spacing: 0.05em;
+}
+
+// 小型大写字母标签（eyebrow / kicker）
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-accent);
+}
+
+// 首字下沉（用于长文段落）
+.drop-cap::first-letter {
+  font-family: var(--font-display);
+  font-size: 3.4em;
+  font-weight: 600;
+  float: left;
+  line-height: 0.85;
+  margin: 6px 8px 0 0;
+  color: var(--color-accent);
+}
+
+// ============================================================
+// Element Plus 组件精致覆盖
+// ============================================================
+
+// 主按钮：牛血红实色 + 直角 + hover 墨黑
 .el-button--primary {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #FBF8F1;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-button);
+  transition: var(--transition-fast);
   position: relative;
   overflow: hidden;
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  transition: var(--transition-base);
-  // 光泽扫过伪元素：hover 时从左到右扫过一道高光
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -130%;
-    width: 80%;
-    height: 100%;
-    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.16) 50%, transparent 100%);
-    transform: skewX(-20deg);
-    transition: left 0.55s var(--ease-out);
-    pointer-events: none;
-  }
   &:hover,
   &:focus {
-    background-color: var(--color-primary-light);
-    border-color: var(--color-primary-light);
-    transform: translateY(1px);
-    box-shadow: 0 1px 2px rgba(26, 23, 20, 0.08);
-    &::after {
-      left: 130%;
-    }
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #FBF8F1;
+    transform: translateY(-1px);
   }
   &:active {
-    transform: translateY(2px);
-    box-shadow: none;
+    transform: translateY(0);
   }
   &.is-disabled,
   &.is-disabled:hover {
+    background-color: var(--color-bg-soft);
+    border-color: var(--color-border);
+    color: var(--color-text-faint);
     transform: none;
-    box-shadow: none;
-    &::after {
-      display: none;
-    }
   }
 }
 
-// 默认按钮：hover 微妙提升
+// 默认按钮：透明 + 深墨边框 + hover 牛血红
 .el-button--default {
-  transition: var(--transition-base);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-button);
+  border-color: var(--color-border-strong);
+  color: var(--color-primary);
+  transition: var(--transition-fast);
   &:hover,
   &:focus {
-    color: var(--color-primary);
-    border-color: var(--color-primary-soft);
-    background-color: var(--color-bg-soft);
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background-color: transparent;
   }
 }
 
-// 文字按钮：hover 古铜色
+// 文字按钮
 .el-button.is-text {
-  transition: var(--transition-base);
+  font-family: var(--font-sans);
   &:hover {
     color: var(--color-accent);
     background: transparent;
   }
 }
 
-// 输入框 focus：琥珀色边框 + 极轻光环 + 呼吸动画（Uiverse 风格）
+// 输入框：底部下划线式（公报表单感）+ focus 牛血红
 .el-input__wrapper,
 .el-textarea__inner {
-  transition: var(--transition-base);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
 }
 .el-input__wrapper.is-focus,
 .el-textarea__inner:focus {
-  box-shadow: 0 0 0 2px rgba(200, 137, 62, 0.08) !important;
-  animation: focusBreathe 2.4s ease-in-out infinite;
+  box-shadow: 0 0 0 1px var(--color-accent) !important;
 }
 .el-input__wrapper.is-focus {
   border-color: var(--color-accent) !important;
 }
 
-// 卡片统一过渡 + hover 琥珀色边框发光（HyperUI 风格）
+// 卡片：直角 + 左侧竖线装饰 + 极轻阴影
 .el-card {
   border-radius: var(--radius-card);
   border-color: var(--color-border);
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+  transition: var(--transition-fast);
   &:hover {
-    border-color: rgba(200, 137, 62, 0.45);
-    box-shadow: var(--shadow-hover), 0 0 0 1px rgba(200, 137, 62, 0.1), 0 0 16px rgba(200, 137, 62, 0.08);
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-hover);
   }
 }
 
-// 标签：更克制的圆角与颜色 + hover 抖动（Uiverse jello 风格）
+// 标签：直角 + 小型大写字母感
 .el-tag {
   border-radius: var(--radius-tag);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 12px;
-  transition: var(--transition-base);
-  &:hover {
-    animation: jello 0.5s var(--ease-out);
-  }
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  transition: var(--transition-fast);
   &.el-tag--info {
     background-color: var(--color-accent-light);
     border-color: var(--color-accent-light);
@@ -314,166 +398,78 @@ a {
   }
 }
 
-// 下拉菜单：超弥散阴影
+// 下拉菜单
 .el-dropdown-menu {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-popover);
-  border-color: var(--color-border);
+  border: 1px solid var(--color-border);
 }
 
-// 消息提示：圆角统一
+// 消息提示
 .el-message {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
 }
 
-// ===== 动画关键帧（animista 风格）=====
-// 上浮渐入
+// ============================================================
+// 动画关键帧
+// ============================================================
+// 渐入上浮
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-// 从左滑入（用户消息）
+// 从左滑入（AI 消息）
 @keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-// 从右滑入（AI 消息）
+// 从右滑入（用户消息）
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 // 脉冲点（AI 思考）
 @keyframes pulseDot {
-  0%, 80%, 100% {
-    transform: scale(0.6);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
-// 骨架屏光泽流动（LottieFiles 用 CSS 模拟）
+// 骨架屏光泽流动
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
-// 涟漪扩散（ibelick 涟漪按钮）
-@keyframes ripple {
-  to {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-// 呼吸（徽章/光晕脉冲）
+// 呼吸（徽章光晕）
 @keyframes breathe {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(200, 137, 62, 0.18);
-  }
-  50% {
-    transform: scale(1.04);
-    box-shadow: 0 0 0 10px rgba(200, 137, 62, 0);
-  }
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.85; }
 }
-// 抖动（jello，标签/微交互）
-@keyframes jello {
-  0%, 11%, 100% {
-    transform: translateX(0) skewX(0);
-  }
-  22% {
-    transform: translateX(-2px) skewX(-6deg);
-  }
-  33% {
-    transform: translateX(2px) skewX(5deg);
-  }
-  44% {
-    transform: translateX(-1px) skewX(-3deg);
-  }
-  55% {
-    transform: translateX(1px) skewX(2deg);
-  }
-  66% {
-    transform: translateX(-1px) skewX(-1deg);
-  }
+// 流式光标闪烁
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
-// 输入框聚焦光环呼吸
-@keyframes focusBreathe {
-  0%, 100% {
-    box-shadow: 0 0 0 2px rgba(200, 137, 62, 0.12);
-  }
-  50% {
-    box-shadow: 0 0 0 3px rgba(200, 137, 62, 0.05);
-  }
+// 旋转
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 // ===== 动画工具类 =====
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s var(--ease-out) both;
-}
-.animate-slide-in-left {
-  animation: slideInLeft 0.4s var(--ease-out) both;
-}
-.animate-slide-in-right {
-  animation: slideInRight 0.4s var(--ease-out) both;
-}
-// staggered 入场延迟工具类（每级 0.05s）
+.animate-fade-in-up { animation: fadeInUp 0.5s var(--ease-out) both; }
+.animate-slide-in-left { animation: slideInLeft 0.4s var(--ease-out) both; }
+.animate-slide-in-right { animation: slideInRight 0.4s var(--ease-out) both; }
+
+// staggered 入场延迟
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }
 .stagger-3 { animation-delay: 0.15s; }
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 .stagger-6 { animation-delay: 0.3s; }
-.stagger-7 { animation-delay: 0.35s; }
-.stagger-8 { animation-delay: 0.4s; }
 
-// ===== 涟漪效果按钮（ibelick 风格）=====
-// 在需要涟漪的按钮上添加 .ripple-btn 类
-.ripple-btn {
-  position: relative;
-  overflow: hidden;
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0;
-    pointer-events: none;
-  }
-  &:active::after {
-    animation: ripple 0.55s var(--ease-out);
-  }
-}
-
-// ===== 骨架屏（LottieFiles 风格用 CSS 模拟）=====
+// ===== 骨架屏 =====
 .skeleton-loading {
   background: linear-gradient(
     90deg,
@@ -482,11 +478,11 @@ a {
     var(--color-bg-soft) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.4s infinite linear;
+  animation: shimmer 1.6s infinite linear;
   border-radius: var(--radius-sm);
 }
 
-// 无障碍：尊重 reduced-motion（关键帧动画一并降级）
+// ===== 无障碍：尊重 reduced-motion =====
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -494,11 +490,46 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  // 关闭无限循环动画（骨架屏、呼吸、脉冲）
   .skeleton-loading,
   .animate-fade-in-up,
   .animate-slide-in-left,
   .animate-slide-in-right {
     animation: none !important;
   }
+}
+
+// ===== 公报式装饰元素 =====
+// 章节分隔符（居中花纹）
+.gazette-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: var(--space-lg) 0;
+  color: var(--color-accent);
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+    max-width: 80px;
+  }
+  .ornament {
+    font-family: var(--font-display);
+    font-size: 18px;
+    opacity: 0.6;
+  }
+}
+
+// 引文块（法律条文引用）
+.pull-quote {
+  border-left: 3px solid var(--color-accent);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--color-text-regular);
+  background: var(--color-bg-soft);
 }

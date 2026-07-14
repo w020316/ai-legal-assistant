@@ -117,9 +117,9 @@ onMounted(handleSearch)
 
 <template>
   <div class="case-view">
-    <!-- 页面标题 -->
+    <!-- 页面标题：公报刊头式 -->
     <div class="page-header">
-      <h1 class="page-title">案例检索</h1>
+      <h1 class="page-title" data-eyebrow="CASE LAW · 案例库">案例检索</h1>
     </div>
 
     <!-- 顶部搜索栏 -->
@@ -152,7 +152,7 @@ onMounted(handleSearch)
     <!-- 案例列表 -->
     <div class="case-list-wrap">
       <div class="list-meta">
-        <span>共找到 {{ cases.length }} 条案例</span>
+        <span>共找到 <span class="count">{{ cases.length }}</span> 条案例</span>
       </div>
       <div v-loading="loading" class="case-list">
         <div v-for="c in pagedCases" :key="c.id" class="case-card" @click="handleViewDetail(c)">
@@ -257,6 +257,8 @@ onMounted(handleSearch)
   width: 120px;
 }
 .search-hint {
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: 12px;
   color: var(--color-text-secondary);
   padding: 0 20px 8px;
@@ -274,10 +276,24 @@ onMounted(handleSearch)
   overflow: hidden;
 }
 .list-meta {
-  padding: 12px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  // 数量强调
+  :deep(.count) {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--color-primary);
+    letter-spacing: 0;
+    margin: 0 4px;
+  }
 }
 .case-list {
   flex: 1;
@@ -319,19 +335,19 @@ onMounted(handleSearch)
     transition: height 0.3s var(--ease-out);
   }
   &:hover {
-    box-shadow: 0 4px 12px rgba(26, 23, 20, 0.06);
+    box-shadow: 0 4px 12px rgba(20, 17, 15, 0.06);
     transform: translateY(-1px);
-    border-color: var(--color-primary-light);
+    border-color: var(--color-accent);
     &::before {
       height: 100%;
     }
     .case-corner {
       color: var(--color-accent);
-      border-color: rgba(200, 137, 62, 0.4);
+      border-color: rgba(122, 31, 43, 0.4);
     }
   }
 }
-// 左上角角标装饰：案由首字（HyperUI 风格）
+// 左上角角标装饰：案由首字（公报章节式）
 .case-corner {
   position: absolute;
   top: -1px;
@@ -341,9 +357,9 @@ onMounted(handleSearch)
   justify-content: center;
   width: 22px;
   height: 22px;
-  font-family: var(--font-serif);
-  font-size: 12px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-secondary);
   background: var(--color-bg-soft);
   border: 1px solid var(--color-border);
@@ -359,10 +375,10 @@ onMounted(handleSearch)
   margin-bottom: 8px;
 }
 .case-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -411,18 +427,31 @@ onMounted(handleSearch)
   animation: slideInRight 0.4s var(--ease-out) both;
 }
 .detail-title {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
   color: var(--color-primary);
-  line-height: 1.5;
-  margin-bottom: 12px;
+  line-height: 1.35;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 48px;
+    height: 2px;
+    background: var(--color-accent);
+  }
 }
 :deep(.el-drawer__title) {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 18px;
+  letter-spacing: -0.015em;
 }
 .detail-tags {
   display: flex;

@@ -10,7 +10,6 @@ import {
   Search,
   User,
   SwitchButton,
-  Reading,
   Menu,
 } from '@element-plus/icons-vue'
 
@@ -26,7 +25,6 @@ let mediaQuery: MediaQueryList | null = null
 
 function updateMobile(e: MediaQueryListEvent | MediaQueryList) {
   isMobile.value = e.matches
-  // 切回桌面端时关闭抽屉
   if (!e.matches) drawerVisible.value = false
 }
 
@@ -40,17 +38,17 @@ onUnmounted(() => {
   mediaQuery?.removeEventListener('change', updateMobile)
 })
 
+// 公报式菜单：带罗马数字章节编号
 const menus = [
-  { index: '/chat', title: '智能问答', icon: ChatDotRound },
-  { index: '/documents', title: '文档分析', icon: Document },
-  { index: '/templates', title: '文书模板', icon: Files },
-  { index: '/cases', title: '案例检索', icon: Search },
-  { index: '/health', title: '系统状态', icon: Monitor },
+  { index: '/chat', title: '智能问答', icon: ChatDotRound, numeral: 'I' },
+  { index: '/documents', title: '文档分析', icon: Document, numeral: 'II' },
+  { index: '/templates', title: '文书模板', icon: Files, numeral: 'III' },
+  { index: '/cases', title: '案例检索', icon: Search, numeral: 'IV' },
+  { index: '/health', title: '系统状态', icon: Monitor, numeral: 'V' },
 ]
 
 function handleMenuSelect(index: string) {
   router.push(index)
-  // 抽屉模式下点击菜单项后自动关闭抽屉
   if (isMobile.value) drawerVisible.value = false
 }
 
@@ -62,22 +60,22 @@ function handleLogout() {
 
 <template>
   <el-container class="layout">
-    <!-- 顶部栏：纯白 + 底部发丝线，64px 高 -->
+    <!-- 顶栏：公报案头式 -->
     <el-header class="header">
       <div class="header-left">
-        <!-- 移动端汉堡菜单按钮 -->
         <el-icon v-if="isMobile" class="menu-toggle" :size="22" @click="drawerVisible = true">
           <Menu />
         </el-icon>
-        <span class="logo-badge">
-          <el-icon :size="18" color="#C8893E"><Reading /></el-icon>
-        </span>
-        <span class="logo">linzAI 法律助手</span>
+        <div class="masthead">
+          <span class="masthead-eyebrow">EST. MMXXVI</span>
+          <span class="logo">linzAI</span>
+          <span class="masthead-tag">法律助手</span>
+        </div>
       </div>
       <div class="header-right">
         <el-dropdown @command="(cmd: string) => cmd === 'logout' && handleLogout()">
           <span class="user-info">
-            <el-icon :size="16"><User /></el-icon>
+            <el-icon :size="15"><User /></el-icon>
             <span class="username">{{ userStore.username || '未登录' }}</span>
           </span>
           <template #dropdown>
@@ -90,7 +88,7 @@ function handleLogout() {
     </el-header>
 
     <el-container>
-      <!-- 侧边栏：纯白 + 右侧发丝线，240px（移动端隐藏，改为抽屉） -->
+      <!-- 侧边栏：公报式深墨面板 + 罗马数字章节编号 -->
       <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '240px'" class="aside">
         <el-menu
           :default-active="route.path"
@@ -100,21 +98,25 @@ function handleLogout() {
         >
           <el-menu-item v-for="m in menus" :key="m.index" :index="m.index">
             <el-icon><component :is="m.icon" /></el-icon>
-            <template #title>{{ m.title }}</template>
+            <template #title>
+              <span class="menu-numeral">{{ m.numeral }}</span>
+              <span class="menu-title">{{ m.title }}</span>
+            </template>
           </el-menu-item>
         </el-menu>
         <!-- 侧边栏底部：法律链接 + 版本 -->
         <div v-if="!isCollapse" class="aside-footer">
+          <div class="footer-eyebrow">法务声明</div>
           <div class="footer-links">
             <router-link to="/privacy">隐私政策</router-link>
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.0</div>
+          <div class="version">linzAI v1.4.0 · The Verdict</div>
         </div>
       </el-aside>
 
-      <!-- 主内容区：暖白背景 -->
+      <!-- 主内容区：象牙纸背景 -->
       <el-main class="main">
         <router-view v-slot="{ Component }">
           <transition name="route-fade" mode="out-in">
@@ -128,28 +130,35 @@ function handleLogout() {
     <el-drawer
       v-model="drawerVisible"
       direction="ltr"
-      size="240px"
+      size="280px"
       :with-header="false"
       class="mobile-drawer"
     >
       <div class="drawer-inner">
+        <div class="drawer-masthead">
+          <span class="masthead-eyebrow">EST. MMXXVI</span>
+          <span class="logo">linzAI</span>
+        </div>
         <el-menu
           :default-active="route.path"
           @select="handleMenuSelect"
         >
           <el-menu-item v-for="m in menus" :key="m.index" :index="m.index">
             <el-icon><component :is="m.icon" /></el-icon>
-            <template #title>{{ m.title }}</template>
+            <template #title>
+              <span class="menu-numeral">{{ m.numeral }}</span>
+              <span class="menu-title">{{ m.title }}</span>
+            </template>
           </el-menu-item>
         </el-menu>
-        <!-- 抽屉底部同样展示法律链接 + 版本 -->
         <div class="aside-footer">
+          <div class="footer-eyebrow">法务声明</div>
           <div class="footer-links">
             <router-link to="/privacy" @click="drawerVisible = false">隐私政策</router-link>
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.0</div>
+          <div class="version">linzAI v1.4.0 · The Verdict</div>
         </div>
       </div>
     </el-drawer>
@@ -160,76 +169,90 @@ function handleLogout() {
 .layout {
   min-height: 100dvh;
 }
+// ===== 顶栏：公报案头 =====
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--color-sidebar-bg);
-  border-bottom: none;
-  padding: 0 32px;
+  background: var(--color-primary);
+  border-bottom: 3px double var(--color-accent);
+  padding: 0 var(--space-xl);
   height: 64px;
-  box-shadow: none;
 }
 .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.logo-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: rgba(200, 137, 62, 0.15);
-  // 微妙呼吸光晕（LottieFiles 风格）
-  animation: logoGlow 3s ease-in-out infinite;
+// 公报案头：EST. 年份 + 品牌 + 副标题
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
-// logo 徽章光晕脉冲（仅 box-shadow 呼吸，不位移）
-@keyframes logoGlow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(200, 137, 62, 0);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(200, 137, 62, 0.12);
-  }
-}
-.header-left .logo {
-  font-family: var(--font-serif);
-  font-size: 18px;
+.masthead-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 9px;
   font-weight: 600;
-  color: #F0EBE0;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.25em;
+  color: var(--color-gilt);
+  text-transform: uppercase;
+}
+.logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: #FBF8F1;
+  letter-spacing: -0.01em;
+}
+.masthead-tag {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(251, 248, 241, 0.6);
+  letter-spacing: 0.02em;
 }
 .header-right .user-info {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  color: var(--color-sidebar-text);
+  color: rgba(251, 248, 241, 0.8);
   padding: 6px 12px;
-  border-radius: var(--radius-button);
-  transition: var(--transition-base);
+  border: 1px solid transparent;
+  transition: var(--transition-fast);
   &:hover {
-    background: rgba(200, 192, 180, 0.08);
-    color: #F0EBE0;
+    color: #FBF8F1;
+    border-color: var(--color-accent);
+    background: rgba(122, 31, 43, 0.25);
   }
 }
 .username {
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
 }
+
+// ===== 侧边栏：深墨面板 =====
 .aside {
-  background-color: var(--color-sidebar-bg);
-  border-right: none;
-  transition: width 0.2s var(--ease-out);
+  background-color: var(--color-primary);
+  border-right: 1px solid var(--color-primary-light);
+  transition: width 0.25s var(--ease-out);
   display: flex;
   flex-direction: column;
 }
 .aside-footer {
   margin-top: auto;
   padding: 16px 20px;
-  border-top: 1px solid rgba(200, 192, 180, 0.1);
+  border-top: 1px solid rgba(251, 248, 241, 0.08);
+}
+.footer-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: var(--color-gilt);
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 .footer-links {
   display: flex;
@@ -237,69 +260,80 @@ function handleLogout() {
   gap: 6px;
   font-size: 12px;
   a {
-    color: var(--color-sidebar-text);
-    transition: var(--transition-base);
+    color: rgba(251, 248, 241, 0.6);
+    border-bottom: none;
+    transition: var(--transition-fast);
     &:hover {
-      color: var(--color-sidebar-active);
+      color: var(--color-accent-soft);
     }
   }
   .dot {
-    color: rgba(200, 192, 180, 0.3);
+    color: rgba(251, 248, 241, 0.3);
   }
 }
 .version {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(200, 192, 180, 0.4);
+  font-size: 10px;
+  color: rgba(251, 248, 241, 0.35);
   margin-top: 8px;
   letter-spacing: 0.02em;
 }
 .aside :deep(.el-menu) {
   border-right: none;
-  padding: 12px 8px;
+  padding: 16px 12px;
   background-color: transparent;
 }
 .aside :deep(.el-menu-item) {
-  height: 44px;
-  line-height: 44px;
+  height: 46px;
+  line-height: 46px;
   border-radius: var(--radius-button);
   margin-bottom: 2px;
-  color: var(--color-sidebar-text);
+  color: rgba(251, 248, 241, 0.7);
   background-color: transparent;
   position: relative;
-  transition: var(--transition-base);
+  transition: var(--transition-fast);
+  font-family: var(--font-serif);
   &:hover {
-    background: rgba(200, 192, 180, 0.08);
-    color: #F0EBE0;
+    background: rgba(251, 248, 241, 0.05);
+    color: #FBF8F1;
   }
   &.is-active {
-    background: rgba(200, 137, 62, 0.12);
-    color: var(--color-sidebar-active);
+    background: rgba(122, 31, 43, 0.18);
+    color: var(--color-accent-soft);
     font-weight: 500;
-    // 左侧琥珀色竖条指示器（从圆点升级为竖条，更具引导力）+ 滑入动画
+    // 左侧牛血红竖条指示器
     &::before {
       content: '';
       position: absolute;
-      left: 4px;
+      left: 0;
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
-      height: 16px;
-      border-radius: 2px;
-      background: var(--color-sidebar-active);
-      transform-origin: center;
+      height: 60%;
+      background: var(--color-accent);
       animation: menuBarIn 0.3s var(--ease-out) both;
     }
   }
 }
-// 菜单激活竖条滑入（保留垂直居中，纵向生长）
+// 菜单项内部：罗马数字 + 标题
+.menu-numeral {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--color-gilt);
+  margin-right: 10px;
+  opacity: 0.7;
+}
+.menu-title {
+  font-size: 14px;
+}
+.is-active .menu-numeral {
+  color: var(--color-accent-soft);
+  opacity: 1;
+}
 @keyframes menuBarIn {
-  from {
-    transform: translateY(-50%) scaleY(0);
-  }
-  to {
-    transform: translateY(-50%) scaleY(1);
-  }
+  from { transform: translateY(-50%) scaleY(0); }
+  to { transform: translateY(-50%) scaleY(1); }
 }
 .main {
   background-color: var(--color-bg);
@@ -307,7 +341,7 @@ function handleLogout() {
 }
 .route-fade-enter-active,
 .route-fade-leave-active {
-  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+  transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
 }
 .route-fade-enter-from {
   opacity: 0;
@@ -321,63 +355,73 @@ function handleLogout() {
 /* 移动端汉堡按钮 */
 .menu-toggle {
   cursor: pointer;
-  color: #F0EBE0;
+  color: #FBF8F1;
   padding: 4px;
-  border-radius: var(--radius-sm);
-  transition: var(--transition-base);
+  transition: var(--transition-fast);
   &:hover {
-    color: var(--color-sidebar-active);
-    background: rgba(200, 192, 180, 0.08);
+    color: var(--color-accent-soft);
   }
 }
 
-/* 抽屉内部布局：菜单 + 底部 footer 撑满高度 */
+/* 抽屉内部 */
 .drawer-inner {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-sidebar-bg);
-  .aside-footer {
-    margin-top: auto;
+  background: var(--color-primary);
+}
+.drawer-masthead {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(251, 248, 241, 0.08);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  .logo {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 600;
+    color: #FBF8F1;
   }
 }
-/* 抽屉内部菜单样式（锚定 .drawer-inner，teleport 后仍生效） */
 .drawer-inner :deep(.el-menu) {
   border-right: none;
-  padding: 12px 8px;
+  padding: 16px 12px;
   background-color: transparent;
+  flex: 1;
 }
 .drawer-inner :deep(.el-menu-item) {
-  height: 44px;
-  line-height: 44px;
+  height: 46px;
+  line-height: 46px;
   border-radius: var(--radius-button);
   margin-bottom: 2px;
-  color: var(--color-sidebar-text);
+  color: rgba(251, 248, 241, 0.7);
   background-color: transparent;
   position: relative;
-  transition: var(--transition-base);
+  transition: var(--transition-fast);
+  font-family: var(--font-serif);
   &:hover {
-    background: rgba(200, 192, 180, 0.08);
-    color: #F0EBE0;
+    background: rgba(251, 248, 241, 0.05);
+    color: #FBF8F1;
   }
   &.is-active {
-    background: rgba(200, 137, 62, 0.12);
-    color: var(--color-sidebar-active);
+    background: rgba(122, 31, 43, 0.18);
+    color: var(--color-accent-soft);
     font-weight: 500;
     &::before {
       content: '';
       position: absolute;
-      left: 4px;
+      left: 0;
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
-      height: 16px;
-      border-radius: 2px;
-      background: var(--color-sidebar-active);
-      transform-origin: center;
+      height: 60%;
+      background: var(--color-accent);
       animation: menuBarIn 0.3s var(--ease-out) both;
     }
   }
+}
+.drawer-inner .aside-footer {
+  margin-top: 0;
 }
 
 /* 移动端响应式 */
@@ -387,10 +431,13 @@ function handleLogout() {
     height: 56px;
   }
   .header-left {
-    gap: 10px;
+    gap: 8px;
+  }
+  .masthead-tag {
+    display: none;
   }
   .logo {
-    font-size: 16px;
+    font-size: 20px;
   }
   .main {
     padding: 12px;

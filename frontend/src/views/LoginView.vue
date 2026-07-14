@@ -70,37 +70,57 @@ function toggleMode() {
 
 <template>
   <div class="login-page">
-    <!-- 左半：品牌叙事（暖白背景 + 衬线大标题 + 价值主张） -->
+    <!-- 左半：公报封面式品牌叙事（深墨面板） -->
     <aside class="brand-panel">
+      <!-- 公报案头 -->
+      <div class="cover-masthead">
+        <span class="cover-eyebrow">EST. MMXXVI · VOL. I</span>
+        <div class="cover-divider"></div>
+      </div>
       <div class="brand-inner">
         <div class="brand-mark">
-          <el-icon :size="28" color="#C8893E"><Reading /></el-icon>
+          <el-icon :size="24" color="#9A6B2F"><Reading /></el-icon>
           <span class="brand-name">linzAI</span>
         </div>
-        <h1 class="brand-title">法律智能<br />问答平台</h1>
-        <p class="brand-sub">面向法律从业者的检索增强问答与文书分析工具，基于权威法律语料训练，提供可追溯的引用来源。</p>
+        <h1 class="brand-title">
+          <span class="title-line">法律智能</span>
+          <span class="title-line">问答平台</span>
+        </h1>
+        <p class="brand-sub">
+          面向法律从业者的检索增强问答与文书分析工具，基于权威法律语料训练，提供可追溯的引用来源。
+        </p>
+        <!-- 公报式装饰分隔 -->
+        <div class="ornament-rule">
+          <span class="ornament">❦</span>
+        </div>
         <ul class="brand-features">
           <li>
-            <el-icon :size="16" color="#C8893E"><ChatDotRound /></el-icon>
+            <span class="feature-numeral">I</span>
+            <el-icon :size="15" color="#9A6B2F"><ChatDotRound /></el-icon>
             <span>智能问答，流式输出，引用可溯</span>
           </li>
           <li>
-            <el-icon :size="16" color="#C8893E"><Document /></el-icon>
+            <span class="feature-numeral">II</span>
+            <el-icon :size="15" color="#9A6B2F"><Document /></el-icon>
             <span>文书分析，风险识别，条款建议</span>
           </li>
           <li>
-            <el-icon :size="16" color="#C8893E"><Lock /></el-icon>
+            <span class="feature-numeral">III</span>
+            <el-icon :size="15" color="#9A6B2F"><Lock /></el-icon>
             <span>数据隔离，权限可控，本地部署</span>
           </li>
         </ul>
-        <footer class="brand-foot">本平台回答由 AI 生成，仅供参考，不构成法律意见。</footer>
+        <footer class="brand-foot">
+          <em>本平台回答由 AI 生成，仅供参考，不构成法律意见。</em>
+        </footer>
       </div>
     </aside>
 
-    <!-- 右半：表单区 -->
+    <!-- 右半：表单区（象牙纸） -->
     <main class="form-panel">
       <div class="form-card">
         <header class="form-head">
+          <span class="form-eyebrow">{{ isLogin ? 'SIGN IN' : 'REGISTER' }}</span>
           <h2>{{ isLogin ? '登录' : '注册' }}</h2>
           <p>{{ isLogin ? '欢迎回来，请输入您的凭据' : '创建账号，开始使用' }}</p>
         </header>
@@ -144,121 +164,176 @@ function toggleMode() {
   background: var(--color-bg);
 }
 
-// 左半品牌叙事（深色面板）
+// ===== 左半：公报封面（深墨面板） =====
 .brand-panel {
   position: relative;
   overflow: hidden;
-  background: var(--color-sidebar-bg);
-  padding: 64px 56px;
+  background: var(--color-bg-deep);
+  padding: 56px 56px 48px;
   display: flex;
-  align-items: center;
-  border-right: none;
-  // 背景装饰：右上角琥珀色渐变光晕
-  &::before {
-    content: '';
-    position: absolute;
-    top: -120px;
-    right: -120px;
-    width: 360px;
-    height: 360px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(200, 137, 62, 0.18) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  // 背景装饰：左下角细几何线条网格
+  flex-direction: column;
+  // 纸张纹理：极浅的竖线（模拟纸张纤维）
   &::after {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image:
-      linear-gradient(rgba(200, 192, 180, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(200, 192, 180, 0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-    background-position: 0 0;
-    mask-image: linear-gradient(to top right, rgba(0, 0, 0, 0.5), transparent 60%);
-    -webkit-mask-image: linear-gradient(to top right, rgba(0, 0, 0, 0.5), transparent 60%);
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(154, 107, 47, 0.015) 0px,
+      rgba(154, 107, 47, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
     pointer-events: none;
   }
+  // 右上角牛血红光晕（法章意象）
+  &::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(122, 31, 43, 0.22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+}
+// 公报案头
+.cover-masthead {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 48px;
+}
+.cover-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--color-gilt);
+  text-transform: uppercase;
+}
+.cover-divider {
+  margin-top: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-gilt), transparent);
 }
 .brand-inner {
   position: relative;
   z-index: 1;
   max-width: 460px;
   width: 100%;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 .brand-mark {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 64px;
-  animation: fadeInUp 0.5s var(--ease-out) both;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s var(--ease-out) both;
 }
 .brand-name {
-  font-family: var(--font-serif);
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 24px;
   font-weight: 600;
-  color: #F0EBE0;
-  letter-spacing: 0.02em;
+  color: #FBF8F1;
+  letter-spacing: -0.01em;
 }
 .brand-title {
-  font-family: var(--font-serif);
-  font-size: 52px;
-  font-weight: 700;
-  line-height: 1.15;
-  color: #F0EBE0;
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.05;
+  color: #FBF8F1;
   margin-bottom: 24px;
-  letter-spacing: -0.02em;
-  // 渐入动画
-  animation: fadeInUp 0.6s var(--ease-out) both;
+  letter-spacing: -0.025em;
+  animation: fadeInUp 0.7s var(--ease-out) both;
   animation-delay: 0.1s;
+  .title-line {
+    display: block;
+  }
 }
 .brand-sub {
+  font-family: var(--font-serif);
   font-size: 15px;
-  line-height: 1.75;
-  color: rgba(200, 192, 180, 0.7);
+  line-height: 1.8;
+  color: rgba(251, 248, 241, 0.65);
   max-width: 42ch;
-  margin-bottom: 40px;
-  animation: fadeInUp 0.5s var(--ease-out) both;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s var(--ease-out) both;
   animation-delay: 0.2s;
+}
+// 公报式装饰分隔（花纹）
+.ornament-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s var(--ease-out) both;
+  animation-delay: 0.25s;
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(154, 107, 47, 0.3);
+    max-width: 60px;
+  }
+  .ornament {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--color-gilt);
+    opacity: 0.7;
+  }
 }
 .brand-features {
   list-style: none;
   padding: 0;
-  margin: 0 0 48px;
+  margin: 0 0 40px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   li {
     display: flex;
     align-items: center;
     gap: 12px;
+    font-family: var(--font-serif);
     font-size: 14px;
-    color: rgba(200, 192, 180, 0.8);
-    // 逐项 staggered 入场
+    color: rgba(251, 248, 241, 0.75);
     animation: fadeInUp 0.5s var(--ease-out) both;
     &:nth-child(1) { animation-delay: 0.3s; }
     &:nth-child(2) { animation-delay: 0.4s; }
     &:nth-child(3) { animation-delay: 0.5s; }
   }
 }
+.feature-numeral {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--color-gilt);
+  opacity: 0.7;
+  width: 24px;
+  text-align: center;
+}
 .brand-foot {
+  font-family: var(--font-serif);
   font-size: 12px;
-  color: rgba(200, 192, 180, 0.4);
+  font-style: italic;
+  color: rgba(251, 248, 241, 0.35);
   padding-top: 24px;
-  border-top: 1px solid rgba(200, 192, 180, 0.1);
+  border-top: 1px solid rgba(154, 107, 47, 0.15);
   max-width: 50ch;
 }
 
-// 右半表单
+// ===== 右半：表单区（象牙纸） =====
 .form-panel {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 64px 48px;
-  background: var(--color-bg-card);
+  background: var(--color-bg);
+  position: relative;
 }
 .form-card {
   width: 100%;
@@ -266,29 +341,45 @@ function toggleMode() {
 }
 .form-head {
   margin-bottom: 32px;
-  h2 {
-    font-family: var(--font-serif);
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--color-primary);
+  .form-eyebrow {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    color: var(--color-accent);
+    text-transform: uppercase;
     margin-bottom: 8px;
   }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
   p {
-    font-size: 13px;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 14px;
     color: var(--color-text-secondary);
   }
 }
 .submit-btn {
   width: 100%;
-  height: 44px;
-  font-size: 15px;
+  height: 46px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .toggle {
   text-align: center;
   margin-top: 24px;
-  font-size: 13px;
+  font-family: var(--font-serif);
+  font-size: 14px;
   color: var(--color-text-regular);
 }
 .legal-links {
@@ -299,7 +390,8 @@ function toggleMode() {
   font-size: 12px;
   a {
     color: var(--color-text-secondary);
-    transition: var(--transition-base);
+    border-bottom: none;
+    transition: var(--transition-fast);
     &:hover {
       color: var(--color-accent);
     }
@@ -309,7 +401,7 @@ function toggleMode() {
   }
 }
 
-// 响应式：移动端塌缩为单列，隐藏品牌叙事
+// 响应式：移动端隐藏品牌叙事
 @media (max-width: 768px) {
   .login-page {
     grid-template-columns: 1fr;
