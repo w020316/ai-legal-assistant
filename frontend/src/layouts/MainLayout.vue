@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import VersionUpdateDialog from '@/components/common/VersionUpdateDialog.vue'
 import {
   ChatDotRound,
   Monitor,
@@ -112,7 +113,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.4.0 · The Verdict</div>
+          <div class="version">linzAI v1.4.1 · The Verdict</div>
         </div>
       </el-aside>
 
@@ -158,10 +159,13 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.4.0 · The Verdict</div>
+          <div class="version">linzAI v1.4.1 · The Verdict</div>
         </div>
       </div>
     </el-drawer>
+
+    <!-- 版本更新公告弹窗：登录后展示，localStorage 记录已读 -->
+    <VersionUpdateDialog />
   </el-container>
 </template>
 
