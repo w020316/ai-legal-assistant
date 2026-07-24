@@ -48,6 +48,8 @@ public class ChatService {
     private static final int HISTORY_LIMIT = 12;
     /** RAG 检索 Top-K */
     private static final int RAG_TOP_K = 5;
+    /** 历史上下文最大字符数（v1.9.0 新增，防止长对话 token 超限） */
+    private static final int MAX_HISTORY_CHARS = 4000;
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -555,16 +557,36 @@ public class ChatService {
     }
 
     /**
-     * 构造历史上下文文本
+     * 构造历史上下文（v1.9.0 优化：滑动窗口 + 截断，防止 token 超限）
+     * <p>
+     * 策略：从最近消息开始向前累加，当累计字符数超过 MAX_HISTORY_CHARS 时，
+     * 截断更早的消息并标注"[更早的对话已省略]"，保证最近上下文完整。
+     *
+     * @param messages 历史消息列表（按时间正序，最旧在前）
+     * @return 拼接后的历史上下文字符串
      */
     private String buildHistory(List<ChatMessage> messages) {
         if (messages == null || messages.isEmpty()) {
             return "";
         }
+        // 从最近（列表末尾）向前累加，保留最近上下文
         StringBuilder sb = new StringBuilder();
-        for (ChatMessage m : messages) {
+        int totalChars = 0;
+        boolean truncated = false;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            ChatMessage m = messages.get(i);
             String role = "user".equals(m.getRole()) ? "用户" : "助手";
-            sb.append(role).append("：").append(m.getContent()).append("\n");
+            String line = role + "：" + m.getContent() + "\n";
+            // 超出阈值且已有内容时，截断更早的消息
+            if (totalChars + line.length() > MAX_HISTORY_CHARS && sb.length() > 0) {
+                truncated = true;
+                break;
+            }
+            sb.insert(0, line);
+            totalChars += line.length();
+        }
+        if (truncated) {
+            sb.insert(0, "[更早的对话已省略]\n");
         }
         return sb.toString().trim();
     }

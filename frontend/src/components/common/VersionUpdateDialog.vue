@@ -3,11 +3,11 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.6.0'
+const CURRENT_VERSION = 'v1.9.0'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
-const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI']
 
 const visible = ref(false)
 
@@ -25,6 +25,35 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.9.0',
+    date: '2026-07-24',
+    tag: '智能优化',
+    highlights: [
+      { title: '文档重新分析', desc: '清除旧分析结果后强制重新调用 AI，支持刷新过期或不满的分析报告' },
+      { title: '长对话上下文压缩', desc: '滑动窗口 + 截断策略，历史超 4000 字符自动省略早期消息，防止 token 超限' },
+    ],
+  },
+  {
+    version: 'v1.8.0',
+    date: '2026-07-24',
+    tag: '管理后台',
+    highlights: [
+      { title: '审计日志前端面板', desc: 'ADMIN 可视化查看登录/登出/注册日志，含来源 IP 与用户详情' },
+      { title: '管理员权限守卫', desc: '路由 meta.requireAdmin + 菜单动态渲染，非管理员不可见审计日志' },
+      { title: '文档分析结果缓存', desc: '重复分析命中已有结果直接返回，跳过 AI 调用节省成本' },
+    ],
+  },
+  {
+    version: 'v1.7.0',
+    date: '2026-07-24',
+    tag: '工程加固',
+    highlights: [
+      { title: 'magic bytes 文件校验', desc: '读取文件头字节校验真实类型（PDF/DOCX/JPG/PNG），防伪造扩展名' },
+      { title: 'N+1 查询优化', desc: 'PostgreSQL DISTINCT ON 批量查询，会话列表 1+N 次降为 1+1 次' },
+      { title: '审计日志闭环', desc: '补全注册/登录/登出审计写入，记录来源 IP；新增 ADMIN 查看接口' },
+    ],
+  },
   {
     version: 'v1.6.0',
     date: '2026-07-24',

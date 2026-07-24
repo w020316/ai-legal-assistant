@@ -74,6 +74,17 @@ public class DocumentController {
     }
 
     /**
+     * 重新分析：清除缓存后强制重新调用 AI（v1.9.0 新增）
+     * <p>
+     * 与 analyze 区别：analyze 命中已有结果直接返回，reanalyze 强制刷新。
+     */
+    @PostMapping("/{id}/reanalyze")
+    public Result<DocumentAnalysisVO> reanalyze(@PathVariable Long id) {
+        Long userId = requireLogin();
+        return Result.success(documentService.reanalyze(userId, id));
+    }
+
+    /**
      * 双合同比对
      * <p>
      * 对比两份合同的差异条款与风险变化，v1.5.0 新增。

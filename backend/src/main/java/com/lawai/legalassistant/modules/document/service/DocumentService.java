@@ -168,6 +168,32 @@ public class DocumentService {
     }
 
     /**
+     * 重新分析：清除已有分析结果后强制重新调用 AI（v1.9.0 新增）
+     * <p>
+     * 与 analyze 的区别：analyze 命中缓存直接返回，reanalyze 先清除缓存再调用 AI。
+     * 适用于文档内容变更后需要刷新分析结果，或用户对旧分析不满意希望重新生成。
+     *
+     * @param userId 用户 ID
+     * @param docId  文档 ID
+     * @return 新的分析结果
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public DocumentAnalysisVO reanalyze(Long userId, Long docId) {
+        // 1. 校验文档归属
+        UserDocument doc = getOwnedDocument(userId, docId);
+        if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "文档文本为空，无法分析");
+        }
+
+        // 2. 清除旧分析结果，确保 analyze 不会命中缓存
+        documentMapper.clearAnalysisResult(docId);
+        log.info("文档重新分析：已清除旧分析结果 docId={}", docId);
+
+        // 3. 重新调用 AI 分析（此时 analysisResult 已为 null，不会命中缓存）
+        return analyze(userId, docId);
+    }
+
+    /**
      * 用户文档列表
      *
      * @param userId 用户 ID

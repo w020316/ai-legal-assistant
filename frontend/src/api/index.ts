@@ -253,6 +253,9 @@ export const getDocumentAnalysis = (id: number) =>
 // 触发文档分析
 export const analyzeDocument = (id: number) => http.post<void>(`/documents/${id}/analyze`)
 
+// 重新分析（清除缓存强制重调 AI，v1.9.0 新增）
+export const reanalyzeDocument = (id: number) => http.post<void>(`/documents/${id}/reanalyze`)
+
 // 双合同比对
 export const compareDocuments = (docIdA: number, docIdB: number) =>
   http.post<ContractCompareVO>(`/documents/${docIdA}/compare?docIdB=${docIdB}`)

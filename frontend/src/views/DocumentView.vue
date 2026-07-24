@@ -7,6 +7,7 @@ import {
   listDocuments,
   uploadDocument,
   analyzeDocument,
+  reanalyzeDocument,
   getDocumentAnalysis,
   compareDocuments,
   type UserDocumentVO,
@@ -438,6 +439,43 @@ async function handleAnalyze() {
   }
 }
 
+// 重新分析：清除缓存后强制重新调用 AI（v1.9.0 新增）
+async function handleReanalyze() {
+  if (!currentDoc.value) return
+  const docId = currentDoc.value.id
+  analyzing.value = true
+  analysis.value = null
+  // 开始进度反馈
+  analyzeProgress.value = { stage: '正在清除旧分析结果', percent: 5 }
+  let stageIdx = 0
+  analyzeTimer = setInterval(() => {
+    stageIdx = Math.min(stageIdx + 1, analyzeStages.length - 1)
+    analyzeProgress.value = { ...analyzeStages[stageIdx] }
+  }, 2000)
+  try {
+    await reanalyzeDocument(docId)
+    ElMessage.success('已重新启动分析，正在生成新报告…')
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+    for (let i = 0; i < 10; i++) {
+      await fetchAnalysis(docId)
+      if (analysis.value) break
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+    }
+    if (currentDoc.value && currentDoc.value.id === docId) {
+      currentDoc.value.analysisStatus = 'completed'
+    }
+  } catch {
+    // 错误已由拦截器提示
+  } finally {
+    analyzing.value = false
+    if (analyzeTimer) {
+      clearInterval(analyzeTimer)
+      analyzeTimer = null
+    }
+    analyzeProgress.value = null
+  }
+}
+
 onMounted(loadDocuments)
 
 onUnmounted(() => {
@@ -519,6 +557,15 @@ onUnmounted(() => {
               @click="handleAnalyze"
             >
               {{ statusTagType(currentDoc.analysisStatus) === 'success' ? '已分析' : '开始分析' }}
+            </el-button>
+            <el-button
+              v-if="statusTagType(currentDoc.analysisStatus) === 'success'"
+              :loading="analyzing"
+              type="warning"
+              plain
+              @click="handleReanalyze"
+            >
+              重新分析
             </el-button>
             <el-button
               v-if="analysis"
