@@ -162,12 +162,30 @@ export interface RiskPoint {
   issue: string
   suggestion: string
   legalBasis: string
+  /** 条款通俗化解释 */
+  plainExplanation?: string
+}
+
+// 缺失条款
+export interface MissingClause {
+  name: string
+  importance: string
+  risk: string
+  suggestion: string
 }
 
 // 文档分析结果
 export interface DocumentAnalysis {
   summary: string
+  /** 安全评分 0-100 */
+  score?: number
+  /** 整体风险等级：高/中/低 */
+  riskLevel?: string
+  /** 条款通俗化总览 */
+  plainSummary?: string
   riskPoints: RiskPoint[]
+  /** 缺失条款提醒 */
+  missingClauses?: MissingClause[]
 }
 
 // 用户文档

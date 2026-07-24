@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRawFile, UploadRequestOptions } from 'element-plus'
-import { UploadFilled, Document as DocumentIcon } from '@element-plus/icons-vue'
+import { UploadFilled, Document as DocumentIcon, ArrowDown } from '@element-plus/icons-vue'
 import {
   listDocuments,
   uploadDocument,
@@ -29,6 +29,15 @@ const analyzeStages = [
   { stage: '正在生成修改建议', percent: 80 },
   { stage: '正在整理分析报告', percent: 95 },
 ]
+
+// 大白话折叠面板：记录每个风险点是否展开
+const plainExpanded = ref<Record<number, boolean>>({})
+
+// 大白话总览折叠
+const plainSummaryExpanded = ref(false)
+
+// 缺失条款折叠
+const missingExpanded = ref(false)
 
 // 文件大小格式化
 function formatSize(bytes: number): string {
@@ -82,6 +91,47 @@ function riskLabel(level: string): string {
   return level
 }
 
+// 评分 -> 颜色
+function scoreColor(score?: number): string {
+  if (score == null) return 'var(--color-text-secondary)'
+  if (score >= 70) return 'var(--color-success)'
+  if (score >= 50) return 'var(--color-warning)'
+  return 'var(--color-danger)'
+}
+
+// 评分 -> 等级文案
+function scoreLabel(score?: number): string {
+  if (score == null) return '—'
+  if (score >= 90) return '低风险·可签'
+  if (score >= 70) return '中低风险·建议小改'
+  if (score >= 50) return '中高风险·需重点修改'
+  return '高风险·不建议签署'
+}
+
+// 评分 -> 环形进度条状态
+function scoreStatus(score?: number): 'success' | 'warning' | 'exception' | undefined {
+  if (score == null) return undefined
+  if (score >= 70) return 'success'
+  if (score >= 50) return 'warning'
+  return 'exception'
+}
+
+// 缺失条款数量
+const missingCount = computed(() => analysis.value?.missingClauses?.length || 0)
+
+// 高重要性缺失条款数量
+const missingHighCount = computed(
+  () =>
+    analysis.value?.missingClauses?.filter((m) =>
+      m.importance?.toLowerCase().includes('high') || m.importance === '高'
+    ).length || 0
+)
+
+// 切换大白话折叠
+function togglePlain(idx: number) {
+  plainExpanded.value[idx] = !plainExpanded.value[idx]
+}
+
 // 上传前校验
 function beforeUpload(file: UploadRawFile): boolean {
   const name = file.name.toLowerCase()
@@ -133,6 +183,9 @@ async function loadDocuments() {
 async function handleSelectDoc(doc: UserDocumentVO) {
   currentDoc.value = doc
   analysis.value = null
+  plainExpanded.value = {}
+  plainSummaryExpanded.value = false
+  missingExpanded.value = false
   // 若已完成分析，拉取分析结果
   if (statusTagType(doc.analysisStatus) === 'success') {
     await fetchAnalysis(doc.id)
@@ -144,6 +197,7 @@ async function fetchAnalysis(id: number) {
   try {
     const res = await getDocumentAnalysis(id)
     analysis.value = res.data
+    plainExpanded.value = {}
   } catch {
     analysis.value = null
   }
@@ -297,18 +351,73 @@ onUnmounted(() => {
         <!-- 分析报告 -->
         <div v-loading="analyzing" class="report-area">
           <template v-if="analysis">
-            <div class="report-block summary-block">
-              <div class="block-title">分析概要</div>
-              <div class="summary-text">{{ analysis.summary }}</div>
+            <!-- 评分卡片：安全评分 + 风险等级 + 通俗化总览 -->
+            <div class="score-card" :class="'score-card-' + scoreStatus(analysis.score)">
+              <div class="score-ring">
+                <el-progress
+                  type="dashboard"
+                  :percentage="analysis.score ?? 0"
+                  :width="120"
+                  :stroke-width="8"
+                  :status="scoreStatus(analysis.score)"
+                >
+                  <template #default>
+                    <div class="score-num">
+                      <span class="num">{{ analysis.score ?? '—' }}</span>
+                      <span class="unit">/100</span>
+                    </div>
+                  </template>
+                </el-progress>
+              </div>
+              <div class="score-meta">
+                <div class="score-header">
+                  <span class="score-eyebrow">SAFETY · 安全评分</span>
+                  <el-tag
+                    v-if="analysis.riskLevel"
+                    :type="riskTagType(analysis.riskLevel)"
+                    size="default"
+                    effect="dark"
+                    round
+                  >
+                    {{ riskLabel(analysis.riskLevel) }}
+                  </el-tag>
+                </div>
+                <div class="score-label" :style="{ color: scoreColor(analysis.score) }">
+                  {{ scoreLabel(analysis.score) }}
+                </div>
+                <div class="score-summary">{{ analysis.summary }}</div>
+              </div>
             </div>
 
+            <!-- 大白话总览（折叠） -->
+            <div v-if="analysis.plainSummary" class="report-block plain-summary-block">
+              <div class="block-title" @click="plainSummaryExpanded = !plainSummaryExpanded">
+                <span class="title-text">大白话说合同</span>
+                <span class="title-hint">{{ plainSummaryExpanded ? '收起' : '展开' }}</span>
+                <el-icon class="title-arrow" :class="{ expanded: plainSummaryExpanded }">
+                  <ArrowDown />
+                </el-icon>
+              </div>
+              <transition name="plain">
+                <div v-show="plainSummaryExpanded" class="plain-summary-text">
+                  {{ analysis.plainSummary }}
+                </div>
+              </transition>
+            </div>
+
+            <!-- 风险点 -->
             <div class="report-block">
               <div class="block-title">
                 风险点
                 <el-tag size="small" round>{{ analysis.riskPoints?.length || 0 }}</el-tag>
               </div>
               <div v-if="analysis.riskPoints?.length" class="risk-list">
-                <div v-for="(rp, i) in analysis.riskPoints" :key="i" class="risk-card" :class="'risk-' + riskTagType(rp.level)">
+                <div
+                  v-for="(rp, i) in analysis.riskPoints"
+                  :key="i"
+                  class="risk-card"
+                  :class="'risk-' + riskTagType(rp.level)"
+                >
                   <div class="risk-card-head">
                     <el-tag :type="riskTagType(rp.level)" size="small" effect="dark">
                       {{ riskLabel(rp.level) }}
@@ -324,9 +433,64 @@ onUnmounted(() => {
                   <div class="risk-field legal">
                     <span class="field-label">法律依据：</span>{{ rp.legalBasis }}
                   </div>
+                  <!-- 大白话折叠面板 -->
+                  <div
+                    v-if="rp.plainExplanation"
+                    class="plain-toggle"
+                    @click="togglePlain(i)"
+                  >
+                    <span class="plain-toggle-text">大白话说</span>
+                    <el-icon class="plain-toggle-arrow" :class="{ expanded: plainExpanded[i] }">
+                      <ArrowDown />
+                    </el-icon>
+                  </div>
+                  <transition name="plain">
+                    <div v-show="plainExpanded[i]" class="plain-explanation">
+                      {{ rp.plainExplanation }}
+                    </div>
+                  </transition>
                 </div>
               </div>
               <el-empty v-else description="未发现风险点" :image-size="64" />
+            </div>
+
+            <!-- 缺失条款提醒 -->
+            <div v-if="missingCount > 0" class="report-block missing-block">
+              <div class="block-title missing-title" @click="missingExpanded = !missingExpanded">
+                <span class="title-text">
+                  缺失条款提醒
+                  <el-tag type="warning" size="small" round>{{ missingCount }}</el-tag>
+                  <span v-if="missingHighCount > 0" class="title-sub">
+                    含 {{ missingHighCount }} 项高重要性
+                  </span>
+                </span>
+                <el-icon class="title-arrow" :class="{ expanded: missingExpanded }">
+                  <ArrowDown />
+                </el-icon>
+              </div>
+              <transition name="plain">
+                <div v-show="missingExpanded" class="missing-list">
+                  <div
+                    v-for="(m, i) in analysis.missingClauses"
+                    :key="i"
+                    class="missing-card"
+                    :class="'missing-' + riskTagType(m.importance)"
+                  >
+                    <div class="missing-head">
+                      <el-tag :type="riskTagType(m.importance)" size="small" effect="plain">
+                        {{ riskLabel(m.importance) }}
+                      </el-tag>
+                      <span class="missing-name">{{ m.name }}</span>
+                    </div>
+                    <div class="missing-field">
+                      <span class="field-label">缺失风险：</span>{{ m.risk }}
+                    </div>
+                    <div class="missing-field">
+                      <span class="field-label">补充建议：</span>{{ m.suggestion }}
+                    </div>
+                  </div>
+                </div>
+              </transition>
             </div>
           </template>
 
@@ -575,7 +739,264 @@ onUnmounted(() => {
     height: 2px;
     background: var(--color-accent);
   }
+  &.clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+  .title-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .title-hint {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+  .title-sub {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-warning);
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+  .title-arrow {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    transition: transform 0.25s var(--ease-out);
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
 }
+
+/* 评分卡片 */
+.score-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: border-left-color 0.25s;
+  &.score-card-success {
+    border-left-color: var(--color-success);
+  }
+  &.score-card-warning {
+    border-left-color: var(--color-warning);
+  }
+  &.score-card-exception {
+    border-left-color: var(--color-danger);
+  }
+}
+.score-ring {
+  flex-shrink: 0;
+  :deep(.el-progress-dashboard__container) {
+    width: 120px;
+    height: 120px;
+  }
+}
+.score-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  .num {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--color-primary);
+  }
+  .unit {
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.1em;
+  }
+}
+.score-meta {
+  flex: 1;
+  min-width: 0;
+}
+.score-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.score-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.score-label {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.score-summary {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--color-text-regular);
+  white-space: pre-wrap;
+}
+
+/* 大白话总览折叠 */
+.plain-summary-block {
+  .block-title {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+  .plain-summary-text {
+    padding: 14px 18px;
+    background: var(--color-accent-light);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-card);
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--color-text-regular);
+    font-style: italic;
+  }
+}
+
+/* 大白话折叠面板（风险点内） */
+.plain-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+  .plain-toggle-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    text-transform: uppercase;
+  }
+  .plain-toggle-arrow {
+    font-size: 12px;
+    color: var(--color-accent);
+    transition: transform 0.25s var(--ease-out);
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+  &:hover {
+    background: var(--color-accent-light);
+  }
+}
+.plain-explanation {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--color-bg-soft);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-button);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--color-text-regular);
+  font-style: italic;
+}
+
+/* 缺失条款 */
+.missing-block {
+  .missing-title {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+    &:hover {
+      color: var(--color-warning);
+    }
+    &::after {
+      background: var(--color-warning);
+    }
+  }
+}
+.missing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.missing-card {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-card);
+  background: rgba(139, 105, 20, 0.025);
+  &.missing-danger {
+    border-left-color: var(--color-danger);
+    background: rgba(139, 30, 30, 0.025);
+  }
+  &.missing-success {
+    border-left-color: var(--color-success);
+    background: rgba(61, 92, 58, 0.025);
+  }
+}
+.missing-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.missing-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.missing-field {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-regular);
+  margin-top: 4px;
+}
+
+/* 折叠过渡动画 */
+.plain-enter-active,
+.plain-leave-active {
+  transition: all 0.25s var(--ease-out);
+  overflow: hidden;
+}
+.plain-enter-from,
+.plain-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-4px);
+}
+.plain-enter-to,
+.plain-leave-from {
+  opacity: 1;
+  max-height: 600px;
+}
+
 .summary-block {
   padding: 16px 18px;
   background: var(--color-accent-light);
@@ -701,6 +1122,19 @@ onUnmounted(() => {
   }
   .doc-list {
     max-height: 240px;
+  }
+  /* 评分卡片改为纵向布局 */
+  .score-card {
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+  .score-header {
+    justify-content: center;
+  }
+  .score-label {
+    font-size: 17px;
   }
 }
 </style>

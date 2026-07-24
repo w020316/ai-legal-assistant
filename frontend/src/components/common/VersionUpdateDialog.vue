@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.4.1'
+const CURRENT_VERSION = 'v1.4.3'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -25,6 +25,26 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.4.3',
+    date: '2026-07-24',
+    tag: '文档分析增强',
+    highlights: [
+      { title: '安全评分仪表盘', desc: '0-100 环形评分，按分数段着色，一眼判断合同风险' },
+      { title: '风险分级标签', desc: '高/中/低风险标签直观展示，与评分联动' },
+      { title: '大白话说合同', desc: '条款通俗化总览 + 每条风险的大白话解释，非法律专业也能看懂' },
+      { title: '缺失条款提醒', desc: '自动识别应包含但未约定的条款，并给出补充建议' },
+    ],
+  },
+  {
+    version: 'v1.4.2',
+    date: '2026-07-22',
+    tag: 'AI 路由升级',
+    highlights: [
+      { title: 'Tacklekey 双模型路由', desc: '优先免费模型 openai/gpt-5.5:free，配额耗尽自动降级 Agnes' },
+      { title: 'Fly.io CI/CD 自动部署', desc: 'GitHub Actions master 分支推送自动并行部署前后端' },
+    ],
+  },
   {
     version: 'v1.4.1',
     date: '2026-07-14',

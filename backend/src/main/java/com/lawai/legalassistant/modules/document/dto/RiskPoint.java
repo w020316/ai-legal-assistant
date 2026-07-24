@@ -20,6 +20,9 @@ public class RiskPoint {
     /** 法律依据 */
     private String legalBasis;
 
+    /** 条款通俗化解释：用大白话说清这条条款的真实含义和对签署方的影响 */
+    private String plainExplanation;
+
     public String getClause() {
         return clause;
     }
@@ -58,5 +61,13 @@ public class RiskPoint {
 
     public void setLegalBasis(String legalBasis) {
         this.legalBasis = legalBasis;
+    }
+
+    public String getPlainExplanation() {
+        return plainExplanation;
+    }
+
+    public void setPlainExplanation(String plainExplanation) {
+        this.plainExplanation = plainExplanation;
     }
 }
