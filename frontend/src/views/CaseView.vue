@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Star, StarFilled, Download, Delete, Collection } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { searchCases, type CaseVO, type CaseSearchRequest } from '@/api'
+import { useCaseFavorites } from '@/composables/useCaseFavorites'
 
 // 案由选项
 const causeOptions = [
@@ -41,12 +43,23 @@ const cases = ref<CaseVO[]>([])
 const loading = ref(false)
 const searched = ref(false)
 
+// 视图模式：search=检索结果，favorites=我的收藏
+type ViewMode = 'search' | 'favorites'
+const viewMode = ref<ViewMode>('search')
+
+// 收藏夹（removeFavorite 暂未在 UI 使用，仅留 toggle/clear/export）
+const { favorites, isFavorited, toggleFavorite, clearFavorites, exportFavorites } =
+  useCaseFavorites()
+
+// 当前展示的列表（根据视图模式切换）
+const displayCases = computed(() => (viewMode.value === 'search' ? cases.value : favorites.value))
+
 // 前端分页
 const currentPage = ref(1)
 const pageSize = ref(10)
 const pagedCases = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return cases.value.slice(start, start + pageSize.value)
+  return displayCases.value.slice(start, start + pageSize.value)
 })
 
 // 请求 ID：用于丢弃过期的搜索响应，避免旧结果覆盖新结果
@@ -106,10 +119,45 @@ function handleReset() {
   handleSearch()
 }
 
+// 切换视图模式
+function switchMode(mode: ViewMode) {
+  viewMode.value = mode
+  currentPage.value = 1
+}
+
 // 查看详情
 function handleViewDetail(c: CaseVO) {
   currentCase.value = c
   drawerVisible.value = true
+}
+
+// 收藏按钮点击：阻止冒泡避免触发卡片点击
+function handleToggleFavorite(c: CaseVO, event?: Event) {
+  event?.stopPropagation()
+  toggleFavorite(c)
+}
+
+// 详情抽屉中收藏
+function handleDetailToggleFavorite() {
+  if (!currentCase.value) return
+  const updated = toggleFavorite(currentCase.value)
+  // 同步当前详情对象状态（影响按钮显示）
+  if (!updated && currentCase.value) {
+    // 已取消收藏，无需特殊处理
+  }
+}
+
+// 清空收藏确认
+function handleClearFavorites() {
+  ElMessageBox.confirm('确认清空所有收藏的案例吗？此操作不可恢复。', '清空确认', {
+    type: 'warning',
+    confirmButtonText: '清空',
+    cancelButtonText: '取消',
+  })
+    .then(() => clearFavorites())
+    .catch(() => {
+      // 用户取消
+    })
 }
 
 onMounted(handleSearch)
@@ -120,10 +168,28 @@ onMounted(handleSearch)
     <!-- 页面标题：公报刊头式 -->
     <div class="page-header">
       <h1 class="page-title" data-eyebrow="CASE LAW · 案例库">案例检索</h1>
+      <div class="header-actions">
+        <el-button
+          :type="viewMode === 'search' ? 'primary' : 'default'"
+          size="small"
+          @click="switchMode('search')"
+        >
+          检索结果
+        </el-button>
+        <el-button
+          :type="viewMode === 'favorites' ? 'primary' : 'default'"
+          size="small"
+          :icon="Collection"
+          @click="switchMode('favorites')"
+        >
+          我的收藏
+          <span v-if="favorites.length" class="fav-count">{{ favorites.length }}</span>
+        </el-button>
+      </div>
     </div>
 
-    <!-- 顶部搜索栏 -->
-    <div class="search-bar">
+    <!-- 顶部搜索栏（仅检索模式显示） -->
+    <div v-if="viewMode === 'search'" class="search-bar">
       <el-input
         v-model="form.keyword"
         placeholder="输入关键词，如合同解除、违约金、竞业限制…"
@@ -147,16 +213,54 @@ onMounted(handleSearch)
       <el-button type="primary" :loading="loading" class="ripple-btn" @click="handleSearch">搜索</el-button>
       <el-button @click="handleReset">重置</el-button>
     </div>
-    <div class="search-hint">提示：输入关键词可进行语义检索，或按案由/法院/年份筛选</div>
+    <div v-if="viewMode === 'search'" class="search-hint">
+      提示：输入关键词可进行语义检索，或按案由/法院/年份筛选
+    </div>
+
+    <!-- 收藏夹操作栏 -->
+    <div v-else class="favorites-bar">
+      <div class="fav-meta">
+        <el-icon class="fav-icon"><Collection /></el-icon>
+        <span>共收藏 <span class="count">{{ favorites.length }}</span> 条案例</span>
+      </div>
+      <div class="fav-actions">
+        <el-button size="small" :icon="Download" :disabled="favorites.length === 0" @click="exportFavorites">
+          导出 Markdown
+        </el-button>
+        <el-button
+          size="small"
+          type="danger"
+          plain
+          :icon="Delete"
+          :disabled="favorites.length === 0"
+          @click="handleClearFavorites"
+        >
+          清空收藏
+        </el-button>
+      </div>
+    </div>
 
     <!-- 案例列表 -->
     <div class="case-list-wrap">
       <div class="list-meta">
-        <span>共找到 <span class="count">{{ cases.length }}</span> 条案例</span>
+        <span v-if="viewMode === 'search'">
+          共找到 <span class="count">{{ cases.length }}</span> 条案例
+        </span>
+        <span v-else>
+          共 <span class="count">{{ favorites.length }}</span> 条收藏
+        </span>
       </div>
       <div v-loading="loading" class="case-list">
         <div v-for="c in pagedCases" :key="c.id" class="case-card" @click="handleViewDetail(c)">
           <span class="case-corner">{{ (c.caseCause || '案').charAt(0) }}</span>
+          <button
+            class="fav-toggle"
+            :class="{ 'is-active': isFavorited(c.id) }"
+            :title="isFavorited(c.id) ? '取消收藏' : '加入收藏'"
+            @click="handleToggleFavorite(c, $event)"
+          >
+            <el-icon><StarFilled v-if="isFavorited(c.id)" /><Star v-else /></el-icon>
+          </button>
           <div class="case-card-head">
             <span class="case-title" :title="c.title">{{ c.title }}</span>
             <el-tag size="small" effect="light">{{ c.caseCause || '未分类' }}</el-tag>
@@ -172,17 +276,21 @@ onMounted(handleSearch)
         </div>
 
         <el-empty
-          v-if="!loading && searched && cases.length === 0"
+          v-if="viewMode === 'search' && !loading && searched && cases.length === 0"
           description="未找到相关案例，试试调整搜索条件或清除筛选"
+        />
+        <el-empty
+          v-else-if="viewMode === 'favorites' && favorites.length === 0"
+          description="尚未收藏任何案例，切换到「检索结果」点击星标即可收藏"
         />
       </div>
 
       <!-- 分页 -->
-      <div v-if="cases.length > pageSize" class="pagination-wrap">
+      <div v-if="displayCases.length > pageSize" class="pagination-wrap">
         <el-pagination
           v-model:current-page="currentPage"
           :page-size="pageSize"
-          :total="cases.length"
+          :total="displayCases.length"
           layout="prev, pager, next"
           background
           small
@@ -194,7 +302,18 @@ onMounted(handleSearch)
     <el-drawer v-model="drawerVisible" title="案例详情" size="520px" direction="rtl">
       <template v-if="currentCase">
         <div class="detail">
-          <h2 class="detail-title">{{ currentCase.title }}</h2>
+          <div class="detail-header">
+            <h2 class="detail-title">{{ currentCase.title }}</h2>
+            <el-button
+              class="detail-fav-btn"
+              :type="isFavorited(currentCase.id) ? 'warning' : 'default'"
+              size="small"
+              :icon="isFavorited(currentCase.id) ? StarFilled : Star"
+              @click="handleDetailToggleFavorite"
+            >
+              {{ isFavorited(currentCase.id) ? '已收藏' : '收藏' }}
+            </el-button>
+          </div>
           <div class="detail-tags">
             <el-tag size="small" effect="light">{{ currentCase.caseCause || '未分类' }}</el-tag>
             <el-tag size="small" type="info" effect="plain">{{ currentCase.court || '—' }}</el-tag>
@@ -224,7 +343,12 @@ onMounted(handleSearch)
 
 /* 页面标题 */
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 4px 4px 0;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .page-title {
   font-size: 22px;
@@ -232,6 +356,26 @@ onMounted(handleSearch)
   font-family: var(--font-serif);
   letter-spacing: -0.01em;
   color: var(--color-primary);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fav-count {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-align: center;
+  background: var(--color-accent);
+  color: #FBF8F1;
 }
 
 /* 搜索栏 */
@@ -262,6 +406,43 @@ onMounted(handleSearch)
   font-size: 12px;
   color: var(--color-text-secondary);
   padding: 0 20px 8px;
+}
+
+/* 收藏夹操作栏 */
+.favorites-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  flex-wrap: wrap;
+}
+.fav-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-regular);
+  .fav-icon {
+    color: var(--color-accent);
+  }
+  .count {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin: 0 4px;
+  }
+}
+.fav-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* 列表 */
@@ -345,6 +526,9 @@ onMounted(handleSearch)
       color: var(--color-accent);
       border-color: rgba(122, 31, 43, 0.4);
     }
+    .fav-toggle {
+      opacity: 1;
+    }
   }
 }
 // 左上角角标装饰：案由首字（公报章节式）
@@ -367,12 +551,43 @@ onMounted(handleSearch)
   transition: var(--transition-base);
   user-select: none;
 }
+// 右上角收藏按钮
+.fav-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: var(--transition-fast);
+  padding: 0;
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    transform: scale(1.05);
+  }
+  &.is-active {
+    opacity: 1;
+    color: var(--color-accent);
+    background: rgba(122, 31, 43, 0.06);
+    border-color: var(--color-accent);
+  }
+}
 .case-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+  padding-right: 36px; // 给收藏按钮留位置
 }
 .case-title {
   font-size: 16px;
@@ -426,26 +641,30 @@ onMounted(handleSearch)
   // 抽屉打开时内容滑入动画
   animation: slideInRight 0.4s var(--ease-out) both;
 }
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
 .detail-title {
+  flex: 1;
   font-size: 22px;
   font-weight: 600;
   font-family: var(--font-display);
   letter-spacing: -0.015em;
   color: var(--color-primary);
   line-height: 1.35;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border);
   position: relative;
-  &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: -1px;
-    width: 48px;
-    height: 2px;
-    background: var(--color-accent);
-  }
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-accent);
+  display: inline-block;
+}
+.detail-fav-btn {
+  flex-shrink: 0;
 }
 :deep(.el-drawer__title) {
   font-family: var(--font-display);
@@ -487,13 +706,33 @@ onMounted(handleSearch)
   white-space: pre-wrap;
 }
 
-/* 移动端响应式 */
+/* ===== 响应式断点：平板 1024px ===== */
+@media (max-width: 1024px) {
+  .page-title {
+    font-size: 21px;
+  }
+  .search-bar {
+    padding: 14px 18px;
+  }
+  .keyword-input {
+    min-width: 240px;
+  }
+}
+
+/* ===== 响应式断点：移动端 768px ===== */
 @media (max-width: 768px) {
   .page-header {
     padding: 2px 2px 0;
+    gap: 8px;
   }
   .page-title {
     font-size: 20px;
+  }
+  .header-actions {
+    width: 100%;
+    .el-button {
+      flex: 1;
+    }
   }
   .search-bar {
     flex-direction: column;
@@ -531,6 +770,49 @@ onMounted(handleSearch)
   }
   .pagination-wrap {
     padding: 10px 14px 12px;
+  }
+  .favorites-bar {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .fav-actions {
+    .el-button {
+      flex: 1;
+    }
+  }
+  // 移动端收藏按钮常显，避免触摸不易触发
+  .fav-toggle {
+    opacity: 0.85;
+  }
+}
+
+/* ===== 响应式断点：小屏手机 480px ===== */
+@media (max-width: 480px) {
+  .case-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding-right: 0;
+  }
+  .case-card-meta {
+    flex-wrap: wrap;
+    .source {
+      max-width: 100%;
+    }
+  }
+  .case-card-summary {
+    font-size: 12.5px;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+  .detail-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .detail-title {
+    font-size: 18px;
   }
 }
 </style>

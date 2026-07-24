@@ -228,4 +228,61 @@ onMounted(fetchHealth)
     color: var(--color-accent);
   }
 }
+
+/* ===== 响应式断点：平板 1024px ===== */
+@media (max-width: 1024px) {
+  .health-view {
+    max-width: 100%;
+  }
+}
+
+/* ===== 响应式断点：移动端 768px ===== */
+@media (max-width: 768px) {
+  .health-view {
+    max-width: 100%;
+    gap: 12px;
+  }
+  .page-header {
+    padding: 2px 2px 0;
+  }
+  .page-title {
+    font-size: 20px;
+  }
+  .status-card {
+    padding: 18px 16px;
+    gap: 12px;
+  }
+  .status-service {
+    font-size: 18px;
+  }
+  .status-time {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .detail-card {
+    padding: 14px 16px;
+  }
+  .detail-val {
+    font-size: 16px;
+  }
+}
+
+/* ===== 响应式断点：小屏手机 480px ===== */
+@media (max-width: 480px) {
+  .status-card {
+    padding: 14px 12px;
+  }
+  .status-service {
+    font-size: 16px;
+    word-break: break-all;
+  }
+  .detail-card {
+    padding: 12px 14px;
+  }
+}
 </style>

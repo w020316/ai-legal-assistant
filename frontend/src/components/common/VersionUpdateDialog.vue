@@ -3,11 +3,11 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.9.2'
+const CURRENT_VERSION = 'v1.10.0'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
-const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI']
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 
 const visible = ref(false)
 
@@ -25,6 +25,17 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.10.0',
+    date: '2026-07-24',
+    tag: '案例收藏',
+    highlights: [
+      { title: '案例收藏夹', desc: '一键收藏案例到本地收藏夹，支持检索/详情两个入口收藏，localStorage 持久化' },
+      { title: '收藏导出 Markdown', desc: '收藏夹批量导出为 Markdown 文档，含案由/法院/年份/摘要/来源完整信息' },
+      { title: '响应式断点补全', desc: '新增 1024px 平板 / 480px 超小屏断点，CaseView/HealthView/MainLayout 全面适配' },
+      { title: '视图模式切换', desc: '案例库支持「检索结果」/「我的收藏」双视图，空状态文案差异化' },
+    ],
+  },
   {
     version: 'v1.9.2',
     date: '2026-07-24',
@@ -194,7 +205,7 @@ function handleViewDetails() {
       <div class="masthead">
         <span class="masthead-version">{{ CURRENT_VERSION }}</span>
         <span class="masthead-sep">❦</span>
-        <span class="masthead-date">2026.07.14</span>
+        <span class="masthead-date">2026.07.24</span>
       </div>
       <div class="masthead-tagline">linzAI 法律助手 · The Verdict</div>
 

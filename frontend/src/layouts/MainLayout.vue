@@ -120,7 +120,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.9.2 · The Verdict</div>
+          <div class="version">linzAI v1.10.0 · The Verdict</div>
         </div>
       </el-aside>
 
@@ -166,7 +166,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.9.2 · The Verdict</div>
+          <div class="version">linzAI v1.10.0 · The Verdict</div>
         </div>
       </div>
     </el-drawer>
@@ -452,6 +452,33 @@ function handleLogout() {
   }
   .main {
     padding: 12px;
+  }
+}
+
+/* 超小屏手机：进一步压缩间距和字号 */
+@media (max-width: 480px) {
+  .header {
+    padding: 0 12px;
+    height: 52px;
+  }
+  .masthead-eyebrow {
+    display: none;
+  }
+  .logo {
+    font-size: 18px;
+  }
+  .header-right .user-info {
+    padding: 4px 8px;
+  }
+  .username {
+    font-size: 12px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .main {
+    padding: 10px;
   }
 }
 </style>
