@@ -1,6 +1,6 @@
 name: Deploy to Fly.io
 
-# 触发条件：master 分支推送（backend/frontend 有改动）或手动触发
+# 触发条件：master 分支推送（backend/frontend/deploy.yml 有改动）或手动触发
 # 两个 job 并行执行，Fly.io 远程构建，单端约 1-2 分钟
 on:
   push:
@@ -18,11 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 安装 flyctl
+        run: curl -L https://fly.io/install.sh | sh
+
       - name: 部署前端到 Fly.io
-        uses: fly-apps/flyctl-actions@v1
-        with:
-          version: 0.4.61
-          command: deploy ./frontend --app lawai-frontend --dockerfile ./frontend/Dockerfile.fly --yes
+        run: ~/.fly/bin/flyctl deploy ./frontend --app lawai-frontend --dockerfile ./frontend/Dockerfile.fly --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -32,10 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 安装 flyctl
+        run: curl -L https://fly.io/install.sh | sh
+
       - name: 部署后端到 Fly.io
-        uses: fly-apps/flyctl-actions@v1
-        with:
-          version: 0.4.61
-          command: deploy ./backend --app lawai-backend --yes
+        run: ~/.fly/bin/flyctl deploy ./backend --app lawai-backend --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
