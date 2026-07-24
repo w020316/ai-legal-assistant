@@ -7,6 +7,7 @@ import java.util.List;
  * <p>
  * 对应 AI 合同审查输出的结构化 JSON，v1.4.3 起新增：
  * 安全评分、风险分级、条款通俗化总览、缺失条款提醒。
+ * v1.5.0 新增：义务时间线。
  */
 public class DocumentAnalysisVO {
 
@@ -27,6 +28,9 @@ public class DocumentAnalysisVO {
 
     /** 缺失条款提醒列表 */
     private List<MissingClause> missingClauses;
+
+    /** 义务时间线：梳理合同中各方需要履行的义务及其截止日期 */
+    private List<Obligation> obligations;
 
     public String getSummary() {
         return summary;
@@ -74,5 +78,13 @@ public class DocumentAnalysisVO {
 
     public void setMissingClauses(List<MissingClause> missingClauses) {
         this.missingClauses = missingClauses;
+    }
+
+    public List<Obligation> getObligations() {
+        return obligations;
+    }
+
+    public void setObligations(List<Obligation> obligations) {
+        this.obligations = obligations;
     }
 }

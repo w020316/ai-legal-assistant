@@ -4,6 +4,7 @@ import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.Result;
 import com.lawai.legalassistant.common.result.ResultCode;
 import com.lawai.legalassistant.common.utils.SecurityUtil;
+import com.lawai.legalassistant.modules.document.dto.ContractCompareVO;
 import com.lawai.legalassistant.modules.document.dto.DocumentAnalysisVO;
 import com.lawai.legalassistant.modules.document.dto.UploadResponse;
 import com.lawai.legalassistant.modules.document.entity.UserDocument;
@@ -70,6 +71,22 @@ public class DocumentController {
     public Result<DocumentAnalysisVO> analyze(@PathVariable Long id) {
         Long userId = requireLogin();
         return Result.success(documentService.analyze(userId, id));
+    }
+
+    /**
+     * 双合同比对
+     * <p>
+     * 对比两份合同的差异条款与风险变化，v1.5.0 新增。
+     *
+     * @param id     合同 A 文档 ID
+     * @param docIdB 合同 B 文档 ID（query 参数）
+     * @return 比对结果
+     */
+    @PostMapping("/{id}/compare")
+    public Result<ContractCompareVO> compare(@PathVariable Long id,
+                                             @RequestParam("docIdB") Long docIdB) {
+        Long userId = requireLogin();
+        return Result.success(documentService.compare(userId, id, docIdB));
     }
 
     private Long requireLogin() {

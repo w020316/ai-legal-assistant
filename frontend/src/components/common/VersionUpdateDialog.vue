@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.4.3'
+const CURRENT_VERSION = 'v1.5.0'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -26,13 +26,24 @@ interface ChangeLog {
 
 const changelogs: ChangeLog[] = [
   {
+    version: 'v1.5.0',
+    date: '2026-07-24',
+    tag: '合同审查深化',
+    highlights: [
+      { title: '双合同比对', desc: '上传两份合同，AI 逐条对比差异，给出风险变化方向与双评分' },
+      { title: '风险财务估算', desc: '量化每个高风险条款可能带来的经济损失' },
+      { title: '谈判建议优先级', desc: 'TIER 1/2/3 分级，明确哪些条款必须重谈、哪些可让步' },
+      { title: '义务时间线', desc: '梳理合同中各方履行义务的截止日期与违约后果' },
+    ],
+  },
+  {
     version: 'v1.4.3',
     date: '2026-07-24',
     tag: '文档分析增强',
     highlights: [
       { title: '安全评分仪表盘', desc: '0-100 环形评分，按分数段着色，一眼判断合同风险' },
       { title: '风险分级标签', desc: '高/中/低风险标签直观展示，与评分联动' },
-      { title: '大白话说合同', desc: '条款通俗化总览 + 每条风险的大白话解释，非法律专业也能看懂' },
+      { title: '大白话说合同', desc: '条款通俗化总览 + 每条风险的大白话解释' },
       { title: '缺失条款提醒', desc: '自动识别应包含但未约定的条款，并给出补充建议' },
     ],
   },

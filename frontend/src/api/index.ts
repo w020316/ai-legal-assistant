@@ -164,6 +164,10 @@ export interface RiskPoint {
   legalBasis: string
   /** 条款通俗化解释 */
   plainExplanation?: string
+  /** 风险财务估算 */
+  financialExposure?: string
+  /** 谈判建议优先级：TIER_1/TIER_2/TIER_3 */
+  priority?: string
 }
 
 // 缺失条款
@@ -172,6 +176,14 @@ export interface MissingClause {
   importance: string
   risk: string
   suggestion: string
+}
+
+// 义务时间线项
+export interface Obligation {
+  obligation: string
+  deadline: string
+  party: string
+  consequence: string
 }
 
 // 文档分析结果
@@ -186,6 +198,30 @@ export interface DocumentAnalysis {
   riskPoints: RiskPoint[]
   /** 缺失条款提醒 */
   missingClauses?: MissingClause[]
+  /** 义务时间线 */
+  obligations?: Obligation[]
+}
+
+// 合同差异条款
+export interface ClauseDiff {
+  clause: string
+  /** 差异类型：新增/删除/修改/缺失 */
+  type: string
+  contentA: string
+  contentB: string
+  description: string
+  /** 风险变化：变好/变差/中性 */
+  riskChange: string
+}
+
+// 双合同比对结果
+export interface ContractCompareVO {
+  docIdA: number
+  docIdB: number
+  summary: string
+  scoreA?: number
+  scoreB?: number
+  diffs: ClauseDiff[]
 }
 
 // 用户文档
@@ -216,6 +252,10 @@ export const getDocumentAnalysis = (id: number) =>
 
 // 触发文档分析
 export const analyzeDocument = (id: number) => http.post<void>(`/documents/${id}/analyze`)
+
+// 双合同比对
+export const compareDocuments = (docIdA: number, docIdB: number) =>
+  http.post<ContractCompareVO>(`/documents/${docIdA}/compare?docIdB=${docIdB}`)
 
 // ==================== 文书模板相关 ====================
 

@@ -23,6 +23,12 @@ public class RiskPoint {
     /** 条款通俗化解释：用大白话说清这条条款的真实含义和对签署方的影响 */
     private String plainExplanation;
 
+    /** 风险财务估算：量化该高风险条款可能带来的经济损失，如"预计最高损失合同金额 20%" */
+    private String financialExposure;
+
+    /** 谈判建议优先级：TIER_1（建议拒绝/重新谈判）/ TIER_2（强烈要求修改）/ TIER_3（建议优化） */
+    private String priority;
+
     public String getClause() {
         return clause;
     }
@@ -69,5 +75,21 @@ public class RiskPoint {
 
     public void setPlainExplanation(String plainExplanation) {
         this.plainExplanation = plainExplanation;
+    }
+
+    public String getFinancialExposure() {
+        return financialExposure;
+    }
+
+    public void setFinancialExposure(String financialExposure) {
+        this.financialExposure = financialExposure;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
     }
 }

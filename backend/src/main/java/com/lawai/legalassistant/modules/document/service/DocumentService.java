@@ -6,6 +6,7 @@ import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
+import com.lawai.legalassistant.modules.document.dto.ContractCompareVO;
 import com.lawai.legalassistant.modules.document.dto.DocumentAnalysisVO;
 import com.lawai.legalassistant.modules.document.dto.UploadResponse;
 import com.lawai.legalassistant.modules.document.entity.UserDocument;
@@ -175,6 +176,49 @@ public class DocumentService {
         } catch (Exception e) {
             log.warn("解析分析结果失败: docId={}", docId, e);
             return null;
+        }
+    }
+
+    /**
+     * 双合同比对
+     * <p>
+     * 对比两份合同的差异条款与风险变化，v1.5.0 新增。
+     *
+     * @param userId 用户 ID
+     * @param docIdA 合同 A 文档 ID
+     * @param docIdB 合同 B 文档 ID
+     * @return 比对结果
+     */
+    public ContractCompareVO compare(Long userId, Long docIdA, Long docIdB) {
+        if (docIdA.equals(docIdB)) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "不能与同一份合同进行比对");
+        }
+        UserDocument docA = getOwnedDocument(userId, docIdA);
+        UserDocument docB = getOwnedDocument(userId, docIdB);
+        if (docA.getOcrText() == null || docA.getOcrText().isBlank()) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "合同 A 文本为空，无法比对");
+        }
+        if (docB.getOcrText() == null || docB.getOcrText().isBlank()) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "合同 B 文本为空，无法比对");
+        }
+
+        try {
+            // 拼装用户消息：明确标注合同 A 与合同 B
+            String userMessage = "【合同 A】\n" + docA.getOcrText() + "\n\n【合同 B】\n" + docB.getOcrText();
+            String aiResponse = aiRouter.chat(PromptTemplates.CONTRACT_COMPARE_SYSTEM, userMessage);
+            String json = extractJson(aiResponse);
+            ContractCompareVO result = objectMapper.readValue(json, ContractCompareVO.class);
+            result.setDocIdA(docIdA);
+            result.setDocIdB(docIdB);
+            log.info("双合同比对完成: docIdA={}, docIdB={}, diffs={}",
+                    docIdA, docIdB,
+                    result.getDiffs() != null ? result.getDiffs().size() : 0);
+            return result;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("双合同比对失败: docIdA={}, docIdB={}", docIdA, docIdB, e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "合同比对失败，请稍后重试");
         }
     }
 

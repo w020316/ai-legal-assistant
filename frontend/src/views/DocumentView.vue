@@ -8,8 +8,10 @@ import {
   uploadDocument,
   analyzeDocument,
   getDocumentAnalysis,
+  compareDocuments,
   type UserDocumentVO,
   type DocumentAnalysis,
+  type ContractCompareVO,
 } from '@/api'
 
 const documents = ref<UserDocumentVO[]>([])
@@ -38,6 +40,15 @@ const plainSummaryExpanded = ref(false)
 
 // 缺失条款折叠
 const missingExpanded = ref(false)
+
+// 义务时间线折叠
+const obligationsExpanded = ref(false)
+
+// 双合同比对相关状态
+const compareDialogVisible = ref(false)
+const compareDocIdB = ref<number | null>(null)
+const comparing = ref(false)
+const compareResult = ref<ContractCompareVO | null>(null)
 
 // 文件大小格式化
 function formatSize(bytes: number): string {
@@ -127,9 +138,85 @@ const missingHighCount = computed(
     ).length || 0
 )
 
+// 义务时间线数量
+const obligationsCount = computed(() => analysis.value?.obligations?.length || 0)
+
+// 谈判优先级分组
+const tier1Risks = computed(
+  () => analysis.value?.riskPoints?.filter((r) => r.priority === 'TIER_1') || []
+)
+
+// 谈判优先级 -> 标签类型
+function priorityTagType(priority?: string): 'danger' | 'warning' | 'info' {
+  if (priority === 'TIER_1') return 'danger'
+  if (priority === 'TIER_2') return 'warning'
+  return 'info'
+}
+
+// 谈判优先级 -> 文案
+function priorityLabel(priority?: string): string {
+  if (priority === 'TIER_1') return 'TIER 1 · 拒绝/重谈'
+  if (priority === 'TIER_2') return 'TIER 2 · 强烈要求改'
+  if (priority === 'TIER_3') return 'TIER 3 · 建议优化'
+  return '未分级'
+}
+
+// 差异类型 -> 标签
+function diffTypeTag(type: string): 'success' | 'danger' | 'warning' | 'info' {
+  const t = type.toLowerCase()
+  if (t.includes('新增')) return 'success'
+  if (t.includes('删除')) return 'danger'
+  if (t.includes('修改')) return 'warning'
+  return 'info'
+}
+
+// 风险变化 -> 标签
+function riskChangeTag(change: string): 'success' | 'danger' | 'info' {
+  const c = change.toLowerCase()
+  if (c.includes('变好')) return 'success'
+  if (c.includes('变差')) return 'danger'
+  return 'info'
+}
+
+// 可用于比对的文档（排除当前文档，且有文本内容）
+const comparableDocs = computed(() =>
+  documents.value.filter((d) => d.id !== currentDoc.value?.id)
+)
+
 // 切换大白话折叠
 function togglePlain(idx: number) {
   plainExpanded.value[idx] = !plainExpanded.value[idx]
+}
+
+// 打开比对对话框
+function openCompareDialog() {
+  if (!currentDoc.value) return
+  if (comparableDocs.value.length === 0) {
+    ElMessage.warning('需要至少上传 2 份合同才能进行比对')
+    return
+  }
+  compareDocIdB.value = null
+  compareResult.value = null
+  compareDialogVisible.value = true
+}
+
+// 执行双合同比对
+async function handleCompare() {
+  if (!currentDoc.value || !compareDocIdB.value) {
+    ElMessage.warning('请选择要比对的合同 B')
+    return
+  }
+  comparing.value = true
+  compareResult.value = null
+  try {
+    const res = await compareDocuments(currentDoc.value.id, compareDocIdB.value)
+    compareResult.value = res.data
+    ElMessage.success('合同比对完成')
+  } catch {
+    // 错误已由拦截器提示
+  } finally {
+    comparing.value = false
+  }
 }
 
 // 上传前校验
@@ -186,6 +273,7 @@ async function handleSelectDoc(doc: UserDocumentVO) {
   plainExpanded.value = {}
   plainSummaryExpanded.value = false
   missingExpanded.value = false
+  obligationsExpanded.value = false
   // 若已完成分析，拉取分析结果
   if (statusTagType(doc.analysisStatus) === 'success') {
     await fetchAnalysis(doc.id)
@@ -325,6 +413,13 @@ onUnmounted(() => {
             >
               {{ statusTagType(currentDoc.analysisStatus) === 'success' ? '已分析' : '开始分析' }}
             </el-button>
+            <el-button
+              :loading="comparing"
+              :disabled="documents.length < 2"
+              @click="openCompareDialog"
+            >
+              双合同比对
+            </el-button>
           </div>
         </div>
         <div class="doc-info-bar">
@@ -410,6 +505,9 @@ onUnmounted(() => {
               <div class="block-title">
                 风险点
                 <el-tag size="small" round>{{ analysis.riskPoints?.length || 0 }}</el-tag>
+                <span v-if="tier1Risks.length > 0" class="title-sub tier-sub">
+                  含 {{ tier1Risks.length }} 项 TIER 1
+                </span>
               </div>
               <div v-if="analysis.riskPoints?.length" class="risk-list">
                 <div
@@ -422,6 +520,15 @@ onUnmounted(() => {
                     <el-tag :type="riskTagType(rp.level)" size="small" effect="dark">
                       {{ riskLabel(rp.level) }}
                     </el-tag>
+                    <el-tag
+                      v-if="rp.priority"
+                      :type="priorityTagType(rp.priority)"
+                      size="small"
+                      effect="plain"
+                      round
+                    >
+                      {{ priorityLabel(rp.priority) }}
+                    </el-tag>
                     <span class="risk-clause">{{ rp.clause }}</span>
                   </div>
                   <div class="risk-field">
@@ -432,6 +539,9 @@ onUnmounted(() => {
                   </div>
                   <div class="risk-field legal">
                     <span class="field-label">法律依据：</span>{{ rp.legalBasis }}
+                  </div>
+                  <div v-if="rp.financialExposure" class="risk-field financial">
+                    <span class="field-label">财务估算：</span>{{ rp.financialExposure }}
                   </div>
                   <!-- 大白话折叠面板 -->
                   <div
@@ -492,6 +602,43 @@ onUnmounted(() => {
                 </div>
               </transition>
             </div>
+
+            <!-- 义务时间线 -->
+            <div v-if="obligationsCount > 0" class="report-block obligations-block">
+              <div
+                class="block-title obligations-title"
+                @click="obligationsExpanded = !obligationsExpanded"
+              >
+                <span class="title-text">
+                  义务时间线
+                  <el-tag type="info" size="small" round>{{ obligationsCount }}</el-tag>
+                </span>
+                <el-icon class="title-arrow" :class="{ expanded: obligationsExpanded }">
+                  <ArrowDown />
+                </el-icon>
+              </div>
+              <transition name="plain">
+                <div v-show="obligationsExpanded" class="obligations-timeline">
+                  <div
+                    v-for="(ob, i) in analysis.obligations"
+                    :key="i"
+                    class="obligation-item"
+                  >
+                    <div class="obligation-dot"></div>
+                    <div class="obligation-content">
+                      <div class="obligation-head">
+                        <el-tag size="small" effect="plain" round>{{ ob.party }}</el-tag>
+                        <span class="obligation-deadline">{{ ob.deadline }}</span>
+                      </div>
+                      <div class="obligation-text">{{ ob.obligation }}</div>
+                      <div v-if="ob.consequence" class="obligation-consequence">
+                        <span class="field-label">未履行后果：</span>{{ ob.consequence }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
           </template>
 
           <div v-else-if="!analyzing" class="report-empty">
@@ -508,6 +655,125 @@ onUnmounted(() => {
         <p>上传合同/协议文件，AI 将自动识别风险条款并给出修改建议</p>
       </div>
     </div>
+
+    <!-- 双合同比对对话框 -->
+    <el-dialog
+      v-model="compareDialogVisible"
+      title="双合同比对"
+      width="80%"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div v-if="!compareResult" class="compare-form">
+        <div class="compare-form-item">
+          <div class="compare-form-label">合同 A（当前）</div>
+          <div class="compare-form-value">{{ currentDoc?.filename }}</div>
+        </div>
+        <div class="compare-form-arrow">↔</div>
+        <div class="compare-form-item">
+          <div class="compare-form-label">合同 B（选择比对对象）</div>
+          <el-select
+            v-model="compareDocIdB"
+            placeholder="请选择合同 B"
+            size="large"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="doc in comparableDocs"
+              :key="doc.id"
+              :label="doc.filename"
+              :value="doc.id"
+            />
+          </el-select>
+        </div>
+      </div>
+
+      <div v-else v-loading="comparing" class="compare-result">
+        <!-- 比对概要 + 双评分 -->
+        <div class="compare-summary-card">
+          <div class="compare-scores">
+            <div class="compare-score-item">
+              <div class="compare-score-label">合同 A</div>
+              <div class="compare-score-num" :style="{ color: scoreColor(compareResult.scoreA) }">
+                {{ compareResult.scoreA ?? '—' }}
+              </div>
+            </div>
+            <div class="compare-score-vs">VS</div>
+            <div class="compare-score-item">
+              <div class="compare-score-label">合同 B</div>
+              <div class="compare-score-num" :style="{ color: scoreColor(compareResult.scoreB) }">
+                {{ compareResult.scoreB ?? '—' }}
+              </div>
+            </div>
+          </div>
+          <div class="compare-summary-text">{{ compareResult.summary }}</div>
+        </div>
+
+        <!-- 差异条款列表 -->
+        <div class="compare-diffs">
+          <div class="block-title">
+            差异条款
+            <el-tag size="small" round>{{ compareResult.diffs?.length || 0 }}</el-tag>
+          </div>
+          <div v-if="compareResult.diffs?.length" class="diff-list">
+            <div
+              v-for="(d, i) in compareResult.diffs"
+              :key="i"
+              class="diff-card"
+            >
+              <div class="diff-head">
+                <el-tag :type="diffTypeTag(d.type)" size="small" effect="dark">
+                  {{ d.type }}
+                </el-tag>
+                <el-tag
+                  :type="riskChangeTag(d.riskChange)"
+                  size="small"
+                  effect="plain"
+                  round
+                >
+                  {{ d.riskChange }}
+                </el-tag>
+                <span class="diff-clause">{{ d.clause }}</span>
+              </div>
+              <div class="diff-desc">{{ d.description }}</div>
+              <div class="diff-content">
+                <div class="diff-side">
+                  <div class="diff-side-label">合同 A</div>
+                  <div class="diff-side-text">{{ d.contentA || '（无）' }}</div>
+                </div>
+                <div class="diff-side">
+                  <div class="diff-side-label">合同 B</div>
+                  <div class="diff-side-text">{{ d.contentB || '（无）' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="两份合同无差异" :image-size="64" />
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="compareDialogVisible = false">
+          {{ compareResult ? '关闭' : '取消' }}
+        </el-button>
+        <el-button
+          v-if="!compareResult"
+          type="primary"
+          :loading="comparing"
+          :disabled="!compareDocIdB"
+          @click="handleCompare"
+        >
+          开始比对
+        </el-button>
+        <el-button
+          v-else
+          type="primary"
+          @click="compareResult = null"
+        >
+          重新比对
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1085,6 +1351,258 @@ onUnmounted(() => {
   }
 }
 
+/* 财务估算字段 */
+.risk-field.financial {
+  background: rgba(139, 105, 20, 0.06);
+  border-left: 2px solid var(--color-warning);
+  padding: 6px 10px;
+  border-radius: var(--radius-button);
+  font-weight: 500;
+  .field-label {
+    color: var(--color-warning);
+  }
+}
+
+/* TIER 1 副标题 */
+.tier-sub {
+  color: var(--color-danger) !important;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* 义务时间线 */
+.obligations-block {
+  .obligations-title {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+    &:hover {
+      color: var(--color-text-primary);
+    }
+    &::after {
+      background: var(--color-text-secondary);
+    }
+  }
+}
+.obligations-timeline {
+  position: relative;
+  padding-left: 20px;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--color-border);
+  }
+}
+.obligation-item {
+  position: relative;
+  padding-bottom: 16px;
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+.obligation-dot {
+  position: absolute;
+  left: -19px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid var(--color-bg-card);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+.obligation-content {
+  padding: 10px 14px;
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+}
+.obligation-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.obligation-deadline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+.obligation-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+.obligation-consequence {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-danger);
+  .field-label {
+    color: var(--color-danger);
+    font-weight: 600;
+  }
+}
+
+/* 双合同比对对话框 */
+.compare-form {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 0;
+}
+.compare-form-item {
+  flex: 1;
+}
+.compare-form-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+.compare-form-value {
+  padding: 10px 14px;
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+.compare-form-arrow {
+  font-size: 24px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.compare-result {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.compare-summary-card {
+  padding: 20px;
+  margin-bottom: 20px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-card);
+}
+.compare-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 14px;
+}
+.compare-score-item {
+  text-align: center;
+}
+.compare-score-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+.compare-score-num {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.compare-score-vs {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.1em;
+}
+.compare-summary-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--color-text-regular);
+  text-align: center;
+}
+
+.compare-diffs {
+  .block-title {
+    margin-bottom: 12px;
+  }
+}
+.diff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.diff-card {
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+}
+.diff-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.diff-clause {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.diff-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-regular);
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-button);
+}
+.diff-content {
+  display: flex;
+  gap: 12px;
+}
+.diff-side {
+  flex: 1;
+  min-width: 0;
+}
+.diff-side-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 6px;
+}
+.diff-side-text {
+  padding: 8px 10px;
+  background: var(--color-bg-soft);
+  border-left: 2px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-regular);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* 移动端响应式 */
 @media (max-width: 768px) {
   .doc-view {
@@ -1135,6 +1653,17 @@ onUnmounted(() => {
   }
   .score-label {
     font-size: 17px;
+  }
+  /* 双合同比对对话框移动端适配 */
+  .compare-form {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .compare-form-arrow {
+    transform: rotate(90deg);
+  }
+  .diff-content {
+    flex-direction: column;
   }
 }
 </style>
