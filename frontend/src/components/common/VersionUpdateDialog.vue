@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.9.0'
+const CURRENT_VERSION = 'v1.9.1'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -25,6 +25,14 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.9.1',
+    date: '2026-07-24',
+    tag: '数据便携',
+    highlights: [
+      { title: '会话一键导出', desc: '会话列表新增下载按钮，将完整对话导出为 Markdown 文件，便于归档与分享' },
+    ],
+  },
   {
     version: 'v1.9.0',
     date: '2026-07-24',

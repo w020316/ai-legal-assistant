@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { SessionVO } from '@/api'
-import { Plus, Search, Star, StarFilled, Delete, Edit } from '@element-plus/icons-vue'
+import { Plus, Search, Star, StarFilled, Delete, Edit, Download } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
 const props = defineProps<{
@@ -16,6 +16,7 @@ const emit = defineEmits<{
   (e: 'toggleStar', session: SessionVO): void
   (e: 'delete', id: number): void
   (e: 'batchDelete', ids: number[]): void
+  (e: 'export', id: number): void
 }>()
 
 const keyword = ref('')
@@ -184,6 +185,7 @@ async function handleDelete(session: SessionVO) {
             <span class="title">{{ s.title }}</span>
           </div>
           <div v-if="!multiSelectMode" class="item-actions">
+            <el-icon @click.stop="emit('export', s.id)"><Download /></el-icon>
             <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
             <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
           </div>
@@ -212,6 +214,7 @@ async function handleDelete(session: SessionVO) {
               <span class="title">{{ s.title }}</span>
             </div>
             <div v-if="!multiSelectMode" class="item-actions">
+              <el-icon @click.stop="emit('export', s.id)"><Download /></el-icon>
               <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
               <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
             </div>

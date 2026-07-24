@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, nextTick, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useChatStore } from '@/stores/chat'
 import type { SessionVO } from '@/api'
 import SessionList from '@/components/chat/SessionList.vue'
@@ -15,6 +16,23 @@ async function scrollToBottom() {
   await nextTick()
   if (scrollRef.value) {
     scrollRef.value.scrollTop = scrollRef.value.scrollHeight
+  }
+}
+
+// 导出会话为 Markdown 文件（v1.9.1 新增）
+async function handleExport(sessionId: number) {
+  const content = await chatStore.exportSession(sessionId)
+  if (content) {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.download = `linzAI会话导出_${new Date().toISOString().slice(0, 10)}.md`
+    link.href = url
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('会话已导出')
+  } else {
+    ElMessage.error('导出失败，请稍后重试')
   }
 }
 
@@ -114,6 +132,7 @@ onMounted(() => {
         @toggle-star="chatStore.toggleStar"
         @delete="chatStore.removeSession"
         @batch-delete="handleBatchDelete"
+        @export="handleExport"
       />
     </div>
     <!-- 右侧消息区 -->

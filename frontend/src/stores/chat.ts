@@ -10,6 +10,7 @@ import {
   listMessages,
   sendMessage as sendMessageApi,
   sendMessageWithImage,
+  exportSession as exportSessionApi,
   type SessionVO,
   type MessageVO,
 } from '@/api'
@@ -405,6 +406,16 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // 导出会话为 Markdown（v1.9.1 新增）
+  async function exportSession(sessionId: number): Promise<string | null> {
+    try {
+      const res = await exportSessionApi(sessionId)
+      return res.data
+    } catch {
+      return null
+    }
+  }
+
   return {
     sessionList,
     currentSession,
@@ -422,5 +433,6 @@ export const useChatStore = defineStore('chat', () => {
     sendImageMessage,
     regenerate,
     stopGenerating,
+    exportSession,
   }
 })

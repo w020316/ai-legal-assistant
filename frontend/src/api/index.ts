@@ -91,11 +91,9 @@ export interface SessionListQuery extends PageQuery {
   starred?: boolean
 }
 
-// 导出会话结果
-export interface ExportResult {
-  content: string
-  filename: string
-}
+// 导出会话为 Markdown（返回纯文本内容）
+export const exportSession = (sessionId: number) =>
+  http.post<string>(`/sessions/${sessionId}/export`)
 
 // SSE 事件回调集合（保留用于未来可能的流式升级）
 export interface SSECallbacks {
@@ -127,10 +125,6 @@ export const deleteSessions = (ids: number[]) =>
 // 获取会话消息历史
 export const listMessages = (sessionId: number) =>
   http.get<MessageVO[]>(`/sessions/${sessionId}/messages`)
-
-// 导出会话为 Markdown
-export const exportSession = (sessionId: number) =>
-  http.post<ExportResult>(`/sessions/${sessionId}/export`)
 
 // 发送消息（异步模式，返回用户消息 ID，AI 回复通过轮询获取）
 export const sendMessage = (sessionId: number, content: string) =>
