@@ -62,6 +62,7 @@ function fileIconColor(type: string): string {
   const t = type.toLowerCase()
   if (t.includes('pdf')) return '#8B1E1E' // var(--color-danger)
   if (t.includes('doc')) return '#4A4038' // var(--color-primary-soft)
+  if (t.includes('jpg') || t.includes('png') || t.includes('jpeg')) return '#9A6B2F' // 古铜金（图片类型）
   return '#3D5C3A' // var(--color-success)
 }
 
@@ -188,6 +189,107 @@ function togglePlain(idx: number) {
   plainExpanded.value[idx] = !plainExpanded.value[idx]
 }
 
+// 导出分析报告（Markdown 格式）
+function exportReport() {
+  if (!analysis.value || !currentDoc.value) {
+    ElMessage.warning('请先完成文档分析')
+    return
+  }
+  const a = analysis.value
+  const doc = currentDoc.value
+  const now = new Date()
+  const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  const lines: string[] = []
+  lines.push(`# 合同审查报告`)
+  lines.push('')
+  lines.push(`> **文档**：${doc.filename}`)
+  lines.push(`> **类型**：${doc.fileType}`)
+  lines.push(`> **大小**：${formatSize(doc.fileSize)}`)
+  lines.push(`> **生成时间**：${ts}`)
+  lines.push('---')
+  lines.push('')
+
+  // 评分
+  lines.push(`## 一、安全评分`)
+  lines.push('')
+  lines.push(`- **评分**：${a.score ?? '—'} / 100`)
+  lines.push(`- **风险等级**：${a.riskLevel || '—'}`)
+  lines.push(`- **评级**：${scoreLabel(a.score)}`)
+  lines.push(`- **摘要**：${a.summary || '—'}`)
+  lines.push('')
+
+  // 大白话总览
+  if (a.plainSummary) {
+    lines.push(`## 二、大白话说合同`)
+    lines.push('')
+    lines.push(a.plainSummary)
+    lines.push('')
+  }
+
+  // 风险点
+  if (a.riskPoints?.length) {
+    lines.push(`## 三、风险点（共 ${a.riskPoints.length} 项）`)
+    lines.push('')
+    a.riskPoints.forEach((rp, i) => {
+      lines.push(`### ${i + 1}. ${rp.clause}`)
+      lines.push(`- **风险等级**：${riskLabel(rp.level)}`)
+      if (rp.priority) lines.push(`- **谈判优先级**：${priorityLabel(rp.priority)}`)
+      lines.push(`- **问题描述**：${rp.issue}`)
+      lines.push(`- **修改建议**：${rp.suggestion}`)
+      lines.push(`- **法律依据**：${rp.legalBasis}`)
+      if (rp.financialExposure) lines.push(`- **财务估算**：${rp.financialExposure}`)
+      if (rp.plainExplanation) lines.push(`- **大白话解释**：${rp.plainExplanation}`)
+      lines.push('')
+    })
+  }
+
+  // 缺失条款
+  if (a.missingClauses?.length) {
+    lines.push(`## 四、缺失条款提醒（共 ${a.missingClauses.length} 项）`)
+    lines.push('')
+    a.missingClauses.forEach((m, i) => {
+      lines.push(`### ${i + 1}. ${m.name}`)
+      lines.push(`- **重要性**：${riskLabel(m.importance)}`)
+      lines.push(`- **缺失风险**：${m.risk}`)
+      lines.push(`- **补充建议**：${m.suggestion}`)
+      lines.push('')
+    })
+  }
+
+  // 义务时间线
+  if (a.obligations?.length) {
+    lines.push(`## 五、义务时间线（共 ${a.obligations.length} 项）`)
+    lines.push('')
+    a.obligations.forEach((ob, i) => {
+      lines.push(`### ${i + 1}. ${ob.obligation}`)
+      lines.push(`- **义务方**：${ob.party}`)
+      lines.push(`- **截止日期**：${ob.deadline}`)
+      if (ob.consequence) lines.push(`- **未履行后果**：${ob.consequence}`)
+      lines.push('')
+    })
+  }
+
+  lines.push('---')
+  lines.push('')
+  lines.push(`*本报告由 linzAI 法律助手生成，仅供参考，不构成法律意见。`)
+  lines.push(`生成时间：${ts}*`)
+
+  // 下载 Markdown 文件
+  const content = lines.join('\n')
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const safeName = doc.filename.replace(/\.[^.]+$/, '')
+  link.href = url
+  link.download = `合同审查报告_${safeName}_${ts.replace(/[:\s]/g, '-')}.md`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  ElMessage.success('报告已导出')
+}
+
 // 打开比对对话框
 function openCompareDialog() {
   if (!currentDoc.value) return
@@ -225,10 +327,15 @@ function beforeUpload(file: UploadRawFile): boolean {
   const isValidType =
     name.endsWith('.pdf') ||
     name.endsWith('.docx') ||
+    name.endsWith('.jpg') ||
+    name.endsWith('.jpeg') ||
+    name.endsWith('.png') ||
     file.type === 'application/pdf' ||
-    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    file.type === 'image/jpeg' ||
+    file.type === 'image/png'
   if (!isValidType) {
-    ElMessage.error('仅支持 PDF / DOCX 文件')
+    ElMessage.error('仅支持 PDF / DOCX / JPG / PNG 文件')
     return false
   }
   const isLt20M = file.size / 1024 / 1024 < 20
@@ -352,12 +459,12 @@ onUnmounted(() => {
           :show-file-list="false"
           :before-upload="beforeUpload"
           :http-request="customUpload"
-          accept=".pdf,.docx"
+          accept=".pdf,.docx,.jpg,.jpeg,.png"
         >
           <el-icon class="el-icon--upload" :size="40"><UploadFilled /></el-icon>
           <div class="el-upload__text">拖拽文件至此，或<em>点击上传</em></div>
           <template #tip>
-            <div class="upload-tip">支持 PDF / DOCX，单个文件不超过 20MB</div>
+            <div class="upload-tip">支持 PDF / DOCX / JPG / PNG，单个文件不超过 20MB</div>
           </template>
         </el-upload>
       </div>
@@ -412,6 +519,12 @@ onUnmounted(() => {
               @click="handleAnalyze"
             >
               {{ statusTagType(currentDoc.analysisStatus) === 'success' ? '已分析' : '开始分析' }}
+            </el-button>
+            <el-button
+              v-if="analysis"
+              @click="exportReport"
+            >
+              导出报告
             </el-button>
             <el-button
               :loading="comparing"

@@ -59,6 +59,8 @@ public class DocumentService {
 
     /**
      * 上传文档：保存文件 → 解析文本 → 入库
+     * <p>
+     * 图片类型（JPG/PNG）使用 AI Vision 识别文字，v1.6.0 新增。
      *
      * @param userId 用户 ID
      * @param file   上传文件
@@ -88,8 +90,8 @@ public class DocumentService {
             Path filePath = uploadDir.resolve(storedFilename);
             Files.write(filePath, bytes);
 
-            // 2. 解析文本
-            String text = parseText(fileType, bytes);
+            // 2. 解析文本：图片类型用 AI Vision 识别，其他类型用本地解析
+            String text = parseText(fileType, bytes, originalFilename);
 
             // 3. 入库
             UserDocument doc = new UserDocument();
@@ -100,7 +102,7 @@ public class DocumentService {
             doc.setOcrText(text);
             documentMapper.insert(doc);
 
-            log.info("文档上传成功: userId={}, docId={}, filename={}", userId, doc.getId(), originalFilename);
+            log.info("文档上传成功: userId={}, docId={}, filename={}, fileType={}", userId, doc.getId(), originalFilename, fileType);
             return new UploadResponse(doc.getId(), originalFilename, fileType, file.getSize());
         } catch (IOException e) {
             log.error("文档上传失败", e);
@@ -252,19 +254,54 @@ public class DocumentService {
         if (lower.endsWith(".txt")) {
             return "TXT";
         }
-        throw BusinessException.of(ResultCode.PARAM_ERROR, "不支持的文件类型，仅支持 PDF/DOCX/TXT");
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            return "JPG";
+        }
+        if (lower.endsWith(".png")) {
+            return "PNG";
+        }
+        throw BusinessException.of(ResultCode.PARAM_ERROR, "不支持的文件类型，仅支持 PDF/DOCX/TXT/JPG/PNG");
     }
 
     /**
      * 解析文本
+     * <p>
+     * 图片类型使用 AI Vision 识别文字，其他类型用本地解析，v1.6.0 新增图片支持。
      */
-    private String parseText(String fileType, byte[] bytes) throws IOException {
+    private String parseText(String fileType, byte[] bytes, String originalFilename) throws IOException {
         return switch (fileType) {
             case "PDF" -> parsePdf(bytes);
             case "DOCX" -> parseDocx(bytes);
             case "TXT" -> new String(bytes, StandardCharsets.UTF_8);
+            case "JPG" -> ocrImage(bytes, "image/jpeg");
+            case "PNG" -> ocrImage(bytes, "image/png");
             default -> throw new IllegalArgumentException("不支持的文件类型: " + fileType);
         };
+    }
+
+    /**
+     * 图片 OCR 文字识别（AI Vision）
+     * <p>
+     * 调用 AiRouter.chatWithImage 识别图片中的文字，v1.6.0 新增。
+     */
+    private String ocrImage(byte[] imageBytes, String mimeType) {
+        try {
+            String text = aiRouter.chatWithImage(
+                    PromptTemplates.IMAGE_OCR_SYSTEM,
+                    PromptTemplates.IMAGE_OCR_USER,
+                    imageBytes,
+                    mimeType);
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "图片文字识别结果为空，请确认图片清晰度");
+            }
+            log.info("图片 OCR 识别成功: mimeType={}, textLength={}", mimeType, text.length());
+            return text;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("图片 OCR 识别失败", e);
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "图片文字识别失败，请稍后重试");
+        }
     }
 
     /**

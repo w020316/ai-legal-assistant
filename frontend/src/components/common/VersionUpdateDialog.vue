@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.5.0'
+const CURRENT_VERSION = 'v1.6.0'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -25,6 +25,16 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.6.0',
+    date: '2026-07-24',
+    tag: '文档处理升级',
+    highlights: [
+      { title: '图片文档支持', desc: '上传合同照片/截图（JPG/PNG），AI 自动识别文字并审查' },
+      { title: '分析报告导出', desc: '一键导出 Markdown 格式合同审查报告，含评分/风险/缺失/义务' },
+      { title: '法律三段论问答', desc: 'AI 回答采用大前提-小前提-结论推理结构，逻辑更严谨' },
+    ],
+  },
   {
     version: 'v1.5.0',
     date: '2026-07-24',

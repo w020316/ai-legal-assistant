@@ -113,7 +113,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.5.0 · The Verdict</div>
+          <div class="version">linzAI v1.6.0 · The Verdict</div>
         </div>
       </el-aside>
 
@@ -159,7 +159,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.5.0 · The Verdict</div>
+          <div class="version">linzAI v1.6.0 · The Verdict</div>
         </div>
       </div>
     </el-drawer>
