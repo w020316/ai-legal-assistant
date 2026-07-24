@@ -6,6 +6,7 @@ import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
+import com.lawai.legalassistant.common.util.FileTypeValidator;
 import com.lawai.legalassistant.modules.document.dto.ContractCompareVO;
 import com.lawai.legalassistant.modules.document.dto.DocumentAnalysisVO;
 import com.lawai.legalassistant.modules.document.dto.UploadResponse;
@@ -58,8 +59,9 @@ public class DocumentService {
     }
 
     /**
-     * 上传文档：保存文件 → 解析文本 → 入库
+     * 上传文档：读取字节 → magic bytes 校验 → 保存文件 → 解析文本 → 入库
      * <p>
+     * v1.7.0 新增 magic bytes 校验，防止伪造扩展名上传恶意文件。
      * 图片类型（JPG/PNG）使用 AI Vision 识别文字，v1.6.0 新增。
      *
      * @param userId 用户 ID
@@ -73,12 +75,14 @@ public class DocumentService {
         }
 
         String originalFilename = file.getOriginalFilename();
-        String fileType = detectFileType(originalFilename);
 
         try {
             byte[] bytes = file.getBytes();
 
-            // 1. 保存文件到本地
+            // 1. magic bytes 校验：先读字节再校验真实文件类型，防止伪造扩展名
+            String fileType = FileTypeValidator.validate(originalFilename, bytes);
+
+            // 2. 保存文件到本地
             Path uploadDir = Paths.get(uploadPath);
             if (!Files.exists(uploadDir)) {
                 Files.createDirectories(uploadDir);
@@ -90,10 +94,10 @@ public class DocumentService {
             Path filePath = uploadDir.resolve(storedFilename);
             Files.write(filePath, bytes);
 
-            // 2. 解析文本：图片类型用 AI Vision 识别，其他类型用本地解析
+            // 3. 解析文本：图片类型用 AI Vision 识别，其他类型用本地解析
             String text = parseText(fileType, bytes, originalFilename);
 
-            // 3. 入库
+            // 4. 入库
             UserDocument doc = new UserDocument();
             doc.setUserId(userId);
             doc.setFilename(originalFilename);
@@ -238,35 +242,10 @@ public class DocumentService {
     }
 
     /**
-     * 检测文件类型
-     */
-    private String detectFileType(String filename) {
-        if (filename == null) {
-            throw BusinessException.of(ResultCode.PARAM_ERROR, "文件名不能为空");
-        }
-        String lower = filename.toLowerCase();
-        if (lower.endsWith(".pdf")) {
-            return "PDF";
-        }
-        if (lower.endsWith(".docx")) {
-            return "DOCX";
-        }
-        if (lower.endsWith(".txt")) {
-            return "TXT";
-        }
-        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
-            return "JPG";
-        }
-        if (lower.endsWith(".png")) {
-            return "PNG";
-        }
-        throw BusinessException.of(ResultCode.PARAM_ERROR, "不支持的文件类型，仅支持 PDF/DOCX/TXT/JPG/PNG");
-    }
-
-    /**
      * 解析文本
      * <p>
      * 图片类型使用 AI Vision 识别文字，其他类型用本地解析，v1.6.0 新增图片支持。
+     * 文件类型校验已由 FileTypeValidator.validate 在 upload 阶段完成。
      */
     private String parseText(String fileType, byte[] bytes, String originalFilename) throws IOException {
         return switch (fileType) {

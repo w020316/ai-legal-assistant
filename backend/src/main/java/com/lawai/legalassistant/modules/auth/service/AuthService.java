@@ -72,13 +72,17 @@ public class AuthService {
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
         userMapper.insert(user);
+        auditService.record(user.getId(), "REGISTER", null, "{\"username\":\"" + req.getUsername() + "\"}");
         log.info("用户注册成功: {}", req.getUsername());
     }
 
     /**
      * 登录
+     *
+     * @param req 登录请求
+     * @param ip  登录来源 IP（v1.7.0 新增，用于审计日志）
      */
-    public AuthResponse login(LoginRequest req) {
+    public AuthResponse login(LoginRequest req, String ip) {
         SysUser user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, req.getUsername()));
         if (user == null) {
@@ -92,7 +96,7 @@ public class AuthService {
         }
         String access = jwtUtil.generateAccessToken(user.getId(), user.getUsername(), user.getRole());
         String refresh = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
-        auditService.record(user.getId(), "LOGIN", null, null);
+        auditService.record(user.getId(), "LOGIN", ip, "{\"username\":\"" + user.getUsername() + "\"}");
         log.info("用户登录: {}", user.getUsername());
         return new AuthResponse(access, refresh, jwtUtil.getAccessExpiration() / 1000,
                 user.getUsername(), user.getRole());
@@ -125,13 +129,20 @@ public class AuthService {
 
     /**
      * 登出：将 access/refresh 加入黑名单
+     *
+     * @param accessToken  访问令牌
+     * @param refreshToken 刷新令牌
+     * @param userId       用户 ID（v1.7.0 新增，用于审计日志）
      */
-    public void logout(String accessToken, String refreshToken) {
+    public void logout(String accessToken, String refreshToken, Long userId) {
         if (accessToken != null) {
             blacklist(accessToken);
         }
         if (refreshToken != null) {
             blacklist(refreshToken);
+        }
+        if (userId != null) {
+            auditService.record(userId, "LOGOUT", null, null);
         }
     }
 

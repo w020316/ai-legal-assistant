@@ -1,6 +1,7 @@
 package com.lawai.legalassistant.modules.auth.controller;
 
 import com.lawai.legalassistant.common.result.Result;
+import com.lawai.legalassistant.common.utils.SecurityUtil;
 import com.lawai.legalassistant.modules.auth.dto.AuthResponse;
 import com.lawai.legalassistant.modules.auth.dto.LoginRequest;
 import com.lawai.legalassistant.modules.auth.dto.RefreshRequest;
@@ -38,8 +39,8 @@ public class AuthController {
 
     @Operation(summary = "登录")
     @PostMapping("/login")
-    public Result<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
-        return Result.success(authService.login(req));
+    public Result<AuthResponse> login(@Valid @RequestBody LoginRequest req, HttpServletRequest request) {
+        return Result.success(authService.login(req, getClientIp(request)));
     }
 
     @Operation(summary = "刷新 Token")
@@ -54,8 +55,25 @@ public class AuthController {
         String authHeader = request.getHeader("Authorization");
         String accessToken = authHeader != null && authHeader.startsWith("Bearer ")
                 ? authHeader.substring(7) : null;
-        // refresh token 由请求体传入（可选）
-        authService.logout(accessToken, null);
+        authService.logout(accessToken, null, SecurityUtil.getCurrentUserId());
         return Result.success();
+    }
+
+    /**
+     * 提取客户端真实 IP（v1.7.0 新增，用于审计日志）
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // X-Forwarded-For 可能含多个 IP，取第一个
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }

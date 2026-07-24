@@ -88,18 +88,32 @@ public class ChatService {
 
     /**
      * 会话列表（按更新时间倒序），附带最后一条消息预览
+     * <p>
+     * v1.7.0 优化：将 N+1 查询改为批量查询，1+N 次降为 1+1 次。
      */
     public List<SessionVO> listSessions(Long userId) {
         List<ChatSession> sessions = sessionMapper.selectList(
                 new LambdaQueryWrapper<ChatSession>()
                         .eq(ChatSession::getUserId, userId)
                         .orderByDesc(ChatSession::getUpdatedAt));
+        if (sessions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 批量查询所有会话的最后一条消息（1 次查询替代 N 次）
+        List<Long> sessionIds = sessions.stream().map(ChatSession::getId).toList();
+        List<ChatMessage> lastMessages = messageMapper.selectLastMessagesBySessionIds(sessionIds);
+        Map<Long, String> lastMessageMap = new LinkedHashMap<>(lastMessages.size());
+        for (ChatMessage m : lastMessages) {
+            lastMessageMap.put(m.getSessionId(), m.getContent());
+        }
+
         List<SessionVO> result = new ArrayList<>(sessions.size());
         for (ChatSession s : sessions) {
             SessionVO vo = toSessionVO(s);
-            List<ChatMessage> recent = messageMapper.selectRecent(s.getId(), 1);
-            if (!recent.isEmpty()) {
-                vo.setLastMessage(recent.get(0).getContent());
+            String lastContent = lastMessageMap.get(s.getId());
+            if (lastContent != null) {
+                vo.setLastMessage(lastContent);
             }
             result.add(vo);
         }
