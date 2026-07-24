@@ -116,6 +116,9 @@ public class DocumentService {
 
     /**
      * 触发文档分析
+     * <p>
+     * v1.8.0 新增缓存：若文档已有分析结果则直接返回，跳过 AI 调用，节省成本。
+     * 如需重新分析，前端应先删除文档再重新上传，或后续提供"重新分析"接口。
      *
      * @param userId 用户 ID
      * @param docId  文档 ID
@@ -126,6 +129,18 @@ public class DocumentService {
         UserDocument doc = getOwnedDocument(userId, docId);
         if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "文档文本为空，无法分析");
+        }
+
+        // 缓存命中：已有分析结果则直接返回，跳过 AI 调用（v1.8.0 新增）
+        if (doc.getAnalysisResult() != null && !doc.getAnalysisResult().isBlank()) {
+            try {
+                DocumentAnalysisVO cached = objectMapper.readValue(doc.getAnalysisResult(), DocumentAnalysisVO.class);
+                log.info("文档分析命中缓存: docId={}, riskPoints={}", docId,
+                        cached.getRiskPoints() != null ? cached.getRiskPoints().size() : 0);
+                return cached;
+            } catch (Exception e) {
+                log.warn("缓存分析结果解析失败，重新调用 AI: docId={}", docId);
+            }
         }
 
         try {

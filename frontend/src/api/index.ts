@@ -315,5 +315,37 @@ export interface CaseVO {
 // 案例检索
 export const searchCases = (params: CaseSearchRequest) => http.get<CaseVO[]>('/cases', { params })
 
+// ==================== 审计日志相关（v1.8.0 新增） ====================
+
+// 审计日志 VO
+export interface AuditLogVO {
+  id: number
+  userId: number
+  action: string
+  ip: string | null
+  detail: string | null
+  createdAt: string
+}
+
+// 审计日志分页结果
+export interface AuditLogPage {
+  records: AuditLogVO[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+// 审计日志查询参数
+export interface AuditLogQuery {
+  page?: number
+  size?: number
+  action?: string
+}
+
+// 分页查询审计日志（仅 ADMIN）
+export const listAuditLogs = (params: AuditLogQuery) =>
+  http.get<AuditLogPage>('/audit/logs', { params })
+
 // 重新导出类型
 export type { ApiResult }

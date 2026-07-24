@@ -37,6 +37,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/CaseView.vue'),
         meta: { title: '案例检索', icon: 'Search' },
       },
+      {
+        path: 'audit',
+        name: 'Audit',
+        component: () => import('@/views/AuditView.vue'),
+        meta: { title: '审计日志', icon: 'List', requireAdmin: true },
+      },
     ],
   },
   {
@@ -70,12 +76,17 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录跳转登录页
+// 路由守卫：未登录跳转登录页；非 ADMIN 访问管理页跳转
 router.beforeEach((to, _from, next) => {
   document.body.style.cursor = 'wait'
   const userStore = useUserStore()
   document.title = `${to.meta.title || ''} - linzAI 法律助手`
   if (to.meta.public || userStore.isLogin) {
+    // ADMIN 权限校验
+    if (to.meta.requireAdmin && userStore.role !== 'ADMIN') {
+      next({ name: 'Chat' })
+      return
+    }
     next()
   } else {
     next({ name: 'Login', query: { redirect: to.fullPath } })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import VersionUpdateDialog from '@/components/common/VersionUpdateDialog.vue'
@@ -9,6 +9,7 @@ import {
   Document,
   Files,
   Search,
+  List,
   User,
   SwitchButton,
   Menu,
@@ -40,13 +41,19 @@ onUnmounted(() => {
 })
 
 // 公报式菜单：带罗马数字章节编号
-const menus = [
-  { index: '/chat', title: '智能问答', icon: ChatDotRound, numeral: 'I' },
-  { index: '/documents', title: '文档分析', icon: Document, numeral: 'II' },
-  { index: '/templates', title: '文书模板', icon: Files, numeral: 'III' },
-  { index: '/cases', title: '案例检索', icon: Search, numeral: 'IV' },
-  { index: '/health', title: '系统状态', icon: Monitor, numeral: 'V' },
+// 审计日志仅 ADMIN 可见（v1.8.0 新增）
+const allMenus = [
+  { index: '/chat', title: '智能问答', icon: ChatDotRound, numeral: 'I', requireAdmin: false },
+  { index: '/documents', title: '文档分析', icon: Document, numeral: 'II', requireAdmin: false },
+  { index: '/templates', title: '文书模板', icon: Files, numeral: 'III', requireAdmin: false },
+  { index: '/cases', title: '案例检索', icon: Search, numeral: 'IV', requireAdmin: false },
+  { index: '/health', title: '系统状态', icon: Monitor, numeral: 'V', requireAdmin: false },
+  { index: '/audit', title: '审计日志', icon: List, numeral: 'VI', requireAdmin: true },
 ]
+
+const menus = computed(() =>
+  allMenus.filter((m) => !m.requireAdmin || userStore.role === 'ADMIN')
+)
 
 function handleMenuSelect(index: string) {
   router.push(index)
@@ -113,7 +120,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.6.0 · The Verdict</div>
+          <div class="version">linzAI v1.8.0 · The Verdict</div>
         </div>
       </el-aside>
 
@@ -159,7 +166,7 @@ function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.6.0 · The Verdict</div>
+          <div class="version">linzAI v1.8.0 · The Verdict</div>
         </div>
       </div>
     </el-drawer>
