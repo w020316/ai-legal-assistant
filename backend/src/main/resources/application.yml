@@ -64,6 +64,14 @@ springdoc:
 
 # 应用自定义配置
 lawai:
+  # AI 模型路由（Tacklekey 免费模型 + Agnes 降级）
+  ai:
+    tacklekey:
+      enabled: ${TACKLEKEY_ENABLED:false}
+      base-url: ${TACKLEKEY_BASE_URL:https://api.tacklekey.com}
+      api-key: ${TACKLEKEY_API_KEY:}
+      model: ${TACKLEKEY_MODEL:openai/gpt-5.5:free}
+      timeout: ${TACKLEKEY_TIMEOUT:60}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）
   # 注意：AI 测试接口仅在 dev profile 放行，prod 不放行
   security:

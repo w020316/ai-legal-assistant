@@ -2,7 +2,7 @@ package com.lawai.legalassistant.modules.document.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
@@ -43,16 +43,16 @@ public class DocumentService {
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private final UserDocumentMapper documentMapper;
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
     private final ObjectMapper objectMapper;
 
     @Value("${lawai.upload.path:./uploads}")
     private String uploadPath;
 
-    public DocumentService(UserDocumentMapper documentMapper, AgnesClient agnesClient,
+    public DocumentService(UserDocumentMapper documentMapper, AiRouter aiRouter,
                            ObjectMapper objectMapper) {
         this.documentMapper = documentMapper;
-        this.agnesClient = agnesClient;
+        this.aiRouter = aiRouter;
         this.objectMapper = objectMapper;
     }
 
@@ -123,7 +123,7 @@ public class DocumentService {
 
         try {
             // 1. 调用 AI 分析
-            String aiResponse = agnesClient.chat(
+            String aiResponse = aiRouter.chat(
                     PromptTemplates.CONTRACT_REVIEW_SYSTEM,
                     doc.getOcrText());
 

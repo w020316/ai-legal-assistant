@@ -1,6 +1,6 @@
 package com.lawai.legalassistant.modules.casep.service;
 
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.modules.casep.dto.CaseSearchRequest;
 import com.lawai.legalassistant.modules.casep.dto.CaseVO;
 import com.lawai.legalassistant.modules.casep.mapper.CaseMapper;
@@ -26,11 +26,11 @@ public class CaseService {
     private static final int VECTOR_TOP_K = 20;
 
     private final CaseMapper caseMapper;
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
 
-    public CaseService(CaseMapper caseMapper, AgnesClient agnesClient) {
+    public CaseService(CaseMapper caseMapper, AiRouter aiRouter) {
         this.caseMapper = caseMapper;
-        this.agnesClient = agnesClient;
+        this.aiRouter = aiRouter;
     }
 
     /**
@@ -63,7 +63,7 @@ public class CaseService {
      */
     private List<CaseVO> searchByVector(CaseSearchRequest req) {
         try {
-            float[] vec = agnesClient.embed(req.getKeyword());
+            float[] vec = aiRouter.embed(req.getKeyword());
             String vecStr = toPgVector(vec);
             int topK = VECTOR_TOP_K;
             if (req.getSize() != null && req.getSize() > 0) {

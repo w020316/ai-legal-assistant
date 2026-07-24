@@ -1,6 +1,6 @@
 package com.lawai.legalassistant.modules.template.service;
 
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
@@ -27,11 +27,11 @@ public class TemplateService {
     private static final Logger log = LoggerFactory.getLogger(TemplateService.class);
 
     private final TemplateMapper templateMapper;
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
 
-    public TemplateService(TemplateMapper templateMapper, AgnesClient agnesClient) {
+    public TemplateService(TemplateMapper templateMapper, AiRouter aiRouter) {
         this.templateMapper = templateMapper;
-        this.agnesClient = agnesClient;
+        this.aiRouter = aiRouter;
     }
 
     /**
@@ -76,7 +76,7 @@ public class TemplateService {
 
         try {
             String userPrompt = buildGeneratePrompt(template, req.getElements());
-            String content = agnesClient.chat(PromptTemplates.DOCUMENT_GENERATE_SYSTEM, userPrompt);
+            String content = aiRouter.chat(PromptTemplates.DOCUMENT_GENERATE_SYSTEM, userPrompt);
             log.info("文书生成完成: userId={}, templateId={}", userId, req.getTemplateId());
             return new GenerateResult(content);
         } catch (BusinessException e) {

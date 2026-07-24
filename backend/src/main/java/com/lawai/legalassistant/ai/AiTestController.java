@@ -1,6 +1,6 @@
 package com.lawai.legalassistant.ai;
 
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,17 +31,17 @@ public class AiTestController {
     private static final Logger log = LoggerFactory.getLogger(AiTestController.class);
     private static final String SYSTEM_PROMPT = "你是一名专业的中国法律助手，请简明扼要地回答问题。";
 
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
 
-    public AiTestController(AgnesClient agnesClient) {
-        this.agnesClient = agnesClient;
+    public AiTestController(AiRouter aiRouter) {
+        this.aiRouter = aiRouter;
     }
 
     @Operation(summary = "同步对话测试")
     @PostMapping("/chat")
     public Result<Map<String, Object>> testChat(@RequestBody Map<String, String> body) {
         String question = body.getOrDefault("question", "你好，请介绍一下你自己。");
-        String answer = agnesClient.chat(SYSTEM_PROMPT, question);
+        String answer = aiRouter.chat(SYSTEM_PROMPT, question);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("question", question);
         result.put("answer", answer);
@@ -52,7 +52,7 @@ public class AiTestController {
     @PostMapping("/embed")
     public Result<Map<String, Object>> testEmbed(@RequestBody Map<String, String> body) {
         String text = body.getOrDefault("text", "民法典第一条规定。");
-        float[] vector = agnesClient.embed(text);
+        float[] vector = aiRouter.embed(text);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("text", text);
         result.put("dimension", vector.length);
@@ -64,7 +64,7 @@ public class AiTestController {
     @GetMapping("/ping")
     public Result<String> ping() {
         try {
-            String reply = agnesClient.chat("回复 pong", "ping");
+            String reply = aiRouter.chat("回复 pong", "ping");
             return Result.success("AI 连通正常: " + reply);
         } catch (Exception e) {
             log.warn("AI 连通性检查失败", e);

@@ -1,6 +1,6 @@
 package com.lawai.legalassistant.modules.rag.service;
 
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.modules.rag.dto.RetrievedChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeDoc;
@@ -33,12 +33,12 @@ public class RagService {
     /** 默认 Top-K */
     private static final int TOP_K_DEFAULT = 5;
 
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
     private final KnowledgeDocMapper docMapper;
     private final KnowledgeChunkMapper chunkMapper;
 
-    public RagService(AgnesClient agnesClient, KnowledgeDocMapper docMapper, KnowledgeChunkMapper chunkMapper) {
-        this.agnesClient = agnesClient;
+    public RagService(AiRouter aiRouter, KnowledgeDocMapper docMapper, KnowledgeChunkMapper chunkMapper) {
+        this.aiRouter = aiRouter;
         this.docMapper = docMapper;
         this.chunkMapper = chunkMapper;
     }
@@ -57,7 +57,7 @@ public class RagService {
             return Collections.emptyList();
         }
         try {
-            float[] vec = agnesClient.embed(question);
+            float[] vec = aiRouter.embed(question);
             String vecStr = toPgVector(vec);
             int k = topK > 0 ? topK : TOP_K_DEFAULT;
             return chunkMapper.searchByVector(vecStr, k);
@@ -100,7 +100,7 @@ public class RagService {
         // 3. 逐片向量化并入库
         for (int i = 0; i < chunks.size(); i++) {
             String chunk = chunks.get(i);
-            float[] emb = agnesClient.embed(chunk);
+            float[] emb = aiRouter.embed(chunk);
             KnowledgeChunk entity = new KnowledgeChunk();
             entity.setDocId(docId);
             entity.setChunkIndex(i);

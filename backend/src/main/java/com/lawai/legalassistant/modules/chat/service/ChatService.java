@@ -2,7 +2,7 @@ package com.lawai.legalassistant.modules.chat.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lawai.legalassistant.ai.client.AgnesClient;
+import com.lawai.legalassistant.ai.client.AiRouter;
 import com.lawai.legalassistant.ai.prompt.PromptTemplates;
 import com.lawai.legalassistant.common.compliance.SensitiveWordFilter;
 import com.lawai.legalassistant.common.exception.BusinessException;
@@ -52,17 +52,17 @@ public class ChatService {
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
     private final RagService ragService;
-    private final AgnesClient agnesClient;
+    private final AiRouter aiRouter;
     private final ObjectMapper objectMapper;
     private final SensitiveWordFilter sensitiveWordFilter;
 
     public ChatService(ChatSessionMapper sessionMapper, ChatMessageMapper messageMapper,
-                       RagService ragService, AgnesClient agnesClient, ObjectMapper objectMapper,
+                       RagService ragService, AiRouter aiRouter, ObjectMapper objectMapper,
                        SensitiveWordFilter sensitiveWordFilter) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
         this.ragService = ragService;
-        this.agnesClient = agnesClient;
+        this.aiRouter = aiRouter;
         this.objectMapper = objectMapper;
         this.sensitiveWordFilter = sensitiveWordFilter;
     }
@@ -232,7 +232,7 @@ public class ChatService {
                 String context = buildContext(chunks);
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
                         Map.of("context", context, "history", history, "question", filteredContent));
-                String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
+                String aiContent = aiRouter.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
                 saveAssistantMessage(sessionId, aiContent, citationsJson);
                 log.info("异步 AI 回复完成: sessionId={}", sessionId);
                 // 如果会话标题是默认的"新对话"，自动生成标题
@@ -287,7 +287,7 @@ public class ChatService {
             try {
                 // 第一步：识别图片中的法律问题
                 String extractPrompt = "请识别图片中的法律问题或法律相关内容，提取并整理为一个清晰的法律问题。只输出问题本身，不要附加解释。如果图片中没有法律相关问题，请回复：未识别到法律相关问题。";
-                String recognizedQuestion = agnesClient.chatWithImage(
+                String recognizedQuestion = aiRouter.chatWithImage(
                         "你是一个法律问题识别助手，请从图片中提取法律问题。",
                         extractPrompt, imageBytes, mimeType);
 
@@ -317,7 +317,7 @@ public class ChatService {
                 String context = buildContext(chunks);
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
                         Map.of("context", context, "history", history, "question", recognizedQuestion));
-                String aiContent = agnesClient.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
+                String aiContent = aiRouter.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
                 saveAssistantMessage(sessionId, aiContent, citationsJson);
 
                 // 第三步：自动命名
@@ -417,7 +417,7 @@ public class ChatService {
                 }
 
                 // 流式调用 AI
-                agnesClient.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
+                aiRouter.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
                         .doOnNext(chunk -> {
                             try {
                                 fullContent.append(chunk);
@@ -512,7 +512,7 @@ public class ChatService {
     private void autoRenameSession(Long sessionId, String userMessage) {
         try {
             String titlePrompt = "请将以下用户问题概括为4-8个字的标题，直接输出标题文字，不要加引号或标点：\n" + userMessage;
-            String title = agnesClient.chat("你是一个标题生成助手，只输出简短标题。", titlePrompt);
+            String title = aiRouter.chat("你是一个标题生成助手，只输出简短标题。", titlePrompt);
             // 清理标题：去除引号、换行、首尾空格，截断到8字
             title = title.replaceAll("[\"'\\u201c\\u201d\\u2018\\u2019\\u300c\\u300d\\u3010\\u3011]", "").replaceAll("[\\r\\n]", "").trim();
             if (title.length() > 8) {
