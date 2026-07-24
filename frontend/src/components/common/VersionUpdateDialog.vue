@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 // 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.9.1'
+const CURRENT_VERSION = 'v1.9.2'
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -26,11 +26,14 @@ interface ChangeLog {
 
 const changelogs: ChangeLog[] = [
   {
-    version: 'v1.9.1',
+    version: 'v1.9.2',
     date: '2026-07-24',
-    tag: '数据便携',
+    tag: '安全加固',
     highlights: [
-      { title: '会话一键导出', desc: '会话列表新增下载按钮，将完整对话导出为 Markdown 文件，便于归档与分享' },
+      { title: '后端密钥安全迁移', desc: 'JWT/管理员密码/API Key 从代码仓库迁移至 Fly secrets，移除默认值兜底' },
+      { title: '认证安全闭环', desc: 'JWT 黑名单 Redis 故障时 fail-close，登出 token 不可绕过' },
+      { title: 'AI 调用超时保护', desc: 'Tacklekey 客户端增加 60s 读取超时，线程池改为有界队列防 OOM' },
+      { title: '前端死锁修复', desc: 'Token 刷新失败正确 reject 挂起请求，路由光标副作用移除，消息列表 key 修复' },
     ],
   },
   {

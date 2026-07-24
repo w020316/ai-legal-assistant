@@ -37,15 +37,25 @@ service.interceptors.request.use(
 
 // ===== Token 自动刷新机制 =====
 let isRefreshing = false
-let pendingRequests: Array<(token: string) => void> = []
+// v1.9.2 修复：刷新失败时必须 reject 所有挂起请求，避免永久挂起
+type PendingRequest = {
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}
+let pendingRequests: PendingRequest[] = []
 
 function onTokenRefreshed(newToken: string) {
-  pendingRequests.forEach((cb) => cb(newToken))
+  pendingRequests.forEach(({ resolve }) => resolve(newToken))
   pendingRequests = []
 }
 
-function addPendingRequest(cb: (token: string) => void) {
-  pendingRequests.push(cb)
+function rejectPendingRequests(error: unknown) {
+  pendingRequests.forEach(({ reject }) => reject(error))
+  pendingRequests = []
+}
+
+function addPendingRequest(req: PendingRequest) {
+  pendingRequests.push(req)
 }
 
 // 尝试用 refreshToken 续期；成功返回新 token，失败返回 null
@@ -104,17 +114,20 @@ service.interceptors.response.use(
             onTokenRefreshed(newToken)
             // 静默续期，不弹消息
           } else {
-            pendingRequests = []
+            rejectPendingRequests(new Error('Token 刷新失败'))
             forceLogout()
           }
           isRefreshing = false
         })
       }
-      // 将当前请求挂起，等 refresh 完成后自动重试
+      // 将当前请求挂起，等 refresh 完成后自动重试或失败时 reject
       return new Promise((resolve, reject) => {
-        addPendingRequest((token) => {
-          originalConfig.headers.Authorization = `Bearer ${token}`
-          service(originalConfig).then(resolve).catch(reject)
+        addPendingRequest({
+          resolve: (token) => {
+            originalConfig.headers.Authorization = `Bearer ${token}`
+            service(originalConfig).then(resolve).catch(reject)
+          },
+          reject,
         })
       })
     }
@@ -138,16 +151,19 @@ service.interceptors.response.use(
           originalConfig.headers.Authorization = `Bearer ${newToken}`
           return service(originalConfig)
         }
-        pendingRequests = []
+        rejectPendingRequests(new Error('Token 刷新失败'))
         forceLogout()
         return Promise.reject(error)
       }
       // 正在刷新：挂起等待
       return new Promise((resolve, reject) => {
-        addPendingRequest((token) => {
-          ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
-          originalConfig.headers.Authorization = `Bearer ${token}`
-          service(originalConfig).then(resolve).catch(reject)
+        addPendingRequest({
+          resolve: (token) => {
+            ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
+            originalConfig.headers.Authorization = `Bearer ${token}`
+            service(originalConfig).then(resolve).catch(reject)
+          },
+          reject,
         })
       })
     }

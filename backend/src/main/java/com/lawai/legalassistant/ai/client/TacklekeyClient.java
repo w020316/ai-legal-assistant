@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -40,8 +41,13 @@ public class TacklekeyClient {
             @Value("${lawai.ai.tacklekey.model:openai/gpt-5.5:free}") String model,
             @Value("${lawai.ai.tacklekey.timeout:60}") long timeoutSeconds) {
         this.model = model;
+        // 配置连接与读取超时，防止 AI 接口挂起耗尽线程池
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000); // 10s 连接超时
+        factory.setReadTimeout((int) (timeoutSeconds * 1000)); // 读取超时由配置控制
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
+                .requestFactory(factory)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();

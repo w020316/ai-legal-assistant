@@ -30,7 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -69,12 +70,23 @@ public class ChatService {
         this.sensitiveWordFilter = sensitiveWordFilter;
     }
 
-    /** AI 异步调用专用线程池，避免长阻塞 I/O 耗尽 ForkJoinPool.commonPool() */
-    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(8, r -> {
-        Thread t = new Thread(r, "ai-async-executor");
-        t.setDaemon(true);
-        return t;
-    });
+    /**
+     * AI 异步调用专用线程池，避免长阻塞 I/O 耗尽 ForkJoinPool.commonPool()。
+     * <p>
+     * v1.9.2 安全修复：使用有界队列（容量 100）+ CallerRunsPolicy 拒绝策略，
+     * 防止高并发下任务堆积导致 OOM（Fly.io vm 仅 512MB 内存）。
+     * 队列满时由调用线程执行，形成背压。
+     */
+    private final ExecutorService aiExecutor = new ThreadPoolExecutor(
+            8, 8, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(100),
+            r -> {
+                Thread t = new Thread(r, "ai-async-executor");
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
 
     /**
      * 新建会话

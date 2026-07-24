@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   listSessions,
@@ -123,15 +123,17 @@ export const useChatStore = defineStore('chat', () => {
     const sessionId = currentSession.value.id
     const userStore = useUserStore()
 
-    const aiMsg = reactive<MessageVO>({
-      id: 0,
+    // v1.9.2 修复：使用唯一负 ID 替代 reactive，避免响应式双重包装
+    const placeholderId = -Date.now()
+    const aiMsg: MessageVO = {
+      id: placeholderId,
       sessionId,
       role: 'assistant',
       content: '',
       citations: null,
       tokens: null,
       createdAt: new Date().toISOString(),
-    })
+    }
     messages.value.push(aiMsg)
     sending.value = true
 
@@ -215,7 +217,7 @@ export const useChatStore = defineStore('chat', () => {
       return true
     } catch (e) {
       // SSE 失败，移除占位消息，返回 false 让调用方回退到轮询模式
-      const idx = messages.value.lastIndexOf(aiMsg)
+      const idx = messages.value.findIndex((m) => m.id === placeholderId)
       if (idx >= 0) messages.value.splice(idx, 1)
       return false
     } finally {
@@ -233,15 +235,16 @@ export const useChatStore = defineStore('chat', () => {
     // SSE 失败，降级为轮询模式
     if (!currentSession.value) return
     const sessionId = currentSession.value.id
-    const aiMsg = reactive<MessageVO>({
-      id: 0,
+    const placeholderId = -Date.now()
+    const aiMsg: MessageVO = {
+      id: placeholderId,
       sessionId,
       role: 'assistant',
       content: '',
       citations: null,
       tokens: null,
       createdAt: new Date().toISOString(),
-    })
+    }
     messages.value.push(aiMsg)
     sending.value = true
     try {
@@ -277,7 +280,7 @@ export const useChatStore = defineStore('chat', () => {
       ElMessage.error('发送失败，请重试')
       // AI 消息为空时移除占位消息
       if (!aiMsg.content) {
-        const idx = messages.value.lastIndexOf(aiMsg)
+        const idx = messages.value.findIndex((m) => m.id === placeholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
     } finally {
@@ -289,25 +292,27 @@ export const useChatStore = defineStore('chat', () => {
   async function sendImageMessage(file: File) {
     if (!currentSession.value || sending.value) return
     // 添加占位消息
-    const userMsg = reactive<MessageVO>({
-      id: 0,
+    const userPlaceholderId = -Date.now()
+    const userMsg: MessageVO = {
+      id: userPlaceholderId,
       sessionId: currentSession.value.id,
       role: 'user',
       content: '📷 [图片识别中...]',
       citations: null,
       tokens: null,
       createdAt: new Date().toISOString(),
-    })
+    }
     messages.value.push(userMsg)
-    const aiMsg = reactive<MessageVO>({
-      id: 0,
+    const aiPlaceholderId = -Date.now() - 1
+    const aiMsg: MessageVO = {
+      id: aiPlaceholderId,
       sessionId: currentSession.value.id,
       role: 'assistant',
       content: '',
       citations: null,
       tokens: null,
       createdAt: new Date().toISOString(),
-    })
+    }
     messages.value.push(aiMsg)
     sending.value = true
     try {
@@ -346,12 +351,12 @@ export const useChatStore = defineStore('chat', () => {
     } catch (e) {
       ElMessage.error('图片上传失败，请重试')
       if (!aiMsg.content) {
-        const idx = messages.value.lastIndexOf(aiMsg)
+        const idx = messages.value.findIndex((m) => m.id === aiPlaceholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
-      if (messages.value.lastIndexOf(userMsg) >= 0 && userMsg.content.includes('[图片')) {
-        const uIdx = messages.value.lastIndexOf(userMsg)
-        if (uIdx >= 0) messages.value.splice(uIdx, 1)
+      const uIdx = messages.value.findIndex((m) => m.id === userPlaceholderId)
+      if (uIdx >= 0 && userMsg.content.includes('[图片')) {
+        messages.value.splice(uIdx, 1)
       }
     } finally {
       sending.value = false

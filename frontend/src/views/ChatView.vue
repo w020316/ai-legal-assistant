@@ -174,7 +174,7 @@ onMounted(() => {
           <!-- 消息列表 -->
           <MessageItem
             v-for="(msg, i) in chatStore.messages"
-            :key="i"
+            :key="msg.id || 'msg-' + i"
             :message="msg"
             :streaming="chatStore.sending && i === chatStore.messages.length - 1 && msg.role === 'assistant'"
             @regenerate="handleRegenerate"

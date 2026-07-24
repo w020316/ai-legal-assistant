@@ -146,11 +146,17 @@ public class AuthService {
         }
     }
 
+    /**
+     * 将 token 加入黑名单。
+     * <p>
+     * 安全策略：写入失败时抛出异常，避免登出后 token 仍然有效。
+     */
     private void blacklist(String token) {
         try {
             redisTemplate.opsForValue().set(BLACKLIST_PREFIX + token, "1", BLACKLIST_TTL);
         } catch (Exception e) {
-            log.warn("Redis 黑名单写入失败，降级忽略: {}", e.getMessage());
+            log.error("Redis 黑名单写入失败，token 仍可能有效: {}", e.getMessage(), e);
+            throw BusinessException.of(ResultCode.SYSTEM_ERROR, "登出处理失败，请稍后重试");
         }
     }
 
@@ -158,8 +164,8 @@ public class AuthService {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
         } catch (Exception e) {
-            log.warn("Redis 黑名单查询失败，降级放行: {}", e.getMessage());
-            return false;
+            log.error("Redis 黑名单查询失败，fail-close 拒绝刷新: {}", e.getMessage(), e);
+            return true;
         }
     }
 }

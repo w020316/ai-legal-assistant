@@ -30,7 +30,7 @@ public class JwtUtil {
     /** refresh token 类型标识 */
     public static final String TYPE_REFRESH = "refresh";
 
-    @Value("${lawai.jwt.secret:${JWT_SECRET:lawai-default-jwt-secret-please-change-in-production-at-least-32-chars}}")
+    @Value("${lawai.jwt.secret:${JWT_SECRET}}")
     private String secret;
 
     @Value("${lawai.jwt.access-expiration:7200000}")

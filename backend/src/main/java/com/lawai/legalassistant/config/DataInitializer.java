@@ -29,7 +29,7 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${lawai.init.admin.username:admin}")
     private String adminUsername;
 
-    @Value("${lawai.init.admin.password:${ADMIN_PASSWORD:admin123}}")
+    @Value("${lawai.init.admin.password:${ADMIN_PASSWORD}}")
     private String adminPassword;
 
     public DataInitializer(SysUserMapper userMapper, PasswordEncoder passwordEncoder) {

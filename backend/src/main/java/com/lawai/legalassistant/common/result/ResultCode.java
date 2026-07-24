@@ -20,6 +20,7 @@ public final class ResultCode {
     public static final int AI_SERVICE_ERROR = 2001;
     public static final int RAG_RETRIEVE_ERROR = 2002;
     public static final int FILE_TOO_LARGE = 2003;
+    public static final int SYSTEM_ERROR = 5000;
 
     // 未知
     public static final int UNKNOWN = 9999;

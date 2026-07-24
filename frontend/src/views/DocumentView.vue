@@ -408,6 +408,8 @@ async function handleAnalyze() {
   analyzeProgress.value = { stage: '正在提取文档内容', percent: 10 }
   let stageIdx = 0
   // 每 2 秒推进进度阶段
+  // v1.9.2 修复：先清除可能存在的旧 timer，防止多个 interval 并行导致进度条乱跳
+  if (analyzeTimer) { clearInterval(analyzeTimer); analyzeTimer = null }
   analyzeTimer = setInterval(() => {
     stageIdx = Math.min(stageIdx + 1, analyzeStages.length - 1)
     analyzeProgress.value = { ...analyzeStages[stageIdx] }

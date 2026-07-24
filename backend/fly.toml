@@ -10,21 +10,19 @@ primary_region = "nrt"
   DB_PORT = "5432"
   DB_NAME = "lawai"
   DB_USER = "lawai"
-  DB_PASSWORD = "lawai123"
+  # v1.9.2 安全修复：敏感密钥已迁移至 Fly secrets，不再硬编码入仓库
+  # DB_PASSWORD / REDIS_PASSWORD / JWT_SECRET / ADMIN_PASSWORD / TACKLEKEY_API_KEY
+  # 通过 `fly secrets set` 注入，见部署文档
   REDIS_HOST = "lawai-redis.internal"
   REDIS_PORT = "6379"
-  REDIS_PASSWORD = ""
   AGNES_BASE_URL = "https://apihub.agnes-ai.com"
-  JWT_SECRET = "lawai-prod-jwt-secret-32-chars-minimum-2026"
   JWT_ACCESS_EXPIRATION = "7200000"
   JWT_REFRESH_EXPIRATION = "604800000"
   UPLOAD_PATH = "/app/uploads"
   ADMIN_USERNAME = "admin"
-  ADMIN_PASSWORD = "admin123"
   # AI 模型路由：Tacklekey 免费模型优先，Agnes 降级
   TACKLEKEY_ENABLED = "true"
   TACKLEKEY_BASE_URL = "https://api.tacklekey.com"
-  TACKLEKEY_API_KEY = "sk-9MUxy0xdzbapbrxIuN9Ty1hmpbaeVr6jzuqp1zBqk7CYpOjf"
   TACKLEKEY_MODEL = "openai/gpt-5.5:free"
 
 [[services]]

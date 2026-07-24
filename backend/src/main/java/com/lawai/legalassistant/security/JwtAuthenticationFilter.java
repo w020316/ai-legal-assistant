@@ -64,12 +64,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
+    /**
+     * 检查 token 是否在黑名单中。
+     * <p>
+     * 安全策略：Redis 故障时 fail-close（拒绝该 token），避免登出后的 token 在 Redis 异常期间继续访问。
+     * access token 有效期仅 2h，fail-close 不会造成长时间不可用。
+     */
     private boolean isBlacklisted(String token) {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
         } catch (Exception e) {
-            log.warn("Redis 黑名单查询失败，降级放行: {}", e.getMessage());
-            return false;
+            log.error("Redis 黑名单查询失败，fail-close 拒绝请求: {}", e.getMessage(), e);
+            return true;
         }
     }
 }
