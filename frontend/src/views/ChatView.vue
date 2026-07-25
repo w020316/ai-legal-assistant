@@ -23,7 +23,7 @@ async function scrollToBottom() {
 // 导出会话（v1.9.1 新增 Markdown，v1.11.0 扩展 Word/PDF）
 async function handleExport(sessionId: number, format: 'md' | 'word' | 'pdf' = 'md') {
   // 先获取会话标题用于文件名
-  const session = chatStore.sessions.find((s) => s.id === sessionId)
+  const session = chatStore.sessionList.find((s) => s.id === sessionId)
   const title = session?.title || 'linzAI会话导出'
   try {
     if (format === 'md') {

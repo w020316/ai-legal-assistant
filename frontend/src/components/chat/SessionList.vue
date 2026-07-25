@@ -224,7 +224,7 @@ async function handleDelete(session: SessionVO) {
               <span class="title">{{ s.title }}</span>
             </div>
             <div v-if="!multiSelectMode" class="item-actions">
-              <el-icon @click.stop="emit('export', s.id)"><Download /></el-icon>
+              <el-icon @click.stop="emit('export', s.id, 'md')"><Download /></el-icon>
               <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
               <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
             </div>

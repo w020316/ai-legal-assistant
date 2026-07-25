@@ -62,8 +62,8 @@ md.validateLink = (url: string) => {
 
 // v1.11.0 修复 H-3：为所有渲染出的 <a> 强制添加安全属性，防止 window.opener 攻击与新窗口执行
 const defaultLinkOpenRender = md.renderer.rules.link_open
-  || ((tokens: any, idx: number, options: any, env: any, self: any) => self.renderToken(tokens, idx, options))
-md.renderer.rules.link_open = (tokens: any, idx: number, options: any, env: any, self: any) => {
+  || ((tokens: any, idx: number, options: any, _env: any, self: any) => self.renderToken(tokens, idx, options))
+md.renderer.rules.link_open = (tokens: any, idx: number, options: any, _env: any, self: any) => {
   const token = tokens[idx]
   const targetIndex = token.attrIndex('target')
   if (targetIndex < 0) {
@@ -77,7 +77,7 @@ md.renderer.rules.link_open = (tokens: any, idx: number, options: any, env: any,
   } else {
     token.attrs![relIndex][1] = 'noopener noreferrer nofollow'
   }
-  return defaultLinkOpenRender(tokens, idx, options, env, self)
+  return defaultLinkOpenRender(tokens, idx, options, _env, self)
 }
 
 // KaTeX 块级公式渲染 $$...$$
