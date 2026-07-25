@@ -136,6 +136,8 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
+    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性，确保响应式触发
+    const aiMsgIdx = messages.value.length - 1
 
     try {
       const resp = await fetch(`/api/v1/sessions/${sessionId}/stream`, {
@@ -160,7 +162,7 @@ export const useChatStore = defineStore('chat', () => {
         if (!sending.value) {
           // 用户点击了停止
           reader.cancel()
-          if (!aiMsg.content) aiMsg.content = '已停止生成'
+          if (!messages.value[aiMsgIdx].content) messages.value[aiMsgIdx].content = '已停止生成'
           break
         }
         if (currentSession.value?.id !== sessionId) {
@@ -188,10 +190,11 @@ export const useChatStore = defineStore('chat', () => {
 
           if (eventName === 'chunk') {
             receivedChunk = true
-            aiMsg.content += eventData
+            // v1.11.0 修复 C-1：通过代理索引修改，确保流式 chunk 触发响应式更新
+            messages.value[aiMsgIdx].content += eventData
           } else if (eventName === 'citations') {
             try {
-              aiMsg.citations = JSON.parse(eventData)
+              messages.value[aiMsgIdx].citations = JSON.parse(eventData)
             } catch {
               // JSON 解析失败时忽略
             }
@@ -206,16 +209,18 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       // 流正常结束但没收到 done 事件
-      if (receivedChunk && aiMsg.content) {
+      if (receivedChunk && messages.value[aiMsgIdx].content) {
         loadSessions()
         return true
       }
       // 没收到任何内容
-      if (!aiMsg.content) {
-        aiMsg.content = 'AI 回复为空，请稍后重试。'
+      if (!messages.value[aiMsgIdx].content) {
+        messages.value[aiMsgIdx].content = 'AI 回复为空，请稍后重试。'
       }
       return true
     } catch (e) {
+      // v1.11.0 修复 H-5：SSE 失败时给用户明确提示，而非静默回退
+      console.warn('[Chat] SSE 流式请求失败，将降级为轮询模式', e)
       // SSE 失败，移除占位消息，返回 false 让调用方回退到轮询模式
       const idx = messages.value.findIndex((m) => m.id === placeholderId)
       if (idx >= 0) messages.value.splice(idx, 1)
@@ -247,6 +252,8 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
+    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性
+    const aiMsgIdx = messages.value.length - 1
     try {
       // 发送消息，后端立即返回用户消息 ID
       await sendMessageApi(sessionId, content)
@@ -262,24 +269,25 @@ export const useChatStore = defineStore('chat', () => {
         // 找到最后一条 assistant 消息
         const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
         if (lastAssistant && lastAssistant.content) {
-          aiMsg.id = lastAssistant.id
-          aiMsg.content = lastAssistant.content
+          // v1.11.0 修复 C-1：通过代理索引修改，触发响应式
+          messages.value[aiMsgIdx].id = lastAssistant.id
+          messages.value[aiMsgIdx].content = lastAssistant.content
           // AI 回复成功后刷新会话列表（获取自动命名的标题）
           loadSessions()
-          aiMsg.citations = lastAssistant.citations
-          aiMsg.tokens = lastAssistant.tokens
-          aiMsg.createdAt = lastAssistant.createdAt
+          messages.value[aiMsgIdx].citations = lastAssistant.citations
+          messages.value[aiMsgIdx].tokens = lastAssistant.tokens
+          messages.value[aiMsgIdx].createdAt = lastAssistant.createdAt
           break
         }
       }
       // 超时仍未收到回复
-      if (!aiMsg.content) {
-        aiMsg.content = 'AI 回复超时，请稍后重试。'
+      if (!messages.value[aiMsgIdx].content) {
+        messages.value[aiMsgIdx].content = 'AI 回复超时，请稍后重试。'
       }
     } catch (e) {
       ElMessage.error('发送失败，请重试')
       // AI 消息为空时移除占位消息
-      if (!aiMsg.content) {
+      if (!messages.value[aiMsgIdx].content) {
         const idx = messages.value.findIndex((m) => m.id === placeholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
@@ -315,6 +323,9 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
+    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性
+    const userMsgIdx = messages.value.length - 2
+    const aiMsgIdx = messages.value.length - 1
     try {
       const sessionId = currentSession.value.id
       await sendMessageWithImage(sessionId, file)
@@ -330,32 +341,32 @@ export const useChatStore = defineStore('chat', () => {
         // 更新用户消息（识别后的问题）
         const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
         if (lastUser && !lastUser.content.includes('[图片消息]')) {
-          userMsg.content = lastUser.content
+          messages.value[userMsgIdx].content = lastUser.content
         }
         // 查找 AI 回复
         const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
         if (lastAssistant && lastAssistant.content) {
-          aiMsg.id = lastAssistant.id
-          aiMsg.content = lastAssistant.content
-          aiMsg.citations = lastAssistant.citations
-          aiMsg.tokens = lastAssistant.tokens
-          aiMsg.createdAt = lastAssistant.createdAt
+          messages.value[aiMsgIdx].id = lastAssistant.id
+          messages.value[aiMsgIdx].content = lastAssistant.content
+          messages.value[aiMsgIdx].citations = lastAssistant.citations
+          messages.value[aiMsgIdx].tokens = lastAssistant.tokens
+          messages.value[aiMsgIdx].createdAt = lastAssistant.createdAt
           break
         }
       }
-      if (!aiMsg.content) {
-        aiMsg.content = '图片识别超时，请稍后重试。'
+      if (!messages.value[aiMsgIdx].content) {
+        messages.value[aiMsgIdx].content = '图片识别超时，请稍后重试。'
       }
       // 刷新会话列表（获取自动命名的标题）
       loadSessions()
     } catch (e) {
       ElMessage.error('图片上传失败，请重试')
-      if (!aiMsg.content) {
+      if (!messages.value[aiMsgIdx].content) {
         const idx = messages.value.findIndex((m) => m.id === aiPlaceholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
       const uIdx = messages.value.findIndex((m) => m.id === userPlaceholderId)
-      if (uIdx >= 0 && userMsg.content.includes('[图片')) {
+      if (uIdx >= 0 && messages.value[uIdx].content.includes('[图片')) {
         messages.value.splice(uIdx, 1)
       }
     } finally {

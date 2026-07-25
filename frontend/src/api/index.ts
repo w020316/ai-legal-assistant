@@ -344,5 +344,22 @@ export interface AuditLogQuery {
 export const listAuditLogs = (params: AuditLogQuery) =>
   http.get<AuditLogPage>('/audit/logs', { params })
 
+// ==================== 多格式导出相关（v1.11.0 新增） ====================
+
+// 导出请求体
+export interface ExportParams {
+  title: string
+  content: string
+}
+
+// 导出为 Word (.docx)：返回 Blob，浏览器触发下载
+// 注意：responseType='blob' 时响应拦截器直接返回原始 Blob，不经过 ApiResult 解包
+export const exportToWord = (data: ExportParams) =>
+  http.post<Blob>('/export/word', data, { responseType: 'blob' }) as unknown as Promise<Blob>
+
+// 导出为 PDF (.pdf)：返回 Blob
+export const exportToPdf = (data: ExportParams) =>
+  http.post<Blob>('/export/pdf', data, { responseType: 'blob' }) as unknown as Promise<Blob>
+
 // 重新导出类型
 export type { ApiResult }

@@ -140,6 +140,10 @@ public class ChatService {
      * @throws BusinessException 会话不存在或不属于该用户
      */
     public ChatSession getSession(Long userId, Long sessionId) {
+        // v1.11.0 修复：userId 为 null 时主动抛 BusinessException，避免下游 NPE
+        if (userId == null) {
+            throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
+        }
         ChatSession session = sessionMapper.selectById(sessionId);
         if (session == null || !userId.equals(session.getUserId())) {
             throw BusinessException.of(ResultCode.NOT_FOUND, "会话不存在或无权限");
@@ -174,16 +178,29 @@ public class ChatService {
 
     /**
      * 批量删除会话
+     * <p>
+     * v1.11.0 修复 H-8：将 N+1 查询改为一次 selectList 校验归属 + deleteBatchIds 批量删除，
+     * 并添加 @Transactional 保证部分失败时整体回滚，避免留下不一致状态。
      */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void deleteSessions(Long userId, List<Long> sessionIds) {
-        for (Long id : sessionIds) {
-            try {
-                getSession(userId, id);
-                sessionMapper.deleteById(id);
-            } catch (Exception e) {
-                log.warn("批量删除会话跳过: id={}, {}", id, e.getMessage());
-            }
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return;
         }
+        // 一次性查询所有归属当前用户的会话，过滤掉不属于该用户的 id
+        List<ChatSession> owned = sessionMapper.selectList(
+                new LambdaQueryWrapper<ChatSession>()
+                        .select(ChatSession::getId)
+                        .eq(ChatSession::getUserId, userId)
+                        .in(ChatSession::getId, sessionIds));
+        if (owned.isEmpty()) {
+            log.warn("批量删除会话跳过: userId={}, 无归属会话 ids={}", userId, sessionIds);
+            return;
+        }
+        List<Long> ownedIds = owned.stream().map(ChatSession::getId).toList();
+        // 级联删除依赖 ON DELETE CASCADE（chat_message 表已配 FK CASCADE）
+        sessionMapper.deleteBatchIds(ownedIds);
+        log.info("批量删除会话: userId={}, count={}", userId, ownedIds.size());
     }
 
     /**
@@ -246,6 +263,8 @@ public class ChatService {
         touchSession(sessionId);
 
         // 3. 异步执行 RAG 检索 + AI 调用 + 保存 AI 消息
+        // v1.11.0 修复 C-1：使用 AtomicBoolean 保证超时与正常完成只保存一次，避免重复消息
+        java.util.concurrent.atomic.AtomicBoolean saved = new java.util.concurrent.atomic.AtomicBoolean(false);
         CompletableFuture.runAsync(() -> {
             try {
                 // RAG 检索（embedding 模型不可用时降级为无上下文）
@@ -261,20 +280,26 @@ public class ChatService {
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
                         Map.of("context", context, "history", history, "question", filteredContent));
                 String aiContent = aiRouter.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
-                saveAssistantMessage(sessionId, aiContent, citationsJson);
-                log.info("异步 AI 回复完成: sessionId={}", sessionId);
-                // 如果会话标题是默认的"新对话"，自动生成标题
-                if ("新对话".equals(session.getTitle())) {
-                    autoRenameSession(sessionId, filteredContent);
+                if (saved.compareAndSet(false, true)) {
+                    saveAssistantMessage(sessionId, aiContent, citationsJson);
+                    log.info("异步 AI 回复完成: sessionId={}", sessionId);
+                    // 如果会话标题是默认的"新对话"，自动生成标题
+                    if ("新对话".equals(session.getTitle())) {
+                        autoRenameSession(sessionId, filteredContent);
+                    }
                 }
             } catch (Exception e) {
                 log.error("异步 AI 调用失败: sessionId={}", sessionId, e);
-                // 保存错误提示消息
-                saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
+                if (saved.compareAndSet(false, true)) {
+                    // 保存错误提示消息
+                    saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
+                }
             }
         }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
             log.error("异步 AI 调用超时: sessionId={}", sessionId, ex);
-            saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            if (saved.compareAndSet(false, true)) {
+                saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            }
             return null;
         });
 
@@ -311,6 +336,8 @@ public class ChatService {
         messageMapper.insertMessage(userMsg);
         touchSession(sessionId);
 
+        // v1.11.0 修复 C-1：使用 AtomicBoolean 保证超时、异常、正常完成只保存一次助手消息，避免重复消息
+        java.util.concurrent.atomic.AtomicBoolean saved = new java.util.concurrent.atomic.AtomicBoolean(false);
         CompletableFuture.runAsync(() -> {
             try {
                 // 第一步：识别图片中的法律问题
@@ -327,9 +354,11 @@ public class ChatService {
 
                 // 如果未识别到法律问题，保存提示消息
                 if (recognizedQuestion.contains("未识别到法律相关问题")) {
-                    saveAssistantMessage(sessionId,
-                            "抱歉，未能从图片中识别到法律相关问题。请上传包含法律内容的图片，或直接输入您的问题。",
-                            null);
+                    if (saved.compareAndSet(false, true)) {
+                        saveAssistantMessage(sessionId,
+                                "抱歉，未能从图片中识别到法律相关问题。请上传包含法律内容的图片，或直接输入您的问题。",
+                                null);
+                    }
                     return;
                 }
 
@@ -346,7 +375,9 @@ public class ChatService {
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
                         Map.of("context", context, "history", history, "question", recognizedQuestion));
                 String aiContent = aiRouter.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
-                saveAssistantMessage(sessionId, aiContent, citationsJson);
+                if (saved.compareAndSet(false, true)) {
+                    saveAssistantMessage(sessionId, aiContent, citationsJson);
+                }
 
                 // 第三步：自动命名
                 ChatSession session = sessionMapper.selectById(sessionId);
@@ -357,11 +388,15 @@ public class ChatService {
                 log.info("图片消息处理完成: sessionId={}", sessionId);
             } catch (Exception e) {
                 log.error("图片消息处理失败: sessionId={}", sessionId, e);
-                saveAssistantMessage(sessionId, "图片识别失败，请稍后重试或直接输入您的问题。", null);
+                if (saved.compareAndSet(false, true)) {
+                    saveAssistantMessage(sessionId, "图片识别失败，请稍后重试或直接输入您的问题。", null);
+                }
             }
         }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
             log.error("图片消息处理超时: sessionId={}", sessionId, ex);
-            saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            if (saved.compareAndSet(false, true)) {
+                saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
+            }
             return null;
         });
 
@@ -445,7 +480,9 @@ public class ChatService {
                 }
 
                 // 流式调用 AI
-                aiRouter.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
+                // v1.11.0 修复 H-12：保存 Disposable，emitter 回调中 dispose，
+                // 防止 emitter 超时/错误后上游 Flux 仍持续推送浪费 AI 配额与连接
+                reactor.core.Disposable disposable = aiRouter.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
                         .doOnNext(chunk -> {
                             try {
                                 fullContent.append(chunk);
@@ -480,6 +517,23 @@ public class ChatService {
                             emitter.completeWithError(e);
                         })
                         .subscribe();
+                // v1.11.0 修复 H-12：emitter 提前完成/超时/出错时取消上游订阅
+                emitter.onCompletion(() -> {
+                    if (!disposable.isDisposed()) {
+                        disposable.dispose();
+                    }
+                });
+                emitter.onTimeout(() -> {
+                    if (!disposable.isDisposed()) {
+                        log.warn("SSE emitter 超时，dispose 上游订阅: sessionId={}", sessionId);
+                        disposable.dispose();
+                    }
+                });
+                emitter.onError(t -> {
+                    if (!disposable.isDisposed()) {
+                        disposable.dispose();
+                    }
+                });
             } catch (Exception e) {
                 log.error("SSE 流式问答异常: sessionId={}", sessionId, e);
                 try {

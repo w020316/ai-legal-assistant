@@ -16,7 +16,8 @@ const emit = defineEmits<{
   (e: 'toggleStar', session: SessionVO): void
   (e: 'delete', id: number): void
   (e: 'batchDelete', ids: number[]): void
-  (e: 'export', id: number): void
+  // v1.11.0 新增：format 参数支持多格式导出（md/word/pdf）
+  (e: 'export', id: number, format: 'md' | 'word' | 'pdf'): void
 }>()
 
 const keyword = ref('')
@@ -185,7 +186,16 @@ async function handleDelete(session: SessionVO) {
             <span class="title">{{ s.title }}</span>
           </div>
           <div v-if="!multiSelectMode" class="item-actions">
-            <el-icon @click.stop="emit('export', s.id)"><Download /></el-icon>
+            <el-dropdown trigger="click" @command="(cmd: string) => emit('export', s.id, cmd as 'md' | 'word' | 'pdf')" @click.stop>
+              <el-icon><Download /></el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="md">导出 Markdown</el-dropdown-item>
+                  <el-dropdown-item command="word">导出 Word</el-dropdown-item>
+                  <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
             <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
           </div>

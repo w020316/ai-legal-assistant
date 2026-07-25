@@ -1,6 +1,8 @@
 package com.lawai.legalassistant.modules.casep.service;
 
 import com.lawai.legalassistant.ai.client.AiRouter;
+import com.lawai.legalassistant.common.exception.BusinessException;
+import com.lawai.legalassistant.common.result.ResultCode;
 import com.lawai.legalassistant.modules.casep.dto.CaseSearchRequest;
 import com.lawai.legalassistant.modules.casep.dto.CaseVO;
 import com.lawai.legalassistant.modules.casep.mapper.CaseMapper;
@@ -60,6 +62,9 @@ public class CaseService {
 
     /**
      * 向量检索 + 元数据过滤
+     * <p>
+     * v1.11.0 修复 H-13：embedding/向量检索服务故障时抛 BusinessException(AI_SERVICE_ERROR)，
+     * 区分"服务故障"与"无结果"，前端可提示"检索服务暂时不可用"而非误导性的"未找到案例"。
      */
     private List<CaseVO> searchByVector(CaseSearchRequest req) {
         try {
@@ -71,9 +76,12 @@ public class CaseService {
             }
             return caseMapper.searchByVectorWithFilters(
                     vecStr, req.getCause(), req.getCourtLevel(), req.getYear(), topK);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("案例向量检索失败: keyword={}", req.getKeyword(), e);
-            return Collections.emptyList();
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR,
+                    "检索服务暂时不可用，请稍后重试");
         }
     }
 

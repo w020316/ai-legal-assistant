@@ -3,6 +3,7 @@ package com.lawai.legalassistant.modules.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
+import com.lawai.legalassistant.common.util.FileTypeValidator;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeDoc;
 import com.lawai.legalassistant.modules.rag.mapper.KnowledgeChunkMapper;
@@ -49,6 +50,7 @@ public class PersonalKnowledgeService {
     /**
      * 上传个人知识库文档
      * <p>
+     * v1.11.0 修复 C-2：接入 FileTypeValidator magic bytes 校验，防止伪造扩展名上传恶意文件。
      * 解析文件文本 → 调用 RagService.ingestDocument 入库（私有归属）
      *
      * @param userId 用户 ID
@@ -62,10 +64,11 @@ public class PersonalKnowledgeService {
         }
 
         String originalFilename = file.getOriginalFilename();
-        String fileType = detectFileType(originalFilename);
 
         try {
             byte[] bytes = file.getBytes();
+            // v1.11.0 修复 C-2：使用 magic bytes 校验替代纯扩展名校验
+            String fileType = FileTypeValidator.validate(originalFilename, bytes);
             String text = parseText(fileType, bytes);
             if (text == null || text.isBlank()) {
                 throw BusinessException.of(ResultCode.PARAM_ERROR, "文档文本为空");
@@ -124,28 +127,16 @@ public class PersonalKnowledgeService {
 
     // ==================== 内部方法 ====================
 
-    private String detectFileType(String filename) {
-        if (filename == null) {
-            throw BusinessException.of(ResultCode.PARAM_ERROR, "文件名不能为空");
-        }
-        String lower = filename.toLowerCase();
-        if (lower.endsWith(".pdf")) {
-            return "PDF";
-        }
-        if (lower.endsWith(".docx")) {
-            return "DOCX";
-        }
-        if (lower.endsWith(".txt")) {
-            return "TXT";
-        }
-        throw BusinessException.of(ResultCode.PARAM_ERROR, "不支持的文件类型，仅支持 PDF/DOCX/TXT");
-    }
+    // v1.11.0 修复 C-2：移除仅校验扩展名的 detectFileType，改用 FileTypeValidator.validate
 
     private String parseText(String fileType, byte[] bytes) throws IOException {
         return switch (fileType) {
             case "PDF" -> parsePdf(bytes);
             case "DOCX" -> parseDocx(bytes);
             case "TXT" -> new String(bytes, StandardCharsets.UTF_8);
+            // v1.11.0 修复 C-2：图片类型暂不支持个人知识库上传（无 OCR 能力），由 FileTypeValidator 校验扩展名后在此拦截
+            case "JPG", "PNG" -> throw BusinessException.of(ResultCode.PARAM_ERROR,
+                    "个人知识库暂不支持图片上传，请上传 PDF/DOCX/TXT 文本文件");
             default -> throw new IllegalArgumentException("不支持的文件类型: " + fileType);
         };
     }

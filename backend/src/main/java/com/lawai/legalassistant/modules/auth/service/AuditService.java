@@ -28,6 +28,8 @@ public class AuditService {
 
     /**
      * 异步记录审计日志
+     * <p>
+     * v1.11.0 修复 H-14：异常时保留完整堆栈与关键字段，便于生产排障与合规追溯。
      */
     @Async
     public void record(Long userId, String action, String ip, String detail) {
@@ -40,7 +42,8 @@ public class AuditService {
             auditLog.setCreatedAt(Instant.now());
             auditLogMapper.insert(auditLog);
         } catch (Exception e) {
-            log.warn("审计日志写入失败: {}", e.getMessage());
+            // 保留堆栈与关键字段，便于审计链路故障定位
+            log.warn("审计日志写入失败: userId={}, action={}, ip={}", userId, action, ip, e);
         }
     }
 

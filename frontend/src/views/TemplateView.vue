@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Files, Document as DocumentIcon, CopyDocument, Download } from '@element-plus/icons-vue'
+import { Files, Document as DocumentIcon, CopyDocument, Download, ArrowDown } from '@element-plus/icons-vue'
 import {
   listTemplates,
   generateDocument,
+  exportToWord,
+  exportToPdf,
   type TemplateVO,
 } from '@/api'
+import { downloadBlob } from '@/utils/download'
 import MarkdownRenderer from '@/components/chat/MarkdownRenderer.vue'
 
 // 分类列表
@@ -131,18 +134,26 @@ async function handleCopy() {
   }
 }
 
-// 下载结果
-function handleDownload() {
+// 下载结果（v1.11.0 扩展 Word/PDF 导出）
+async function handleDownload(format: 'md' | 'word' | 'pdf' = 'md') {
   if (!generatedContent.value) return
-  const blob = new Blob([generatedContent.value], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${currentTemplate.value?.title || '文书'}.md`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  const title = currentTemplate.value?.title || '文书'
+  try {
+    if (format === 'md') {
+      const blob = new Blob([generatedContent.value], { type: 'text/markdown;charset=utf-8' })
+      downloadBlob(blob, `${title}.md`)
+    } else if (format === 'word') {
+      const blob = await exportToWord({ title, content: generatedContent.value })
+      downloadBlob(blob, `${title}.docx`)
+    } else if (format === 'pdf') {
+      const blob = await exportToPdf({ title, content: generatedContent.value })
+      downloadBlob(blob, `${title}.pdf`)
+    }
+    ElMessage.success('文书已导出')
+  } catch (e) {
+    console.error('文书导出失败', e)
+    ElMessage.error('导出失败，请稍后重试')
+  }
 }
 
 onMounted(() => loadTemplates())
@@ -267,7 +278,18 @@ onMounted(() => loadTemplates())
               </el-button>
               <template v-if="generatedContent">
                 <el-button :icon="CopyDocument" plain @click="handleCopy">复制</el-button>
-                <el-button :icon="Download" plain @click="handleDownload">下载</el-button>
+                <el-dropdown trigger="click" @command="(cmd: string) => handleDownload(cmd as 'md' | 'word' | 'pdf')">
+                  <el-button :icon="Download" plain>
+                    下载<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="md">Markdown</el-dropdown-item>
+                      <el-dropdown-item command="word">Word</el-dropdown-item>
+                      <el-dropdown-item command="pdf">PDF</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </div>
 

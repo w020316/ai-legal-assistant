@@ -2,7 +2,8 @@
 import { onMounted, ref, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useChatStore } from '@/stores/chat'
-import type { SessionVO } from '@/api'
+import { exportToWord, exportToPdf, type SessionVO } from '@/api'
+import { downloadBlob, buildFilename } from '@/utils/download'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageItem from '@/components/chat/MessageItem.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -19,19 +20,43 @@ async function scrollToBottom() {
   }
 }
 
-// 导出会话为 Markdown 文件（v1.9.1 新增）
-async function handleExport(sessionId: number) {
-  const content = await chatStore.exportSession(sessionId)
-  if (content) {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.download = `linzAI会话导出_${new Date().toISOString().slice(0, 10)}.md`
-    link.href = url
-    link.click()
-    URL.revokeObjectURL(url)
+// 导出会话（v1.9.1 新增 Markdown，v1.11.0 扩展 Word/PDF）
+async function handleExport(sessionId: number, format: 'md' | 'word' | 'pdf' = 'md') {
+  // 先获取会话标题用于文件名
+  const session = chatStore.sessions.find((s) => s.id === sessionId)
+  const title = session?.title || 'linzAI会话导出'
+  try {
+    if (format === 'md') {
+      // Markdown：后端返回纯文本，前端构造 Blob
+      const content = await chatStore.exportSession(sessionId)
+      if (!content) {
+        ElMessage.error('导出失败，请稍后重试')
+        return
+      }
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+      downloadBlob(blob, buildFilename(title, 'md'))
+    } else if (format === 'word') {
+      // Word：后端返回 .docx 二进制
+      const content = await chatStore.exportSession(sessionId)
+      if (!content) {
+        ElMessage.error('导出失败，请稍后重试')
+        return
+      }
+      const blob = await exportToWord({ title, content })
+      downloadBlob(blob, buildFilename(title, 'docx'))
+    } else if (format === 'pdf') {
+      // PDF：后端返回 .pdf 二进制
+      const content = await chatStore.exportSession(sessionId)
+      if (!content) {
+        ElMessage.error('导出失败，请稍后重试')
+        return
+      }
+      const blob = await exportToPdf({ title, content })
+      downloadBlob(blob, buildFilename(title, 'pdf'))
+    }
     ElMessage.success('会话已导出')
-  } else {
+  } catch (e) {
+    console.error('导出失败', e)
     ElMessage.error('导出失败，请稍后重试')
   }
 }

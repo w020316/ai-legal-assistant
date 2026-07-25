@@ -63,6 +63,7 @@ public class DocumentService {
      * <p>
      * v1.7.0 新增 magic bytes 校验，防止伪造扩展名上传恶意文件。
      * 图片类型（JPG/PNG）使用 AI Vision 识别文字，v1.6.0 新增。
+     * v1.11.0 修复 H-4：catch 块清理已写入的磁盘文件，避免事务回滚后文件成为孤儿。
      *
      * @param userId 用户 ID
      * @param file   上传文件
@@ -75,6 +76,8 @@ public class DocumentService {
         }
 
         String originalFilename = file.getOriginalFilename();
+        // v1.11.0 修复 H-4：filePath 提到 try 外，便于 catch 块清理孤儿文件
+        Path filePath = null;
 
         try {
             byte[] bytes = file.getBytes();
@@ -91,7 +94,7 @@ public class DocumentService {
                     ? originalFilename.substring(originalFilename.lastIndexOf("."))
                     : "";
             String storedFilename = UUID.randomUUID().toString() + ext;
-            Path filePath = uploadDir.resolve(storedFilename);
+            filePath = uploadDir.resolve(storedFilename);
             Files.write(filePath, bytes);
 
             // 3. 解析文本：图片类型用 AI Vision 识别，其他类型用本地解析
@@ -110,7 +113,26 @@ public class DocumentService {
             return new UploadResponse(doc.getId(), originalFilename, fileType, file.getSize());
         } catch (IOException e) {
             log.error("文档上传失败", e);
+            // v1.11.0 修复 H-4：IO 异常或后续事务回滚时清理已落盘的孤儿文件
+            cleanupOrphanFile(filePath);
             throw BusinessException.of(ResultCode.UNKNOWN, "文件读取失败");
+        } catch (RuntimeException e) {
+            // v1.11.0 修复 H-4：DB insert 失败等 RuntimeException 触发事务回滚时，同样清理孤儿文件
+            cleanupOrphanFile(filePath);
+            throw e;
+        }
+    }
+
+    /**
+     * 清理孤儿文件：DB 事务回滚后磁盘文件残留会导致存储膨胀
+     */
+    private void cleanupOrphanFile(Path filePath) {
+        if (filePath == null) return;
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException ignored) {
+            // 清理失败仅记录，不阻塞主流程
+            log.warn("清理孤儿文件失败: {}", filePath);
         }
     }
 

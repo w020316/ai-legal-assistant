@@ -27,7 +27,8 @@ RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -B -s /usr/share
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 ENV TZ=Asia/Shanghai
-RUN apk add --no-cache tzdata curl && \
+# v1.11.0 新增：安装 font-noto-cjk 提供 PDF 导出所需的中文字体
+RUN apk add --no-cache tzdata curl font-noto-cjk && \
     cp /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     mkdir -p /app/uploads /app/logs

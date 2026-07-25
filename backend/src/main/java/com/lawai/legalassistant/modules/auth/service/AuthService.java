@@ -12,9 +12,11 @@ import com.lawai.legalassistant.security.JwtUtil;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -48,7 +50,12 @@ public class AuthService {
 
     /**
      * 注册
+     * <p>
+     * v1.11.0 修复 H-5：添加 @Transactional 包裹唯一性检查 + insert，
+     * 缩短 TOCTOU 窗口；并捕获 DuplicateKeyException 兜底 DB 唯一索引冲突，
+     * 防止并发请求绕过应用层校验产生重复账号。
      */
+    @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest req) {
         // 校验用户名唯一
         Long exists = userMapper.selectCount(
@@ -71,7 +78,13 @@ public class AuthService {
         user.setStatus(1);
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException e) {
+            // DB 唯一索引兜底：应用层校验与 insert 之间并发插入时触发
+            log.warn("注册并发冲突，触发 DB 唯一索引兜底: username={}", req.getUsername());
+            throw BusinessException.of(ResultCode.CONFLICT, "用户名或邮箱已被注册");
+        }
         auditService.record(user.getId(), "REGISTER", null, "{\"username\":\"" + req.getUsername() + "\"}");
         log.info("用户注册成功: {}", req.getUsername());
     }

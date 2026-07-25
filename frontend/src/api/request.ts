@@ -84,11 +84,18 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 // 清除登录态并跳转登录页
+// v1.11.0 修复 H-10：用标志位去重，避免并发请求重复触发 forceLogout 导致页面多次跳转
+let isLoggingOut = false
 function forceLogout() {
+  if (isLoggingOut) return
+  isLoggingOut = true
   const userStore = useUserStore()
   userStore.logout()
   window.location.href = '/login'
 }
+
+// v1.11.0 修复 C-4：1002 业务码也加入 _retried 保护，避免刷新后仍 1002 形成死循环
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }
 
 // 响应拦截：统一处理业务码 + 401 自动刷新
 service.interceptors.response.use(
@@ -106,7 +113,13 @@ service.interceptors.response.use(
     const msg = ERROR_MESSAGES[res.code] || res.message || '请求失败'
     // 1002：Token 过期 — 尝试自动刷新
     if (res.code === 1002) {
-      const originalConfig = response.config
+      const originalConfig = response.config as RetriableConfig
+      // v1.11.0 修复 C-4：已重试过的 1002 直接失败，避免死循环
+      if (originalConfig._retried) {
+        ElMessage.error(msg)
+        return Promise.reject(new Error(msg))
+      }
+      originalConfig._retried = true
       if (!isRefreshing) {
         isRefreshing = true
         tryRefreshToken().then((newToken) => {
@@ -136,18 +149,17 @@ service.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status
-    const originalConfig = error.config
+    const originalConfig = error.config as RetriableConfig | undefined
 
     // HTTP 401：尝试自动刷新 Token 后重试一次
-    const retried = (originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })?._retried
-    if (status === 401 && originalConfig && !retried) {
+    if (status === 401 && originalConfig && !originalConfig._retried) {
       if (!isRefreshing) {
         isRefreshing = true
         const newToken = await tryRefreshToken()
         isRefreshing = false
         if (newToken) {
           onTokenRefreshed(newToken)
-          ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
+          originalConfig._retried = true
           originalConfig.headers.Authorization = `Bearer ${newToken}`
           return service(originalConfig)
         }
@@ -159,9 +171,11 @@ service.interceptors.response.use(
       return new Promise((resolve, reject) => {
         addPendingRequest({
           resolve: (token) => {
-            ;(originalConfig as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true
-            originalConfig.headers.Authorization = `Bearer ${token}`
-            service(originalConfig).then(resolve).catch(reject)
+            if (originalConfig) {
+              originalConfig._retried = true
+              originalConfig.headers.Authorization = `Bearer ${token}`
+              service(originalConfig).then(resolve).catch(reject)
+            }
           },
           reject,
         })

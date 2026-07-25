@@ -190,6 +190,9 @@ public final class PromptTemplates {
 
     /**
      * 简单字符串替换渲染
+     * <p>
+     * v1.11.0 修复 C-3：先转义变量值中的 { } 字符，防止用户输入中的占位符
+     * 被后续替换为真实内容，构成 prompt injection。
      *
      * @param template 模板，含 {key} 占位符
      * @param vars     变量映射
@@ -199,7 +202,9 @@ public final class PromptTemplates {
         String result = template;
         for (Map.Entry<String, String> e : vars.entrySet()) {
             String val = e.getValue() == null ? "" : e.getValue();
-            result = result.replace("{" + e.getKey() + "}", val);
+            // v1.11.0 修复 C-3：转义变量值中的 { } 防止注入
+            String safeVal = val.replace("{", "\\{").replace("}", "\\}");
+            result = result.replace("{" + e.getKey() + "}", safeVal);
         }
         return result;
     }

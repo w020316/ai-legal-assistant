@@ -61,3 +61,22 @@ data/
 # ===== 构建产物 =====
 build/
 out/
+
+# ===== Fly.io =====
+.fly/
+
+# ===== TypeScript 增量构建缓存 =====
+*.tsbuildinfo
+
+# ===== Vite 配置编译产物 =====
+frontend/vite.config.d.ts
+frontend/vite.config.js
+
+# ===== 大文件（视频/录屏等）=====
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# ===== 临时脚本 =====
+_generate_cases.py

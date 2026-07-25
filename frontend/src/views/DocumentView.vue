@@ -10,10 +10,13 @@ import {
   reanalyzeDocument,
   getDocumentAnalysis,
   compareDocuments,
+  exportToWord,
+  exportToPdf,
   type UserDocumentVO,
   type DocumentAnalysis,
   type ContractCompareVO,
 } from '@/api'
+import { downloadBlob } from '@/utils/download'
 
 const documents = ref<UserDocumentVO[]>([])
 const currentDoc = ref<UserDocumentVO | null>(null)
@@ -190,12 +193,9 @@ function togglePlain(idx: number) {
   plainExpanded.value[idx] = !plainExpanded.value[idx]
 }
 
-// 导出分析报告（Markdown 格式）
-function exportReport() {
-  if (!analysis.value || !currentDoc.value) {
-    ElMessage.warning('请先完成文档分析')
-    return
-  }
+// 构建分析报告 Markdown 文本（v1.11.0 抽取，供多格式导出复用）
+function buildReportMarkdown(): string | null {
+  if (!analysis.value || !currentDoc.value) return null
   const a = analysis.value
   const doc = currentDoc.value
   const now = new Date()
@@ -276,19 +276,37 @@ function exportReport() {
   lines.push(`*本报告由 linzAI 法律助手生成，仅供参考，不构成法律意见。`)
   lines.push(`生成时间：${ts}*`)
 
-  // 下载 Markdown 文件
-  const content = lines.join('\n')
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
+  return lines.join('\n')
+}
+
+// 导出分析报告（v1.9.1 Markdown，v1.11.0 扩展 Word/PDF）
+async function exportReport(format: 'md' | 'word' | 'pdf' = 'md') {
+  const content = buildReportMarkdown()
+  if (!content) {
+    ElMessage.warning('请先完成文档分析')
+    return
+  }
+  const doc = currentDoc.value!
   const safeName = doc.filename.replace(/\.[^.]+$/, '')
-  link.href = url
-  link.download = `合同审查报告_${safeName}_${ts.replace(/[:\s]/g, '-')}.md`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-  ElMessage.success('报告已导出')
+  const now = new Date()
+  const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const title = `合同审查报告_${safeName}`
+  try {
+    if (format === 'md') {
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+      downloadBlob(blob, `${title}_${ts}.md`)
+    } else if (format === 'word') {
+      const blob = await exportToWord({ title, content })
+      downloadBlob(blob, `${title}_${ts}.docx`)
+    } else if (format === 'pdf') {
+      const blob = await exportToPdf({ title, content })
+      downloadBlob(blob, `${title}_${ts}.pdf`)
+    }
+    ElMessage.success('报告已导出')
+  } catch (e) {
+    console.error('报告导出失败', e)
+    ElMessage.error('导出失败，请稍后重试')
+  }
 }
 
 // 打开比对对话框
@@ -401,6 +419,8 @@ async function fetchAnalysis(id: number) {
 
 // 触发分析
 async function handleAnalyze() {
+  // v1.11.0 修复 H-4：拦截并发点击
+  if (analyzing.value) return
   if (!currentDoc.value) return
   const docId = currentDoc.value.id
   analyzing.value = true
@@ -443,6 +463,8 @@ async function handleAnalyze() {
 
 // 重新分析：清除缓存后强制重新调用 AI（v1.9.0 新增）
 async function handleReanalyze() {
+  // v1.11.0 修复 H-4：拦截并发点击
+  if (analyzing.value) return
   if (!currentDoc.value) return
   const docId = currentDoc.value.id
   analyzing.value = true
@@ -450,6 +472,8 @@ async function handleReanalyze() {
   // 开始进度反馈
   analyzeProgress.value = { stage: '正在清除旧分析结果', percent: 5 }
   let stageIdx = 0
+  // v1.11.0 修复 C-2：先清除可能存在的旧 timer，防止多个 interval 并行
+  if (analyzeTimer) { clearInterval(analyzeTimer); analyzeTimer = null }
   analyzeTimer = setInterval(() => {
     stageIdx = Math.min(stageIdx + 1, analyzeStages.length - 1)
     analyzeProgress.value = { ...analyzeStages[stageIdx] }
@@ -569,12 +593,18 @@ onUnmounted(() => {
             >
               重新分析
             </el-button>
-            <el-button
-              v-if="analysis"
-              @click="exportReport"
-            >
-              导出报告
-            </el-button>
+            <el-dropdown v-if="analysis" trigger="click" @command="(cmd: string) => exportReport(cmd as 'md' | 'word' | 'pdf')">
+              <el-button type="primary">
+                导出报告<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="md">导出 Markdown</el-dropdown-item>
+                  <el-dropdown-item command="word">导出 Word</el-dropdown-item>
+                  <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button
               :loading="comparing"
               :disabled="documents.length < 2"

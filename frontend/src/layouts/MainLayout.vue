@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { ElMessageBox } from 'element-plus'
+import http from '@/api/request'
 import VersionUpdateDialog from '@/components/common/VersionUpdateDialog.vue'
 import {
   ChatDotRound,
@@ -60,7 +62,23 @@ function handleMenuSelect(index: string) {
   if (isMobile.value) drawerVisible.value = false
 }
 
-function handleLogout() {
+// v1.11.0 修复 H-2：登出时调用后端 /auth/logout 将 access/refresh token 加入黑名单，
+// 避免登出后 token 在有效期内被窃取仍可使用。best-effort 调用：失败也清本地状态。
+async function handleLogout() {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await http.post('/auth/logout')
+  } catch {
+    // best-effort：后端登出失败不阻塞前端清理
+  }
   userStore.logout()
   router.push('/login')
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { Search, Star, StarFilled, Download, Delete, Collection } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
+import { Search, Star, StarFilled, Download, Delete, Collection, Clock, Close, RefreshLeft } from '@element-plus/icons-vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { searchCases, type CaseVO, type CaseSearchRequest } from '@/api'
 import { useCaseFavorites } from '@/composables/useCaseFavorites'
+import { useCaseSearchHistory } from '@/composables/useCaseSearchHistory'
 
 // 案由选项
 const causeOptions = [
@@ -29,6 +30,23 @@ const courtLevelOptions = [
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: currentYear - 2015 + 1 }, (_, i) => currentYear - i)
 
+// 要素示例（v1.11.0 新增）：点击后快速填充关键词并触发检索
+// 覆盖常见法律咨询场景，引导用户快速上手语义检索
+const elementExamples = [
+  { label: '合同解除', keyword: '合同解除 法定解除权', cause: '合同纠纷' },
+  { label: '违约金调整', keyword: '违约金过高 调整', cause: '合同纠纷' },
+  { label: '竞业限制', keyword: '竞业限制 经济补偿', cause: '劳动争议' },
+  { label: '工伤认定', keyword: '工伤认定 视同工伤', cause: '劳动争议' },
+  { label: '精神损害赔偿', keyword: '精神损害赔偿 严重后果', cause: '侵权责任' },
+  { label: '网络侵权', keyword: '网络侵权 名誉权', cause: '侵权责任' },
+  { label: '离婚财产分割', keyword: '离婚 夫妻共同财产', cause: '婚姻家庭' },
+  { label: '抚养权变更', keyword: '抚养权变更 子女利益', cause: '婚姻家庭' },
+  { label: '房屋买卖', keyword: '房屋买卖合同 网签', cause: '房产纠纷' },
+  { label: '民间借贷', keyword: '民间借贷 利息保护', cause: '借贷纠纷' },
+  { label: '商标侵权', keyword: '商标侵权 混淆', cause: '知识产权' },
+  { label: '股东出资', keyword: '股东出资 抽逃出资', cause: '公司股权' },
+]
+
 // 搜索表单
 const form = reactive<CaseSearchRequest>({
   keyword: '',
@@ -51,6 +69,10 @@ const viewMode = ref<ViewMode>('search')
 const { favorites, isFavorited, toggleFavorite, clearFavorites, exportFavorites } =
   useCaseFavorites()
 
+// 搜索历史（v1.11.0 新增）
+const { history: searchHistory, recordSearch, removeHistory, clearHistory } =
+  useCaseSearchHistory()
+
 // 当前展示的列表（根据视图模式切换）
 const displayCases = computed(() => (viewMode.value === 'search' ? cases.value : favorites.value))
 
@@ -71,6 +93,34 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const drawerVisible = ref(false)
 const currentCase = ref<CaseVO | null>(null)
 
+// 相关案例推荐（v1.11.0 新增）：基于当前案例的案由 + 关键词推荐最多 5 条相似案例
+// 策略：优先匹配案由，其次匹配年份，从已检索结果集中筛选并排除当前案例
+const relatedCases = computed<CaseVO[]>(() => {
+  if (!currentCase.value) return []
+  const cur = currentCase.value
+  // 仅从已加载的检索结果中推荐（避免额外请求）
+  const pool = cases.value.length > 0 ? cases.value : favorites.value
+  if (pool.length === 0) return []
+
+  // 评分：案由相同 +3，年份相同 +2，法院相同 +1
+  const scored = pool
+    .filter((c) => c.id !== cur.id)
+    .map((c) => {
+      let score = 0
+      if (c.caseCause && cur.caseCause && c.caseCause === cur.caseCause) score += 3
+      if (c.year && cur.year && c.year === cur.year) score += 2
+      if (c.court && cur.court && c.court === cur.court) score += 1
+      return { c, score }
+    })
+    .sort((a, b) => b.score - a.score)
+
+  // 优先返回有相关性的（score > 0），不足 5 条时用其他案例补齐
+  const related = scored.filter((s) => s.score > 0).map((s) => s.c)
+  if (related.length >= 5) return related.slice(0, 5)
+  const fillers = scored.filter((s) => s.score === 0).map((s) => s.c)
+  return [...related, ...fillers].slice(0, 5)
+})
+
 // 执行检索
 async function handleSearch() {
   const currentId = ++requestId.value
@@ -90,6 +140,8 @@ async function handleSearch() {
     // 仅接受最新请求的响应，避免旧结果覆盖新结果
     if (currentId !== requestId.value) return
     cases.value = res.data || []
+    // 记录搜索历史（v1.11.0 新增）
+    recordSearch(params)
   } finally {
     if (currentId === requestId.value) {
       loading.value = false
@@ -125,10 +177,52 @@ function switchMode(mode: ViewMode) {
   currentPage.value = 1
 }
 
+// 点击要素示例（v1.11.0 新增）：填充表单并立即检索
+function handleExampleClick(example: { label: string; keyword: string; cause: string }) {
+  form.keyword = example.keyword
+  form.cause = example.cause
+  form.courtLevel = ''
+  form.year = undefined
+  handleSearch()
+}
+
+// 点击搜索历史（v1.11.0 新增）：回填表单并立即检索
+function handleHistoryClick(query: CaseSearchRequest) {
+  form.keyword = query.keyword || ''
+  form.cause = query.cause || ''
+  form.courtLevel = query.courtLevel || ''
+  form.year = query.year
+  handleSearch()
+}
+
+// 清空搜索历史确认
+function handleClearHistory() {
+  ElMessageBox.confirm('确认清空全部搜索历史吗？此操作不可恢复。', '清空确认', {
+    type: 'warning',
+    confirmButtonText: '清空',
+    cancelButtonText: '取消',
+  })
+    .then(() => {
+      clearHistory()
+      ElMessage.success('搜索历史已清空')
+    })
+    .catch(() => {
+      // 用户取消
+    })
+}
+
 // 查看详情
 function handleViewDetail(c: CaseVO) {
   currentCase.value = c
   drawerVisible.value = true
+}
+
+// 切换详情抽屉中的案例（v1.11.0 新增）：点击相关推荐时切换显示
+function handleSwitchCase(c: CaseVO) {
+  currentCase.value = c
+  // 滚动到详情顶部
+  const drawerBody = document.querySelector('.el-drawer__body')
+  if (drawerBody) drawerBody.scrollTop = 0
 }
 
 // 收藏按钮点击：阻止冒泡避免触发卡片点击
@@ -215,6 +309,64 @@ onMounted(handleSearch)
     </div>
     <div v-if="viewMode === 'search'" class="search-hint">
       提示：输入关键词可进行语义检索，或按案由/法院/年份筛选
+    </div>
+
+    <!-- 要素示例 + 搜索历史（v1.11.0 新增，仅检索模式显示） -->
+    <div v-if="viewMode === 'search'" class="quick-region">
+      <!-- 要素示例：点击快速填充 -->
+      <div class="quick-block">
+        <div class="quick-title">
+          <el-icon><Search /></el-icon>
+          <span>要素示例</span>
+        </div>
+        <div class="quick-tags">
+          <el-tag
+            v-for="ex in elementExamples"
+            :key="ex.label"
+            class="example-tag"
+            size="small"
+            effect="plain"
+            round
+            @click="handleExampleClick(ex)"
+          >
+            {{ ex.label }}
+          </el-tag>
+        </div>
+      </div>
+
+      <!-- 搜索历史：仅当有历史时显示 -->
+      <div v-if="searchHistory.length > 0" class="quick-block history-block">
+        <div class="quick-title">
+          <el-icon><Clock /></el-icon>
+          <span>搜索历史</span>
+          <el-button
+            class="clear-history-btn"
+            text
+            size="small"
+            :icon="Delete"
+            @click="handleClearHistory"
+          >
+            清空
+          </el-button>
+        </div>
+        <div class="quick-tags">
+          <div
+            v-for="h in searchHistory.slice(0, 8)"
+            :key="h.id"
+            class="history-chip"
+            @click="handleHistoryClick(h.query)"
+          >
+            <span class="history-label" :title="h.label">{{ h.label }}</span>
+            <button
+              class="history-close"
+              title="移除"
+              @click.stop="removeHistory(h.id)"
+            >
+              <el-icon><Close /></el-icon>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 收藏夹操作栏 -->
@@ -327,6 +479,32 @@ onMounted(handleSearch)
             <div class="detail-section-title">案件摘要</div>
             <div class="detail-text">{{ currentCase.summary }}</div>
           </div>
+
+          <!-- 相关案例推荐（v1.11.0 新增） -->
+          <div v-if="relatedCases.length > 0" class="detail-section">
+            <div class="detail-section-title">
+              <el-icon><RefreshLeft /></el-icon>
+              相关案例推荐
+              <span class="related-count">{{ relatedCases.length }}</span>
+            </div>
+            <div class="related-list">
+              <div
+                v-for="rc in relatedCases"
+                :key="rc.id"
+                class="related-item"
+                @click="handleSwitchCase(rc)"
+              >
+                <div class="related-title" :title="rc.title">{{ rc.title }}</div>
+                <div class="related-meta">
+                  <span v-if="rc.caseCause">{{ rc.caseCause }}</span>
+                  <span v-if="rc.year" class="dot">·</span>
+                  <span v-if="rc.year">{{ rc.year }}年</span>
+                  <span v-if="rc.court" class="dot">·</span>
+                  <span v-if="rc.court">{{ rc.court }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
     </el-drawer>
@@ -406,6 +584,104 @@ onMounted(handleSearch)
   font-size: 12px;
   color: var(--color-text-secondary);
   padding: 0 20px 8px;
+}
+
+/* 要素示例 + 搜索历史区域（v1.11.0 新增） */
+.quick-region {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 4px;
+}
+.quick-block {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-card);
+}
+.quick-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 10px;
+  .el-icon {
+    font-size: 13px;
+  }
+  .clear-history-btn {
+    margin-left: auto;
+    color: var(--color-text-secondary);
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+}
+.quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.example-tag {
+  cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: rgba(122, 31, 43, 0.04);
+    transform: translateY(-1px);
+  }
+}
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-soft);
+  font-size: 12px;
+  color: var(--color-text-regular);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-bg-card);
+  }
+  .history-label {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    &:hover {
+      background: var(--color-accent);
+      color: #FBF8F1;
+    }
+    .el-icon {
+      font-size: 11px;
+    }
+  }
 }
 
 /* 收藏夹操作栏 */
@@ -706,6 +982,65 @@ onMounted(handleSearch)
   white-space: pre-wrap;
 }
 
+/* 相关案例推荐列表（v1.11.0 新增） */
+.related-count {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 5px;
+  margin-left: 4px;
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--color-accent);
+  color: #FBF8F1;
+  letter-spacing: 0;
+}
+.related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.related-item {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-soft);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover {
+    border-color: var(--color-accent);
+    background: var(--color-bg-card);
+    transform: translateX(2px);
+    .related-title {
+      color: var(--color-accent);
+    }
+  }
+}
+.related-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: var(--transition-fast);
+}
+.related-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  .dot {
+    margin: 0 2px;
+  }
+}
+
 /* ===== 响应式断点：平板 1024px ===== */
 @media (max-width: 1024px) {
   .page-title {
@@ -754,6 +1089,18 @@ onMounted(handleSearch)
   .search-hint {
     padding: 0 14px 8px;
     font-size: 11px;
+  }
+  // v1.11.0 新增：移动端要素示例和历史区域适配
+  .quick-region {
+    gap: 10px;
+  }
+  .quick-block {
+    padding: 10px 14px;
+  }
+  .history-chip {
+    .history-label {
+      max-width: 140px;
+    }
   }
   .case-list {
     padding: 10px 12px;

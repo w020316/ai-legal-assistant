@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.Instant;
 
@@ -22,6 +23,8 @@ public class SysUser {
     private String email;
 
     /** bcrypt 加密后的密码 */
+    // v1.11.0 修复 C-4：防止 password 哈希被 Jackson 序列化泄露
+    @JsonIgnore
     private String password;
 
     /** 角色：LAWYER / ADMIN */
@@ -52,4 +55,10 @@ public class SysUser {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    // v1.11.0 修复 C-4：toString 排除 password，防止日志泄露
+    @Override
+    public String toString() {
+        return "SysUser{id=" + id + ", username='" + username + "', role='" + role + "', status=" + status + "}";
+    }
 }
