@@ -80,3 +80,10 @@ frontend/vite.config.js
 
 # ===== 临时脚本 =====
 _generate_cases.py
+
+
+
+# ===== 前端构建/缓存产物 =====
+frontend/dist/
+dist-frontend.zip
+.gh-cache/
