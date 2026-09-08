@@ -217,7 +217,7 @@ function handleViewDetails() {
       <div class="masthead">
         <span class="masthead-version">{{ CURRENT_VERSION }}</span>
         <span class="masthead-sep">❦</span>
-        <span class="masthead-date">2026.07.24</span>
+        <span class="masthead-date">{{ changelogs[0]?.date || CURRENT_VERSION }}</span>
       </div>
       <div class="masthead-tagline">linzAI 法律助手 · The Verdict</div>
 
