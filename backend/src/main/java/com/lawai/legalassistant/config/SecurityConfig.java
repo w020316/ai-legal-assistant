@@ -46,7 +46,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.disable()) // CORS 由 CorsFilter Bean 处理
+                .cors(cors -> cors.disable()) // CORS 响应头由独立 CorsFilter Bean 提供
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     // v1.13.1：放行 OPTIONS 预检，避免跨域 POST 被浏览器 CORS 预检 403 →

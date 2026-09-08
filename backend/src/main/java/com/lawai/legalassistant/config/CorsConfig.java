@@ -1,6 +1,5 @@
 package com.lawai.legalassistant.config;
 
-import com.lawai.legalassistant.common.result.Result;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +11,9 @@ import java.util.List;
 
 /**
  * CORS 跨域配置
+ * <p>
+ * 由独立 CorsFilter 提供跨域响应头；结合 SecurityConfig 对 OPTIONS 预检的放行，
+ * 确保跨域 POST（登录/refresh/创建会话）的预检不被安全链拦截为 403。
  */
 @Configuration
 public class CorsConfig {
