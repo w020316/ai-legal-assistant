@@ -67,9 +67,19 @@ public class AiRouter {
     }
 
     /**
-     * 流式对话：当前仅 Agnes 支持（Tacklekey 流式未实现，避免复杂度）
+     * 流式对话：优先主模型（GLM/Tacklekey），失败降级 Agnes
+     * <p>
+     * 使用 onErrorResume 在流式过程中任一步失败时切入 Agnes，保证问答不中断。
      */
     public reactor.core.publisher.Flux<String> streamChat(String systemPrompt, String userMessage) {
+        if (tacklekeyEnabled && tacklekeyClient != null) {
+            log.info("流式对话走主模型 | model={}", tacklekeyClient.modelName());
+            return tacklekeyClient.streamChat(systemPrompt, userMessage)
+                    .onErrorResume(e -> {
+                        log.warn("主模型流式调用失败，降级到 Agnes | error={}", e.getMessage());
+                        return agnesClient.streamChat(systemPrompt, userMessage);
+                    });
+        }
         return agnesClient.streamChat(systemPrompt, userMessage);
     }
 

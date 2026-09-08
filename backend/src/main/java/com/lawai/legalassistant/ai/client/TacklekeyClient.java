@@ -2,6 +2,8 @@ package com.lawai.legalassistant.ai.client;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lawai.legalassistant.common.exception.BusinessException;
 import com.lawai.legalassistant.common.result.ResultCode;
 import org.slf4j.Logger;
@@ -10,12 +12,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Tacklekey AI 客户端
@@ -33,6 +40,7 @@ public class TacklekeyClient {
     private static final Logger log = LoggerFactory.getLogger(TacklekeyClient.class);
 
     private final RestClient restClient;
+    private final WebClient streamClient;
     private final String model;
 
     public TacklekeyClient(
@@ -51,7 +59,20 @@ public class TacklekeyClient {
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
+        // 响应式流式客户端（SSE），使用 reactor-netty
+        this.streamClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .build();
         log.info("TacklekeyClient 已启用 | base-url={} | model={} | timeout={}s", baseUrl, model, timeoutSeconds);
+    }
+
+    /**
+     * 当前主模型名称（用于日志与诊断）
+     */
+    public String modelName() {
+        return model;
     }
 
     /**
@@ -89,6 +110,50 @@ public class TacklekeyClient {
         } catch (Exception e) {
             log.error("Tacklekey 同步调用失败 | 耗时={}ms", System.currentTimeMillis() - start, e);
             throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Tacklekey AI 服务暂时不可用", e);
+        }
+    }
+
+    /**
+     * 流式对话（SSE）
+     * <p>
+     * 主 AI（GLM 等 OpenAI 兼容服务）的流式调用，返回逐段文本的 Flux<String>。
+     * 与 AiRouter.streamChat 配合，使聊天主路径走主模型，失败时由路由层降级到 Agnes。
+     */
+    public Flux<String> streamChat(String systemPrompt, String userMessage) {
+        Map<String, Object> req = new HashMap<>();
+        req.put("model", model);
+        req.put("messages", List.of(
+                Map.of("role", "system", "content", systemPrompt),
+                Map.of("role", "user", "content", userMessage)
+        ));
+        req.put("temperature", 0.3);
+        req.put("max_tokens", 4096);
+        req.put("stream", true);
+
+        return streamClient.post()
+                .uri("/v1/chat/completions")
+                .bodyValue(req)
+                .retrieve()
+                .bodyToFlux(ServerSentEvent.class)
+                .mapNotNull(e -> e == null ? null : e.data())
+                .takeWhile(data -> data != null && !"[DONE]".equals(data))
+                .map(data -> extractDeltaContent((String) data))
+                .filter(Objects::nonNull);
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    /**
+     * 从 OpenAI 兼容的流式 JSON 中提取增量 content 文本
+     */
+    private String extractDeltaContent(String data) {
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(data);
+            JsonNode delta = node.path("choices").path(0).path("delta").path("content");
+            return delta.isMissingNode() || delta.isNull() ? null : delta.asText();
+        } catch (Exception e) {
+            // 无法解析的 SSE 行直接忽略
+            return null;
         }
     }
 

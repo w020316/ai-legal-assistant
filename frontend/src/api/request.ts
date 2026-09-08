@@ -18,7 +18,7 @@ const ERROR_MESSAGES: Record<number, string> = {
 }
 
 const service: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -64,7 +64,7 @@ async function tryRefreshToken(): Promise<string | null> {
   if (!userStore.refreshToken) return null
   try {
     const res = await axios.post<ApiResult<{ accessToken: string; refreshToken: string; username: string; role: string }>>(
-      '/api/v1/auth/refresh',
+      `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/auth/refresh`,
       { refreshToken: userStore.refreshToken },
       { headers: { 'Content-Type': 'application/json' } },
     )

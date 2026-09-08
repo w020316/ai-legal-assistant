@@ -140,7 +140,7 @@ export const useChatStore = defineStore('chat', () => {
     const aiMsgIdx = messages.value.length - 1
 
     try {
-      const resp = await fetch(`/api/v1/sessions/${sessionId}/stream`, {
+      const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/sessions/${sessionId}/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
