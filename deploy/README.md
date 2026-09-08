@@ -44,8 +44,9 @@
 | `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Neon PostgreSQL 连接信息 |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
 | `JWT_SECRET` | JWT 签名密钥 |
-| `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型） |
-| `TACKLEKEY_API_KEY` / `TACKLEKEY_BASE_URL` / `TACKLEKEY_MODEL` / `TACKLEKEY_ENABLED` | GLM 主模型（Tacklekey，OpenAI 兼容） |
+| `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型，降级用） |
+| `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` | **主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。配置 `GLM_API_KEY` 即自动以智谱为主，无需开关；失败/配额耗尽自动降级 Agnes |
+| `TACKLEKEY_API_KEY` / `TACKLEKEY_MODEL` / `TACKLEKEY_ENABLED` | （兼容别名，等价 GLM_*，可忽略） |
 
 > `CORS_ALLOWED_ORIGINS` 不必配置：默认值已在 `application.yml` 中包含
 > `https://lawai-frontend.pages.dev` 等前端域名。
@@ -86,10 +87,10 @@ Cloudflare Dashboard → Workers & Pages → Create → **Upload your static fil
 
 ## 五、AI 模型路由
 
-- **主模型**：GLM（Tacklekey，OpenAI 兼容 `/v1/chat/completions`）
+- **主模型**：智谱 GLM（`https://open.bigmodel.cn/api/paas/v4`，OpenAI 兼容，默认 `glm-4-flash`）
 - **辅助模型**：Agnes
-- 支持同步 Chat 与 SSE 流式（`streamChat`）
-- 主模型失败自动降级到 Agnes（日志 `warn` 记录，`onErrorResume`）
+- 配置 `GLM_API_KEY` 即自动以智谱为主（无需开关），支持同步 Chat 与 SSE 流式（`streamChat`）
+- 主模型失败/配额耗尽自动降级到 Agnes（日志 `warn` 记录，`onErrorResume`）
 
 ## 六、常见问题
 

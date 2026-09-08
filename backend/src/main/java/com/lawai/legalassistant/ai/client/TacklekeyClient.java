@@ -39,13 +39,16 @@ public class TacklekeyClient {
     private final RestClient restClient;
     private final WebClient streamClient;
     private final String model;
+    private final String chatPath;
 
     public TacklekeyClient(
-            @Value("${lawai.ai.tacklekey.base-url:https://api.tacklekey.com}") String baseUrl,
-            @Value("${lawai.ai.tacklekey.api-key:}") String apiKey,
-            @Value("${lawai.ai.tacklekey.model:openai/gpt-5.5:free}") String model,
-            @Value("${lawai.ai.tacklekey.timeout:60}") long timeoutSeconds) {
+            @Value("${lawai.ai.glm.base-url:https://open.bigmodel.cn/api/paas/v4}") String baseUrl,
+            @Value("${lawai.ai.glm.api-key:}") String apiKey,
+            @Value("${lawai.ai.glm.model:glm-4-flash}") String model,
+            @Value("${lawai.ai.glm.chat-path:/chat/completions}") String chatPath,
+            @Value("${lawai.ai.glm.timeout:60}") long timeoutSeconds) {
         this.model = model;
+        this.chatPath = chatPath;
         // 配置连接与读取超时，防止 AI 接口挂起耗尽线程池
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10000); // 10s 连接超时
@@ -92,7 +95,7 @@ public class TacklekeyClient {
                     4096
             );
             ChatResponse resp = restClient.post()
-                    .uri("/v1/chat/completions")
+                    .uri(chatPath)
                     .body(req)
                     .retrieve()
                     .body(ChatResponse.class);
@@ -128,7 +131,7 @@ public class TacklekeyClient {
         req.put("stream", true);
 
         return streamClient.post()
-                .uri("/v1/chat/completions")
+                .uri(chatPath)
                 .bodyValue(req)
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
@@ -185,7 +188,7 @@ public class TacklekeyClient {
                     "max_tokens", 4096
             );
             ChatResponse resp = restClient.post()
-                    .uri("/v1/chat/completions")
+                    .uri(chatPath)
                     .body(reqBody)
                     .retrieve()
                     .body(ChatResponse.class);

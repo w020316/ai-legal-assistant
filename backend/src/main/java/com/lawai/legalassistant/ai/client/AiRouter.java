@@ -29,17 +29,17 @@ public class AiRouter {
     @Autowired
     public AiRouter(
             AgnesClient agnesClient,
-            @Value("${lawai.ai.tacklekey.enabled:false}") boolean tacklekeyEnabledFlag,
-            @Value("${lawai.ai.tacklekey.api-key:}") String tacklekeyApiKey,
+            @Value("${lawai.ai.glm.enabled:false}") boolean glmEnabledFlag,
+            @Value("${lawai.ai.glm.api-key:}") String glmApiKey,
             Optional<TacklekeyClient> tacklekeyClientOptional
     ) {
         this.agnesClient = agnesClient;
-        // v1.13.0：GLM 自动启用——显式开关或已配置 TACKLEKEY_API_KEY 任一满足即以 GLM 为主模型
-        this.tacklekeyEnabled = tacklekeyEnabledFlag || (tacklekeyApiKey != null && !tacklekeyApiKey.isBlank());
+        // v1.13.1：GLM(智谱) 自动启用——显式开关或已配置 API Key 任一满足即以 GLM 为主模型
+        this.tacklekeyEnabled = glmEnabledFlag || (glmApiKey != null && !glmApiKey.isBlank());
         this.tacklekeyClient = tacklekeyClientOptional.orElse(null);
-        log.info("AiRouter 初始化 | tacklekey.enabled={} | apikey={} | tacklekeyClient={}",
+        log.info("AiRouter 初始化 | glm.enabled={} | glm.apikey={} | glmClient={}",
                 this.tacklekeyEnabled,
-                (tacklekeyApiKey == null || tacklekeyApiKey.isBlank()) ? "未配置" : "已配置",
+                (glmApiKey == null || glmApiKey.isBlank()) ? "未配置" : "已配置",
                 tacklekeyClient != null ? "已加载" : "未加载");
     }
 

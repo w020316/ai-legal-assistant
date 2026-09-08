@@ -66,12 +66,15 @@ springdoc:
 lawai:
   # AI 模型路由（Tacklekey 免费模型 + Agnes 降级）
   ai:
-    tacklekey:
-      enabled: ${TACKLEKEY_ENABLED:false}
-      base-url: ${TACKLEKEY_BASE_URL:https://api.tacklekey.com}
-      api-key: ${TACKLEKEY_API_KEY:}
-      model: ${TACKLEKEY_MODEL:openai/gpt-5.5:free}
-      timeout: ${TACKLEKEY_TIMEOUT:60}
+    # 主模型：默认智谱 Zhipu GLM（OpenAI 兼容 v4 端点）。
+    # 配置 GLM_API_KEY（或显式 GLM_ENABLED=true）即自动以本模型为主，失败/配额耗尽由 AiRouter 降级 Agnes。
+    glm:
+      enabled: ${GLM_ENABLED:${TACKLEKEY_ENABLED:false}}
+      base-url: ${GLM_BASE_URL:${TACKLEKEY_BASE_URL:https://open.bigmodel.cn/api/paas/v4}}
+      api-key: ${GLM_API_KEY:${TACKLEKEY_API_KEY:}}
+      model: ${GLM_MODEL:${TACKLEKEY_MODEL:glm-4-flash}}
+      chat-path: ${GLM_CHAT_PATH:/chat/completions}
+      timeout: ${GLM_TIMEOUT:${TACKLEKEY_TIMEOUT:60}}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）
   # 注意：AI 测试接口仅在 dev profile 放行，prod 不放行
   security:
