@@ -310,4 +310,15 @@ onMounted(fetchLogs)
     }
   }
 }
+@media (max-width: 480px) {
+  .filter-bar {
+    gap: 8px;
+  }
+  .pagination-bar {
+    padding: 12px 0;
+    :deep(.el-pagination__total) {
+      display: none;
+    }
+  }
+}
 </style>

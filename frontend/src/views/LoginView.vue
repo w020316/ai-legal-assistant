@@ -413,4 +413,9 @@ function toggleMode() {
     padding: 32px 20px;
   }
 }
+@media (max-width: 480px) {
+  .form-panel {
+    padding: 24px 16px;
+  }
+}
 </style>

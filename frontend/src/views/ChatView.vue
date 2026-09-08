@@ -480,4 +480,21 @@ onMounted(() => {
     }
   }
 }
+@media (max-width: 480px) {
+  .message-stream {
+    padding: 12px 10px;
+  }
+  .msg-list {
+    gap: 14px;
+  }
+  .suggestions {
+    margin: 18px auto;
+    padding: 0 6px;
+  }
+  .empty-state {
+    h2 {
+      font-size: 17px;
+    }
+  }
+}
 </style>

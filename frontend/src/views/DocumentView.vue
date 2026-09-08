@@ -1870,4 +1870,33 @@ onUnmounted(() => {
     flex-direction: column;
   }
 }
+@media (max-width: 480px) {
+  .doc-view {
+    gap: 10px;
+  }
+  .doc-header {
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .doc-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .doc-info-bar {
+    .info-item {
+      font-size: 12px;
+      padding: 0 12px;
+    }
+  }
+  .report-area {
+    padding: 12px;
+  }
+  .score-card {
+    padding: 14px 16px;
+  }
+  .score-num .num {
+    font-size: 30px;
+  }
+}
 </style>

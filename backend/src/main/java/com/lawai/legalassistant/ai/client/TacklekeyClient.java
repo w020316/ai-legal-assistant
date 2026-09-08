@@ -9,7 +9,6 @@ import com.lawai.legalassistant.common.result.ResultCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.codec.ServerSentEvent;
@@ -29,12 +28,10 @@ import java.util.Objects;
  * <p>
  * Tacklekey（api.tacklekey.com）兼容 OpenAI V1 协议，提供免费模型 openai/gpt-5.5:free。
  * 本类用 RestClient 独立调用，不依赖 Spring AI 自动配置，与 AgnesClient 完全解耦。
- * 通过 lawai.ai.tacklekey.enabled 环境变量控制是否启用，默认关闭。
- * <p>
- * 设计动机：免费模型配额有限，启用后作为主模型优先调用；配额耗尽时由 AiRouter 自动降级到 Agnes。
+ * 通过 lawai.ai.tacklekey.enabled 或 TACKLEKEY_API_KEY 自动决定是否启用；
+ * 配置了 API Key 即自动以本客户端（GLM 免费模型）为主，配额耗尽时由 AiRouter 降级 Agnes。
  */
 @Component
-@ConditionalOnProperty(name = "lawai.ai.tacklekey.enabled", havingValue = "true")
 public class TacklekeyClient {
 
     private static final Logger log = LoggerFactory.getLogger(TacklekeyClient.class);

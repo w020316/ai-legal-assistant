@@ -601,6 +601,21 @@ onMounted(() => loadTemplates())
     gap: 12px;
   }
 }
+@media (max-width: 480px) {
+  .tpl-panel-header {
+    padding: 10px 12px;
+    .title {
+      font-size: 14px;
+    }
+  }
+  .tpl-grid {
+    padding: 8px;
+    gap: 10px;
+  }
+  .cat-bar-mobile {
+    padding: 8px 10px;
+  }
+}
 
 /* 生成对话框 */
 .gen-body {
