@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Close } from '@element-plus/icons-vue'
+import { APP_VERSION } from '@/utils/version'
 
-// 当前版本号（与 package.json / MainLayout 保持一致）
-const CURRENT_VERSION = 'v1.10.0'
+// 当前版本号（统一引用共享常量，与 MainLayout/package.json 保持一致）
+const CURRENT_VERSION = APP_VERSION
 // localStorage 存储键：记录用户上次已读版本
 const STORAGE_KEY = 'linzai:lastReadVersion'
 // 罗马数字映射（公报章节编号风）
@@ -25,6 +26,17 @@ interface ChangeLog {
 }
 
 const changelogs: ChangeLog[] = [
+  {
+    version: 'v1.13.1',
+    date: '2026-09-08',
+    tag: '智谱主模型 + 线上修复',
+    highlights: [
+      { title: '智谱 GLM 主模型', desc: '配置 GLM_API_KEY 即自动以 glm-4.5-flash 为主，图片识别走 glm-4v-flash，失败自动降级 Agnes' },
+      { title: '线上『网络异常』修复', desc: '重新部署最新前端至 Cloudflare Pages，覆盖过期 v1.10.9；请求超时提升至 90s 应对冷启动' },
+      { title: '检索体验增强', desc: '关键字语义检索 embedding 不可用时降级本地文本检索；新增文档版本化/引证芯片/检索套件' },
+      { title: '质量与交付', desc: '全量代码审查修复、121 单元用例、测试/UX/页面检查/交付报告齐备' },
+    ],
+  },
   {
     version: 'v1.10.0',
     date: '2026-07-24',

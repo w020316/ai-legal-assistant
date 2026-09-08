@@ -19,7 +19,8 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 const service: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 30000,
+  // v1.13.1：超时提升至 90s，容忍 Render 免费实例冷启动/慢响应（此前 30s 常触发"网络异常"）
+  timeout: 90000,
   headers: { 'Content-Type': 'application/json' },
 })
 

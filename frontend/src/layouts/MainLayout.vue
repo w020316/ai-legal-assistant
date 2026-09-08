@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { ElMessageBox } from 'element-plus'
 import http from '@/api/request'
 import VersionUpdateDialog from '@/components/common/VersionUpdateDialog.vue'
+import { APP_VERSION } from '@/utils/version'
 import {
   ChatDotRound,
   Monitor,
@@ -138,7 +139,7 @@ async function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.10.0 · The Verdict</div>
+          <div class="version">linzAI v{{ APP_VERSION }} · The Verdict</div>
         </div>
       </el-aside>
 
@@ -184,7 +185,7 @@ async function handleLogout() {
             <span class="dot">·</span>
             <router-link to="/terms" @click="drawerVisible = false">用户协议</router-link>
           </div>
-          <div class="version">linzAI v1.10.0 · The Verdict</div>
+          <div class="version">linzAI v{{ APP_VERSION }} · The Verdict</div>
         </div>
       </div>
     </el-drawer>
