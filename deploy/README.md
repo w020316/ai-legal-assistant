@@ -79,6 +79,14 @@ Cloudflare Dashboard → Workers & Pages → Create → **Upload your static fil
 - 或打包 `dist/` 为 zip 上传（Cloudflare 自动解压）
 - 项目名 `lawai-frontend`，域名即 `lawai-frontend.pages.dev`
 
+### 2.1 Git 化自动部署（推荐，替代手动上传）
+仓库 `.github/workflows/pages-deploy.yml` 会在 **push master（frontend 目录有改动）** 时自动用 Wrangler 部署到 Cloudflare Pages。
+需在 GitHub 仓库 **Settings → Secrets** 添加：
+- `CLOUDFLARE_API_TOKEN`：具有 **Cloudflare Pages:Edit** 权限的 API Token
+- `CLOUDFLARE_ACCOUNT_ID`：Cloudflare 账户 ID
+
+配置后，后续只需推送代码即自动上线，无需再手动上传 dist。
+
 ### 3. 跨域策略（关键）
 前端请求**直接使用绝对地址**（`VITE_API_BASE_URL`），经后端 CORS 白名单放行。
 `public/_redirects` 的 `/api/*` 代理仅为备用（手动上传时默认不激活）。

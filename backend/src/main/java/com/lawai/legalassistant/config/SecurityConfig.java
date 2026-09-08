@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -48,6 +49,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.disable()) // CORS 由 CorsFilter Bean 处理
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    // v1.13.1：放行 OPTIONS 预检，避免跨域 POST 被浏览器 CORS 预检 403 →
+                    // 前端报"网络异常，请检查连接"（如登录/refresh/创建会话等）
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     permitPaths.forEach(p -> auth.requestMatchers(p).permitAll());
                     auth.anyRequest().authenticated();
                 })
