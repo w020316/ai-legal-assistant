@@ -496,5 +496,10 @@ onMounted(() => {
       font-size: 17px;
     }
   }
+  /* 隐藏装饰性 eyebrow，减少超小屏信息冗余（PG-4） */
+  .empty-eyebrow,
+  .suggestions-eyebrow {
+    display: none;
+  }
 }
 </style>

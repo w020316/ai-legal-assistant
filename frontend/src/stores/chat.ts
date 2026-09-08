@@ -284,7 +284,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!messages.value[aiMsgIdx].content) {
         messages.value[aiMsgIdx].content = 'AI 回复超时，请稍后重试。'
       }
-    } catch (e) {
+    } catch {
       ElMessage.error('发送失败，请重试')
       // AI 消息为空时移除占位消息
       if (!messages.value[aiMsgIdx].content) {
@@ -359,7 +359,7 @@ export const useChatStore = defineStore('chat', () => {
       }
       // 刷新会话列表（获取自动命名的标题）
       loadSessions()
-    } catch (e) {
+    } catch {
       ElMessage.error('图片上传失败，请重试')
       if (!messages.value[aiMsgIdx].content) {
         const idx = messages.value.findIndex((m) => m.id === aiPlaceholderId)

@@ -498,6 +498,19 @@ a {
   }
 }
 
+// ===== 超小屏（≤480px）：压缩装饰性 eyebrow 与页标题间距（v1.13.1 PG-4）=====
+@media (max-width: 480px) {
+  .page-title {
+    // 隐藏标题上方小型大写字母 eyebrow，减少信息冗余
+    &::before {
+      display: none;
+    }
+    font-size: 1.5rem;
+    padding-bottom: 10px;
+    margin-bottom: var(--space-md);
+  }
+}
+
 // ===== 公报式装饰元素 =====
 // 章节分隔符（居中花纹）
 .gazette-divider {
