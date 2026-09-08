@@ -180,15 +180,14 @@ public class RagService {
         List<String> chunks = splitText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
         log.info("文档入库: docId={}, title={}, 切片数={}", docId, title, chunks.size());
 
-        // 3. 逐片向量化并入库
+        // 3. 批量向量化一次完成（v1.13.0 优化：N 次 AI 调用降为 1 次，降低延迟与配额消耗）
+        List<float[]> embs = aiRouter.embedBatch(chunks);
         for (int i = 0; i < chunks.size(); i++) {
-            String chunk = chunks.get(i);
-            float[] emb = aiRouter.embed(chunk);
             KnowledgeChunk entity = new KnowledgeChunk();
             entity.setDocId(docId);
             entity.setChunkIndex(i);
-            entity.setContent(chunk);
-            entity.setEmbedding(toPgVector(emb));
+            entity.setContent(chunks.get(i));
+            entity.setEmbedding(toPgVector(embs.get(i)));
             chunkMapper.insertChunk(entity);
         }
 
