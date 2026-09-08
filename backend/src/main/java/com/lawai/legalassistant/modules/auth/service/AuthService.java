@@ -177,8 +177,8 @@ public class AuthService {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
         } catch (Exception e) {
-            log.error("Redis 黑名单查询失败，fail-close 拒绝刷新: {}", e.getMessage(), e);
-            return true;
+            log.warn("Redis 黑名单查询失败，fail-open 放行刷新: {}", e.getMessage());
+            return false;
         }
     }
 }
