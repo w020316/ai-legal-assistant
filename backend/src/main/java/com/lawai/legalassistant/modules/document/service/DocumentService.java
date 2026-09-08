@@ -100,17 +100,18 @@ public class DocumentService {
             // 3. 解析文本：图片类型用 AI Vision 识别，其他类型用本地解析
             String text = parseText(fileType, bytes, originalFilename);
 
-            // 4. 入库
+            // 4. 入库（v1.12.0 新增版本化：同名文档版本号递增）
             UserDocument doc = new UserDocument();
             doc.setUserId(userId);
             doc.setFilename(originalFilename);
             doc.setFileType(fileType);
             doc.setFileSize(file.getSize());
+            doc.setVersion(nextVersion(userId, originalFilename));
             doc.setOcrText(text);
             documentMapper.insert(doc);
 
-            log.info("文档上传成功: userId={}, docId={}, filename={}, fileType={}", userId, doc.getId(), originalFilename, fileType);
-            return new UploadResponse(doc.getId(), originalFilename, fileType, file.getSize());
+            log.info("文档上传成功: userId={}, docId={}, filename={}, fileType={}, version={}", userId, doc.getId(), originalFilename, fileType, doc.getVersion());
+            return new UploadResponse(doc.getId(), originalFilename, fileType, file.getSize(), doc.getVersion());
         } catch (IOException e) {
             log.error("文档上传失败", e);
             // v1.11.0 修复 H-4：IO 异常或后续事务回滚时清理已落盘的孤儿文件
@@ -121,6 +122,20 @@ public class DocumentService {
             cleanupOrphanFile(filePath);
             throw e;
         }
+    }
+
+    /**
+     * 计算同名文档的下一个版本号（v1.12.0 新增）
+     * <p>
+     * 同一用户上传相同文件名时版本号自动 +1（v1/v2/v3…），首次上传为 1。
+     * 空串文件名按版本 1 处理，避免威胁同名计算。
+     */
+    private long nextVersion(Long userId, String filename) {
+        if (filename == null || filename.isBlank()) {
+            return 1L;
+        }
+        Long max = documentMapper.maxVersionByFilename(userId, filename);
+        return (max == null ? 0L : max) + 1L;
     }
 
     /**

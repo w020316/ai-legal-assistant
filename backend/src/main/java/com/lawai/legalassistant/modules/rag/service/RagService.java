@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -65,6 +66,88 @@ public class RagService {
             log.error("RAG 检索失败: question={}", question, e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 复合深度检索（v1.12.0 检索套件 Retrieval Harness）
+     * <p>
+     * 多策略融合 + 多步递归：
+     * 1. 语义检索：对整句做向量检索（embedding 可用时）；
+     * 2. 关键字定位（grepFile）：从问题中提取关键词，逐词对切片做 ILIKE 精确定位；
+     * 3. 多来源合并去重：按切片 ID 去重，保留语义与关键词双重命中的结果。
+     * <p>
+     * 与单次向量检索相比，能显著提升"包含不可抗力条款且违约金比例超过 20%"这类
+     * 复合查询的召回率；当 embedding 服务不可用时自动退化为纯关键词检索，仍可用。
+     *
+     * @param question 用户问题
+     * @param topK     返回条数
+     * @return 检索结果列表
+     */
+    public List<RetrievedChunk> retrieveDeep(String question, int topK) {
+        if (question == null || question.isBlank()) {
+            return Collections.emptyList();
+        }
+        int k = topK > 0 ? topK : TOP_K_DEFAULT;
+        // 按关键字段去重，保持稳定顺序
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        List<RetrievedChunk> merged = new ArrayList<>();
+
+        // 1. 语义检索（embedding 可用时）
+        try {
+            float[] vec = aiRouter.embed(question);
+            List<RetrievedChunk> semantic = chunkMapper.searchByVector(toPgVector(vec), k);
+            for (RetrievedChunk c : semantic) {
+                if (seen.add(c.getId())) {
+                    merged.add(c);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("检索套件·语义检索不可用，退化为关键字检索: {}", e.getMessage());
+        }
+
+        // 2. 关键字定位（grepFile）：对复合查询的多关键词逐一定位
+        for (String kw : extractKeywords(question)) {
+            List<RetrievedChunk> hits = chunkMapper.searchByKeywordText(escapeLike(kw), k);
+            for (RetrievedChunk c : hits) {
+                if (merged.size() >= k) {
+                    break;
+                }
+                if (seen.add(c.getId())) {
+                    merged.add(c);
+                }
+            }
+            if (merged.size() >= k) {
+                break;
+            }
+        }
+
+        return merged;
+    }
+
+    /**
+     * 从问题中提取检索关键词（启发式：按标点/空格切分，取 2 字以上的词）
+     * <p>
+     * 不依赖 LLM，确定性强、零额外 AI 开销，适合复合查询的多策略召回。
+     */
+    private List<String> extractKeywords(String question) {
+        List<String> keywords = new ArrayList<>();
+        // 先按常见标点与空白切分
+        for (String part : question.split("[，。；、,.!?？!；\\s]+")) {
+            String kw = part.trim();
+            if (kw.length() >= 2 && !KEYWORD_STOP.contains(kw)) {
+                keywords.add(kw);
+            }
+        }
+        return keywords;
+    }
+
+    /** 常见停用词，避免无效关键字放大检索噪音 */
+    private static final java.util.Set<String> KEYWORD_STOP = java.util.Set.of(
+            "如何", "什么", "怎么办", "请问", "为什么", "是否", "哪些", "一个", "有没有", "根据");
+
+    /** 转义 ILIKE 通配符，防止用户在问题中注入 %/_ 扩大匹配范围 */
+    private String escapeLike(String keyword) {
+        return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     /**

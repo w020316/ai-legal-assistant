@@ -550,6 +550,7 @@ onUnmounted(() => {
             <div class="doc-meta">
               <div class="doc-name" :title="doc.filename">{{ doc.filename }}</div>
               <div class="doc-sub">
+                <span v-if="doc.version" class="doc-ver">v{{ doc.version }}</span>
                 <span>{{ formatSize(doc.fileSize) }}</span>
                 <span>{{ doc.createdAt?.slice(0, 10) }}</span>
               </div>
@@ -615,6 +616,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="doc-info-bar">
+          <div class="info-item">
+            <span class="info-label">版本</span>
+            <span class="info-val">v{{ currentDoc.version || 1 }}</span>
+          </div>
           <div class="info-item">
             <span class="info-label">类型</span>
             <span class="info-val">{{ currentDoc.fileType || '—' }}</span>
@@ -1071,6 +1076,13 @@ onUnmounted(() => {
   margin-top: 2px;
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+.doc-ver {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+  letter-spacing: 0.03em;
 }
 
 /* 右侧 */

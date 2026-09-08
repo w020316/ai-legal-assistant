@@ -100,9 +100,12 @@ CREATE TABLE IF NOT EXISTS user_document (
     file_size       BIGINT,
     ocr_text        TEXT,
     analysis_result JSONB,
+    version         BIGINT       NOT NULL DEFAULT 1,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_user_doc ON user_document(user_id, created_at DESC);
+-- 同名文档版本化（v1.12.0 新增）：已存在的线上库幂等补列
+ALTER TABLE user_document ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 1;
 
 -- ============================================================
 -- 审计日志

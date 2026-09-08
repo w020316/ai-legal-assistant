@@ -51,6 +51,43 @@ public interface CaseMapper {
                                            @Param("topK") int topK);
 
     /**
+     * 关键字文本检索（embedding 不可用时的降级方案）
+     * <p>
+     * 当外部 embedding 服务不可用时，退化为对标题/摘要的本地模糊匹配，
+     * 保证关键字检索在线上环境始终可用（不依赖向量化）。
+     *
+     * @param keyword    关键字（已转义 %/_）
+     * @param cause      案由（可选）
+     * @param courtLevel 法院层级（可选）
+     * @param year       审理年份（可选）
+     * @param limit      返回条数
+     * @return 案例列表
+     */
+    @Select("""
+            <script>
+            SELECT d.id, d.title, d.source,
+                   d.metadata->>'cause' AS case_cause,
+                   d.metadata->>'court_level' AS court,
+                   (d.metadata->>'year')::int AS year,
+                   d.metadata->>'summary' AS summary
+            FROM knowledge_doc d
+            WHERE d.owner_type = 'PUBLIC' AND d.doc_type = 'CASE'
+              AND (d.title ILIKE '%' || #{keyword} || '%'
+                   OR d.metadata->>'summary' ILIKE '%' || #{keyword} || '%')
+            <if test='cause != null and cause != ""'>AND d.metadata->>'cause' = #{cause}</if>
+            <if test='courtLevel != null and courtLevel != ""'>AND d.metadata->>'court_level' = #{courtLevel}</if>
+            <if test='year != null'>AND (d.metadata->>'year')::int = #{year}</if>
+            ORDER BY d.created_at DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    List<CaseVO> searchByKeywordText(@Param("keyword") String keyword,
+                                     @Param("cause") String cause,
+                                     @Param("courtLevel") String courtLevel,
+                                     @Param("year") Integer year,
+                                     @Param("limit") int limit);
+
+    /**
      * 元数据分页检索（无关键词）
      *
      * @param cause      案由（可选）

@@ -47,4 +47,25 @@ public interface KnowledgeChunkMapper extends BaseMapper<KnowledgeChunk> {
             "ORDER BY c.embedding <=> CAST(#{vec} AS vector) " +
             "LIMIT #{topK}")
     List<RetrievedChunk> searchByVector(@Param("vec") String vectorStr, @Param("topK") int topK);
+
+    /**
+     * 关键字文本检索（v1.12.0 检索套件，不依赖 embedding）
+     * <p>
+     * 对切片内容做 ILIKE 模糊匹配，关联文档取标题与来源。
+     * 用于 embedding 不可用时的降级检索，以及复合查询中
+     * "findFiles / grepFile" 类的精确关键词定位。
+     *
+     * @param keyword 关键字（已转义 %/_）
+     * @param limit   返回条数
+     * @return 检索结果列表
+     */
+    @Select("SELECT c.id, c.doc_id, d.title, d.source, c.content AS snippet, " +
+            "0.0 AS score " +
+            "FROM knowledge_chunk c " +
+            "JOIN knowledge_doc d ON c.doc_id = d.id " +
+            "WHERE d.owner_type = 'PUBLIC' " +
+            "  AND c.content ILIKE '%' || #{keyword} || '%' " +
+            "ORDER BY d.created_at DESC, c.chunk_index ASC " +
+            "LIMIT #{limit}")
+    List<RetrievedChunk> searchByKeywordText(@Param("keyword") String keyword, @Param("limit") int limit);
 }

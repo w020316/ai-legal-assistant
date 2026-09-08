@@ -3,6 +3,7 @@ package com.lawai.legalassistant.modules.document.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.lawai.legalassistant.modules.document.entity.UserDocument;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 /**
@@ -11,6 +12,16 @@ import org.apache.ibatis.annotations.Update;
  * analysis_result 为 JSONB 类型，更新时通过 CAST 转换。
  */
 public interface UserDocumentMapper extends BaseMapper<UserDocument> {
+
+    /**
+     * 查询同一用户下同名文档的最大版本号（v1.12.0 新增，用于文档版本化）
+     *
+     * @param userId   用户 ID
+     * @param filename 文件名
+     * @return 最大版本号；无记录返回 null
+     */
+    @Select("SELECT MAX(version) FROM user_document WHERE user_id = #{userId} AND filename = #{filename}")
+    Long maxVersionByFilename(@Param("userId") Long userId, @Param("filename") String filename);
 
     /**
      * 更新分析结果（JSONB）

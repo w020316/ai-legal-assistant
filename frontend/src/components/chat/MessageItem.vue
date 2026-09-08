@@ -13,6 +13,40 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'regenerate'): void }>()
 
+// ===== 可视化引证芯片（v1.12.0）=====
+// 解析正文中的 [N] / [Cn] 引证标记，与引用来源一一对应，点击定位高亮。
+const citeMarkerPattern = /\[C?(\d+)\]/g
+const activeCite = ref<number | undefined>(undefined)
+
+function gotoCitation(idx: number, el?: HTMLElement) {
+  if (el?.scrollIntoView) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+  // 触发 CitationCard 展开并高亮该引证项
+  activeCite.value = undefined
+  requestAnimationFrame(() => {
+    activeCite.value = idx
+  })
+}
+
+const citedIndices = computed(() => {
+  const citations = props.message.citations || []
+  if (citations.length === 0) return []
+  const seen = new Set<number>()
+  const list: { idx: number; title: string }[] = []
+  const text = props.message.content || ''
+  citeMarkerPattern.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = citeMarkerPattern.exec(text)) !== null) {
+    const n = parseInt(m[1], 10)
+    if (!Number.isNaN(n) && n >= 1 && n <= citations.length && !seen.has(n)) {
+      seen.add(n)
+      list.push({ idx: n, title: citations[n - 1].title || `引证 ${n}` })
+    }
+  }
+  return list
+})
+
 // 用户反馈状态（点赞/点踩）
 const feedback = ref<'like' | 'dislike' | null>(null)
 
@@ -101,8 +135,27 @@ const formattedTime = computed(() => {
         </template>
         <!-- 流式光标 -->
         <span v-if="streaming && message.content" class="cursor">▋</span>
+        <!-- 可视化引证芯片（正文 [N] 标记 → 来源定位） -->
+        <div v-if="citedIndices.length" class="cite-chips">
+          <span class="cite-chips-label">引证</span>
+          <button
+            v-for="cit in citedIndices"
+            :key="cit.idx"
+            class="cite-chip"
+            type="button"
+            :class="{ active: activeCite === cit.idx }"
+            @click="gotoCitation(cit.idx, $event.currentTarget as HTMLElement)"
+          >
+            <span class="chip-idx">{{ cit.idx }}</span>
+            <span class="chip-title">{{ cit.title }}</span>
+          </button>
+        </div>
         <!-- 引用来源卡片 -->
-        <CitationCard v-if="message.citations" :citations="message.citations" />
+        <CitationCard
+          v-if="message.citations"
+          :citations="message.citations"
+          :active-index="activeCite"
+        />
         <!-- 操作栏（非流式且内容非空时显示） -->
         <div v-if="!streaming && message.content" class="actions">
           <el-button text size="small" :icon="CopyDocument" @click="copyContent">复制</el-button>
@@ -188,6 +241,65 @@ const formattedTime = computed(() => {
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--color-text-secondary);
+}
+// 可视化引证芯片
+.cite-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.cite-chips-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-right: 2px;
+}
+.cite-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-card);
+  color: var(--color-text-regular);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  max-width: 220px;
+  .chip-idx {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    color: #FAFAF7;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .chip-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+  &.active {
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
+    box-shadow: 0 0 0 2px rgba(122, 31, 43, 0.12);
+  }
 }
 .card-body {
   padding: 14px 16px 16px;

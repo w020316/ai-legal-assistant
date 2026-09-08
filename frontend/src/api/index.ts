@@ -224,6 +224,7 @@ export interface UserDocumentVO {
   filename: string
   fileType: string
   fileSize: number
+  version?: number
   createdAt: string
   analysisStatus: string
 }
@@ -232,7 +233,7 @@ export interface UserDocumentVO {
 export const uploadDocument = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)
-  return http.post<UploadResult>('/documents', formData, {
+  return http.post<UploadResult>('/documents/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }

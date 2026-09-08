@@ -76,13 +76,45 @@ public class CaseService {
             }
             return caseMapper.searchByVectorWithFilters(
                     vecStr, req.getCause(), req.getCourtLevel(), req.getYear(), topK);
-        } catch (BusinessException e) {
-            throw e;
         } catch (Exception e) {
+            if (e instanceof BusinessException) {
+                log.warn("案例向量化不可用，降级为本地文本检索 | keyword={} | err={}",
+                        req.getKeyword(), e.getMessage());
+                return searchByKeywordText(req);
+            }
             log.error("案例向量检索失败: keyword={}", req.getKeyword(), e);
             throw BusinessException.of(ResultCode.AI_SERVICE_ERROR,
                     "检索服务暂时不可用，请稍后重试");
         }
+    }
+
+    /**
+     * 本地文本模糊检索（embedding 不可用时的降级方案）
+     * <p>
+     * 对标题/摘要做 ILIKE 匹配，与向量化检索共用元数据过滤条件，
+     * 保证关键字检索不依赖外部 embedding 服务始终可用。
+     *
+     * @param req 检索请求
+     * @return 案例列表
+     */
+    private List<CaseVO> searchByKeywordText(CaseSearchRequest req) {
+        int limit = VECTOR_TOP_K;
+        if (req.getSize() != null && req.getSize() > 0) {
+            limit = Math.min(req.getSize() * 2, VECTOR_TOP_K);
+        }
+        return caseMapper.searchByKeywordText(
+                escapeLike(req.getKeyword()),
+                req.getCause(), req.getCourtLevel(), req.getYear(), limit);
+    }
+
+    /**
+     * 转义 ILIKE 通配符，防止用户在关键词中注入 %/_ 扩大匹配范围
+     */
+    private String escapeLike(String keyword) {
+        if (keyword == null) {
+            return "";
+        }
+        return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     /**

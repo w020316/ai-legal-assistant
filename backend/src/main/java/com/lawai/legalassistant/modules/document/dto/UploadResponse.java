@@ -9,6 +9,8 @@ public class UploadResponse {
     private String filename;
     private String fileType;
     private Long fileSize;
+    /** 文档版本号（v1.12.0 新增） */
+    private Long version;
 
     public UploadResponse() {
     }
@@ -18,6 +20,14 @@ public class UploadResponse {
         this.filename = filename;
         this.fileType = fileType;
         this.fileSize = fileSize;
+    }
+
+    public UploadResponse(Long id, String filename, String fileType, Long fileSize, Long version) {
+        this.id = id;
+        this.filename = filename;
+        this.fileType = fileType;
+        this.fileSize = fileSize;
+        this.version = version;
     }
 
     public Long getId() {

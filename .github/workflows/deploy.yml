@@ -1,14 +1,10 @@
-name: Deploy to Fly.io
+name: Deploy to Fly.io (legacy)
 
-# 触发条件：master 分支推送（backend/frontend/deploy.yml 有改动）或手动触发
-# 两个 job 并行执行，Fly.io 远程构建，单端约 1-2 分钟
+# 历史遗留：项目已从 Fly.io 迁移至「Render(后端) + Cloudflare Pages(前端)」免费方案
+# （见 deploy/README.md）。Render 的 GitHub 集成与 Cloudflare Pages Git 构建会分别在
+# master 分支推送时自动部署，无需本 workflow 自动触发。
+# 本 workflow 仅保留 workflow_dispatch 手动触发入口，供需要时手动推送到历史 Fly 实例。
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 jobs:

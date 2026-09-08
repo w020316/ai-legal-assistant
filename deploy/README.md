@@ -1,147 +1,124 @@
-# AI 法律助手 - 部署指南
+# AI 法律助手 - 免费部署指南
 
-> 零成本部署方案：Oracle Cloud Free Tier + Cloudflare + .eu.org 免费域名
+> 零成本托管方案：Cloudflare Pages + Render + Neon PostgreSQL + Upstash Redis
+> 替代原 Oracle Cloud 自建服务器方案（该方案已废弃）。
 
-## 一、系统要求
+## 一、架构总览
 
-- Oracle Cloud Free Tier ARM 实例（Ampere A1，4核24GB，永久免费）
-- Ubuntu 22.04 LTS
-- 开放端口：80（HTTP）、443（HTTPS）、22（SSH）
+```
+用户 ──> Cloudflare Pages (前端静态)
+              │  直连(跨域, 已配 CORS)
+              ▼
+        Render (Spring Boot 后端 :8080)
+              │              │
+              ▼              ▼
+      Neon PostgreSQL   Upstash Redis
+              │
+              ▼
+   AI 路由: GLM(主) → Agnes(辅)  (SSE 流式, 自动降级)
+```
 
-## 二、前置准备
+## 二、云端资源清单
 
-### 1. 注册 Oracle Cloud
-- 访问 https://www.oracle.com/cloud/free/
-- 注册账号（需信用卡验证，不扣费）
-- 创建 ARM 实例：Ampere A1，4 OCPU，24GB 内存，Ubuntu 22.04
-- 保存 SSH 密钥
+| 组件 | 平台 | 用途 | 地址 |
+|------|------|------|------|
+| 前端 | Cloudflare Pages | 静态站点 (Vue3) | https://lawai-frontend.pages.dev |
+| 后端 | Render (Free) | Spring Boot API | https://lawai-backend-vgk2.onrender.com |
+| 数据库 | Neon PostgreSQL | 业务数据 | — |
+| 缓存 | Upstash Redis | JWT 黑名单等 | — |
+| 代码库 | GitHub | w020316/ai-legal-assistant (master) | — |
 
-### 2. 申请免费域名
-- 访问 https://nic.eu.org/
-- 申请 `yourname.eu.org` 域名（数天内审核通过）
-- 或使用已有域名
+## 三、后端部署 (Render)
 
-### 3. 配置 Cloudflare
-- 注册 https://www.cloudflare.com/
-- 添加站点（你的域名）
-- 将域名 NS 服务器改为 Cloudflare 提供的 NS
-- SSL/TLS → 模式设为 `Full (strict)`
-- Origin Server → Create Certificate → 生成 Origin Certificate（15年有效期）
-- 保存 `origin.pem`（证书）和 `key.pem`（私钥）
+### 1. 创建 Web Service (Docker)
+- 连接 GitHub 仓库 `w020316/ai-legal-assistant`，分支 `master`
+- Runtime: **Docker**，Free 实例（Region: Singapore）
+- 需配置启动命令/环境变量（见下）
 
-## 三、部署步骤
+### 2. 环境变量
 
-### 1. SSH 登录服务器
+| 变量 | 说明 |
+|------|------|
+| `SPRING_PROFILES_ACTIVE` | 生产 profile |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 初始管理员 |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Neon PostgreSQL 连接信息 |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
+| `JWT_SECRET` | JWT 签名密钥 |
+| `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型） |
+| `TACKLEKEY_API_KEY` / `TACKLEKEY_BASE_URL` / `TACKLEKEY_MODEL` / `TACKLEKEY_ENABLED` | GLM 主模型（Tacklekey，OpenAI 兼容） |
+
+> `CORS_ALLOWED_ORIGINS` 不必配置：默认值已在 `application.yml` 中包含
+> `https://lawai-frontend.pages.dev` 等前端域名。
+
+### 3. 数据库初始化
+首次部署后需初始化 Neon 数据库（执行仓库 `init/` 目录脚本）：
+- `01-schema.sql`：建表
+- `02-cases-seed.sql`：279 条法律案例种子数据
+
+### 4. 部署触发
+- 推送到 `master` 分支自动重新部署
+- 可用 Render Dashboard 的 `Manual Deploy → Clear build cache & deploy`
+
+## 四、前端部署 (Cloudflare Pages)
+
+### 1. 构建
 ```bash
-ssh ubuntu@your-server-ip
+cd frontend
+npm run build        # 产物输出到 dist/
+```
+构建时通过 `.env.production` 注入：
+```
+VITE_API_BASE_URL=https://lawai-backend-vgk2.onrender.com/api/v1
+VITE_APP_TITLE=AI 法律助手
 ```
 
-### 2. 一键部署
-```bash
-sudo su
-mkdir -p /opt/lawai && cd /opt/lawai
-# 克隆项目
-git clone https://github.com/your-repo/ai-legal-assistant.git .
+### 2. 上传
+Cloudflare Dashboard → Workers & Pages → Create → **Upload your static files**
+- 上传 `frontend/dist/` 整个目录（含 `index.html`、`assets/`、`_redirects`、`favicon.svg`）
+- 或打包 `dist/` 为 zip 上传（Cloudflare 自动解压）
+- 项目名 `lawai-frontend`，域名即 `lawai-frontend.pages.dev`
 
-# 运行部署脚本
-chmod +x deploy/setup.sh
-./deploy/setup.sh
-```
+### 3. 跨域策略（关键）
+前端请求**直接使用绝对地址**（`VITE_API_BASE_URL`），经后端 CORS 白名单放行。
+`public/_redirects` 的 `/api/*` 代理仅为备用（手动上传时默认不激活）。
+前端域名新增后，须在 `backend/src/main/resources/application.yml` 的
+`lawai.cors.allowed-origins` 中加入并重新部署后端。
 
-### 3. 配置环境变量
-```bash
-nano .env
-# 填写 DB_PASSWORD / REDIS_PASSWORD / AGNES_API_KEY / JWT_SECRET
-```
+## 五、AI 模型路由
 
-### 4. 放置 SSL 证书
-```bash
-# 将 Cloudflare 生成的证书内容粘贴
-nano nginx/certs/origin.pem  # 粘贴证书
-nano nginx/certs/key.pem     # 粘贴私钥
-```
+- **主模型**：GLM（Tacklekey，OpenAI 兼容 `/v1/chat/completions`）
+- **辅助模型**：Agnes
+- 支持同步 Chat 与 SSE 流式（`streamChat`）
+- 主模型失败自动降级到 Agnes（日志 `warn` 记录，`onErrorResume`）
 
-### 5. 启动服务
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-```
+## 六、常见问题
 
-### 6. 验证
-```bash
-# 健康检查
-curl http://localhost:8080/api/v1/health
+### Q: 带 Origin 的 API 返回 403？
+A: 后端 CORS 白名单不含该前端域名。在 `application.yml` 的
+`lawai.cors.allowed-origins` 加入域名（或配置 `CORS_ALLOWED_ORIGINS` 环境变量），
+重新部署后端后验证响应含 `access-control-allow-origin`。
 
-# 查看日志
-docker compose -f docker-compose.prod.yml logs -f backend
-```
+### Q: 登录/聊天返回 403（外部 Redis 不可用）？
+A: 已实现 fail-open：`JwtAuthenticationFilter` 与 `AuthService` 中黑名单查询
+在 Redis 异常时放行请求（告警但不断言），保证登录/聊天可用；Redis 恢复后黑名单
+立即生效。完全恢复需保证 Upstash Redis 连通。
 
-## 四、Cloudflare 配置
+### Q: SSE 流式对话不响应？
+A: 检查 Render 日志前端 `POST /api/v1/sessions/{id}/stream` 是否走主模型
+`TacklekeyClient`；失败会降级并打印 warn。
 
-1. DNS → 添加 A 记录：`lawai` → 服务器 IP，Proxy 开启（橙色云朵）
-2. SSL/TLS → Edge Certificates → 启用 Always Use HTTPS
-3. Speed → Optimization → 开启 Brotli 压缩
-4. Caching → Configuration → Browser Cache TTL 设为 1 年
+### Q: Free 实例偶发请求失败？
+A: Render Free 实例有冷启动，首次请求可能超时，重试即可。
 
-## 五、国内访问优化
-
-Cloudflare 优选 IP 提升国内访问速度：
+## 七、本地开发
 
 ```bash
-# 使用社区优选 IP 工具
-# https://github.com/XIU2/CloudflareSpeedTest
-./CloudflareST -dn 10 -sl 0.05
+# 后端
+cd backend
+mvn spring-boot:run        # 默认 localhost:8080，需本地 PG/Redis 或指向云端
 
-# 将优选 IP 填入 Cloudflare DNS 的 A 记录
-```
-
-## 六、数据库备份
-
-```bash
-# 配置每日凌晨3点自动备份
-crontab -e
-# 添加：
-0 3 * * * /opt/lawai/deploy/backup.sh >> /opt/lawai/backups/backup.log 2>&1
-```
-
-## 七、更新部署
-
-```bash
-cd /opt/lawai
-git pull origin main
-docker compose -f docker-compose.prod.yml up -d --build
-docker image prune -f
-```
-
-或配置 GitHub Actions 自动部署（推送到 main 分支自动部署）：
-- 在 GitHub 仓库 Settings → Secrets 添加：
-  - `ORACLE_HOST`：服务器 IP
-  - `ORACLE_USER`：SSH 用户名
-  - `ORACLE_SSH_KEY`：SSH 私钥
-
-## 八、常见问题
-
-### Q: Docker 构建慢？
-A: 配置国内镜像加速：`/etc/docker/daemon.json` 添加 `registry-mirrors`
-
-### Q: pgvector 扩展未安装？
-A: 使用 `pgvector/pgvector:pg16` 镜像已内置，init/01-schema.sql 会自动 CREATE EXTENSION
-
-### Q: SSE 流式不工作？
-A: 检查 Nginx 配置 `proxy_buffering off`，Cloudflare 默认支持 SSE
-
-### Q: Agnes AI 调用失败？
-A: 检查 .env 中 AGNES_API_KEY 是否正确，服务器能否访问 agnes-ai.com
-
-## 九、架构图
-
-```
-用户 → Cloudflare(CDN/SSL) → Oracle Cloud Server
-                                  ↓
-                            Nginx (443)
-                              ↓        ↓
-                       前端静态    后端API(:8080)
-                                      ↓
-                              PostgreSQL + Redis
-                                      ↓
-                              Agnes AI (外部API)
+# 前端
+cd frontend
+npm install
+npm run dev                # localhost:5173，/api 代理到 backend
 ```

@@ -30,6 +30,9 @@ public class UserDocument {
     /** 分析结果 JSON 字符串 */
     private String analysisResult;
 
+    /** 版本号（同一 filename 下递增，v1.12.0 新增） */
+    private Long version;
+
     private Instant createdAt;
 
     public Long getId() {
@@ -86,6 +89,14 @@ public class UserDocument {
 
     public void setAnalysisResult(String analysisResult) {
         this.analysisResult = analysisResult;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public Instant getCreatedAt() {
