@@ -45,7 +45,7 @@
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
 | `JWT_SECRET` | JWT 签名密钥 |
 | `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型，降级用） |
-| `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` | **主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。配置 `GLM_API_KEY` 即自动以智谱为主，无需开关；失败/配额耗尽自动降级 Agnes |
+| `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` / `GLM_VISION_MODEL` | **主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。配置 `GLM_API_KEY` 即自动以智谱为主，无需开关；默认文本模型 `glm-4.5-flash`（免费最强），图片识别走 `glm-4v-flash`；失败/配额耗尽自动降级 Agnes |
 | `TACKLEKEY_API_KEY` / `TACKLEKEY_MODEL` / `TACKLEKEY_ENABLED` | （兼容别名，等价 GLM_*，可忽略） |
 
 > `CORS_ALLOWED_ORIGINS` 不必配置：默认值已在 `application.yml` 中包含
@@ -87,7 +87,9 @@ Cloudflare Dashboard → Workers & Pages → Create → **Upload your static fil
 
 ## 五、AI 模型路由
 
-- **主模型**：智谱 GLM（`https://open.bigmodel.cn/api/paas/v4`，OpenAI 兼容，默认 `glm-4-flash`）
+- **主模型**：智谱 GLM（`https://open.bigmodel.cn/api/paas/v4`，OpenAI 兼容）
+  - 文本：`glm-4.5-flash`（免费系列中性能最强，200k 上下文 + 推理）
+  - 图片/OCR：`glm-4v-flash`（免费视觉模型）
 - **辅助模型**：Agnes
 - 配置 `GLM_API_KEY` 即自动以智谱为主（无需开关），支持同步 Chat 与 SSE 流式（`streamChat`）
 - 主模型失败/配额耗尽自动降级到 Agnes（日志 `warn` 记录，`onErrorResume`）

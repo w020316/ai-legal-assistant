@@ -72,7 +72,8 @@ lawai:
       enabled: ${GLM_ENABLED:${TACKLEKEY_ENABLED:false}}
       base-url: ${GLM_BASE_URL:${TACKLEKEY_BASE_URL:https://open.bigmodel.cn/api/paas/v4}}
       api-key: ${GLM_API_KEY:${TACKLEKEY_API_KEY:}}
-      model: ${GLM_MODEL:${TACKLEKEY_MODEL:glm-4-flash}}
+      model: ${GLM_MODEL:${TACKLEKEY_MODEL:glm-4.5-flash}}
+      vision-model: ${GLM_VISION_MODEL:${TACKLEKEY_VISION_MODEL:glm-4v-flash}}
       chat-path: ${GLM_CHAT_PATH:/chat/completions}
       timeout: ${GLM_TIMEOUT:${TACKLEKEY_TIMEOUT:60}}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）

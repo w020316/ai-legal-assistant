@@ -39,15 +39,18 @@ public class TacklekeyClient {
     private final RestClient restClient;
     private final WebClient streamClient;
     private final String model;
+    private final String visionModel;
     private final String chatPath;
 
     public TacklekeyClient(
             @Value("${lawai.ai.glm.base-url:https://open.bigmodel.cn/api/paas/v4}") String baseUrl,
             @Value("${lawai.ai.glm.api-key:}") String apiKey,
-            @Value("${lawai.ai.glm.model:glm-4-flash}") String model,
+            @Value("${lawai.ai.glm.model:glm-4.5-flash}") String model,
+            @Value("${lawai.ai.glm.vision-model:glm-4v-flash}") String visionModel,
             @Value("${lawai.ai.glm.chat-path:/chat/completions}") String chatPath,
             @Value("${lawai.ai.glm.timeout:60}") long timeoutSeconds) {
         this.model = model;
+        this.visionModel = visionModel;
         this.chatPath = chatPath;
         // 配置连接与读取超时，防止 AI 接口挂起耗尽线程池
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -181,8 +184,9 @@ public class TacklekeyClient {
                     )
             );
             Map<String, Object> systemContent = Map.of("role", "system", "content", systemPrompt);
+            // 视觉识别用视觉模型（glm-4v 系列），文本对话用 model
             Map<String, Object> reqBody = Map.of(
-                    "model", model,
+                    "model", visionModel,
                     "messages", List.of(systemContent, userContent),
                     "temperature", 0.3,
                     "max_tokens", 4096
