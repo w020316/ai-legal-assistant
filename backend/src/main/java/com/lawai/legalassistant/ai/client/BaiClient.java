@@ -40,11 +40,11 @@ public class BaiClient {
     private final String model;
 
     public BaiClient(
-            @Value("${lawai.ai.bai.base-url:https://chat.b.ai/v1}") String baseUrl,
+            @Value("${lawai.ai.bai.base-url:https://api.b.ai/v1}") String baseUrl,
             @Value("${lawai.ai.bai.api-key:}") String apiKey,
             @Value("${lawai.ai.bai.model:}") String model,
             @Value("${lawai.ai.bai.timeout:25}") long timeoutSeconds) {
-        this.model = model != null && !model.isBlank() ? model : "glm-5.3-flash";
+        this.model = model != null && !model.isBlank() ? model : "qwen3.8-flash";
         // 独立连接与读取超时，防止挂起耗尽线程池
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(8000);
@@ -109,7 +109,7 @@ public class BaiClient {
                 .bodyValue(req)
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
-                .timeout(Duration.ofSeconds(16)) // 流若无数据超过16s则中断，快速交路由层降级 GLM/Agnes，避免卡顿
+                .timeout(Duration.ofSeconds(12)) // 流若无数据超过12s则中断，快速交路由层降级 GLM/Agnes，避免卡顿
                 .mapNotNull(e -> e == null ? null : e.data())
                 .takeWhile(data -> data != null && !"[DONE]".equals(data))
                 .map(data -> extractDeltaContent((String) data))

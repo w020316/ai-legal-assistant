@@ -76,13 +76,15 @@ lawai:
       vision-model: ${GLM_VISION_MODEL:${TACKLEKEY_VISION_MODEL:glm-4v-flash}}
       chat-path: ${GLM_CHAT_PATH:/chat/completions}
       timeout: ${GLM_TIMEOUT:${TACKLEKEY_TIMEOUT:60}}
-    # 主模型①：B.AI 免费模型（OpenAI 兼容，https://chat.b.ai/v1）。
-    # 配置 BAI_API_KEY 即以 B.AI 为主，失败/超时由 AiRouter 依次降级 GLM → Agnes。
+    # 主模型①：B.AI 免费模型（OpenAI 兼容，聚合网关 https://api.b.ai/v1）。
+    # v1.16 实测：chat.b.ai/v1 对 POST 拒绝；默认模型 glm-5.3-flash 为「推理模型」，content 恒为空
+    # （正文在 reasoning_content），导致空结果/长思考/频繁降级。故 base-url 指向可用的 api.b.ai，
+    # model 选用实测可靠、直接出正文且较快的 qwen3.8-flash；超时按实测完整答复 15~25s 设 25s，超过则降级 GLM→Agnes。
     bai:
-      base-url: ${BAI_BASE_URL:https://chat.b.ai/v1}
+      base-url: ${BAI_BASE_URL:https://api.b.ai/v1}
       api-key: ${BAI_API_KEY:}
-      model: ${BAI_MODEL:glm-5.3-flash}
-      timeout: ${BAI_TIMEOUT:12}
+      model: ${BAI_MODEL:qwen3.8-flash}
+      timeout: ${BAI_TIMEOUT:25}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）
   # 注意：AI 测试接口仅在 dev profile 放行，prod 不放行
   security:

@@ -15,21 +15,21 @@ const html = computed(() => render(props.content || ''))
 <style scoped lang="scss">
 .markdown-body {
   font-size: 15px;
-  line-height: 1.85;
+  line-height: 2;   /* v1.16 进一步放松，提升长文本阅读呼吸感 */
   color: var(--color-text-primary);
   word-break: break-word;
 
   :deep(p) {
-    margin: 10px 0;
+    margin: 14px 0;
   }
   :deep(h1),
   :deep(h2),
   :deep(h3),
   :deep(h4) {
-    margin: 20px 0 10px;
+    margin: 26px 0 12px;
     font-weight: 600;
     color: var(--color-primary);
-    line-height: 1.35;
+    line-height: 1.4;
   }
   :deep(h1) {
     font-size: 21px;
@@ -48,14 +48,14 @@ const html = computed(() => render(props.content || ''))
   }
   :deep(ul),
   :deep(ol) {
-    padding-left: 26px;
-    margin: 10px 0;
+    padding-left: 28px;
+    margin: 14px 0;
   }
   :deep(li) {
-    margin: 6px 0;
+    margin: 10px 0;
   }
   :deep(li p) {
-    margin: 4px 0;
+    margin: 6px 0;
   }
   :deep(blockquote) {
     margin: 12px 0;
@@ -119,7 +119,7 @@ const html = computed(() => render(props.content || ''))
 @media (max-width: 768px) {
   .markdown-body {
     font-size: 16px;
-    line-height: 1.95;
+    line-height: 2.05;
   }
 }
 </style>

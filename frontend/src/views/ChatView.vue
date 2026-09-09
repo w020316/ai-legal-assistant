@@ -313,7 +313,7 @@ onMounted(() => {
   padding: 24px 32px;
 }
 .msg-list {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
 }
 .suggestions {
