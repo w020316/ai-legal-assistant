@@ -109,9 +109,10 @@ const formattedTime = computed(() => {
         </div>
         <div class="card-body">
         <!-- 等待首字时显示加载动画 -->
-        <span v-if="streaming && !message.content" class="loading-dots">
-          <i></i><i></i><i></i>
-        </span>
+        <div v-if="streaming && !message.content" class="loading-wrap">
+          <span class="loading-dots"><i></i><i></i><i></i></span>
+          <span class="loading-text">正在思考中…</span>
+        </div>
         <!-- Markdown 内容（流式或无详细分析时直接渲染） -->
         <MarkdownRenderer
           v-else-if="streaming || !hasDetail"
@@ -193,48 +194,57 @@ const formattedTime = computed(() => {
   display: flex;
   justify-content: flex-end;
   .bubble {
-    max-width: 70%;
-    padding: 10px 14px;
-    background: var(--color-primary);
+    max-width: 72%;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #7A1F2B, #5C1620);
     color: #FBF8F1;
-    border-radius: var(--radius-sm) var(--radius-card) var(--radius-card) var(--radius-card);
+    border-radius: 16px 16px 4px 16px;
     word-break: break-word;
     line-height: 1.6;
-    font-size: 14px;
-    font-family: var(--font-serif);
-    box-shadow: var(--shadow-card);
+    font-size: 15px;
+    font-family: var(--font-sans);
+    box-shadow: 0 2px 8px rgba(90, 30, 20, 0.18);
     animation: slideInRight 0.35s var(--ease-out) both;
   }
 }
-// AI 消息：公报式卡片（左侧牛血红竖线 + 象牙纸底）
+// AI 消息：现代玻璃卡片（圆角 + 细金边 + 顶部内高光），去除旧"公报左竖线"
 .assistant-msg {
   .card {
     width: 100%;
-    background-color: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    // 左侧牛血红竖线（公报式引文标记）
-    border-left: 3px solid var(--color-accent);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-card);
+    background:
+      linear-gradient(180deg, var(--glass-highlight), transparent 42%),
+      var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-glass);
+    box-shadow: var(--glass-shadow);
     overflow: hidden;
     animation: slideInLeft 0.35s var(--ease-out) both;
+    position: relative;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 28%, rgba(154, 107, 47, 0.4) 72%, transparent);
+      border-radius: var(--radius-glass) var(--radius-glass) 0 0;
+      pointer-events: none;
+    }
   }
 }
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px 8px;
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-bg-soft);
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(255, 253, 248, 0.35);
 }
 .ai-label {
-  font-family: var(--font-display);
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 600;
-  font-style: italic;
   color: var(--color-accent);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
 }
 .ai-time {
   font-family: var(--font-mono);
@@ -302,40 +312,39 @@ const formattedTime = computed(() => {
   }
 }
 .card-body {
-  padding: 14px 16px 16px;
+  padding: 16px 18px 18px;
 }
 .detail-collapse {
   margin-top: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-glass-sm);
   overflow: hidden;
 }
 .detail-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-primary);
-  text-transform: uppercase;
+  color: var(--color-accent);
   letter-spacing: 0.05em;
-  background: var(--color-bg-soft);
+  background: var(--color-accent-light);
   user-select: none;
   transition: var(--transition-fast);
   &:hover {
-    background: var(--color-accent-light);
+    background: var(--color-accent-soft);
+    color: #fff;
   }
   .toggle-icon {
     font-size: 14px;
-    color: var(--color-accent);
   }
 }
 .detail-body {
-  padding: 12px 16px;
-  border-top: 1px solid var(--color-border);
+  padding: 14px 16px;
+  border-top: 1px solid var(--glass-border);
 }
 // 流式光标动画
 .cursor {
@@ -345,10 +354,15 @@ const formattedTime = computed(() => {
   animation: blink 1s steps(2) infinite;
 }
 // 等待加载三点脉冲动画
+.loading-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
 .loading-dots {
   display: inline-flex;
   gap: 4px;
-  padding: 4px 0;
   i {
     width: 6px;
     height: 6px;
@@ -362,6 +376,11 @@ const formattedTime = computed(() => {
       animation-delay: 0.4s;
     }
   }
+}
+.loading-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 .actions {
   margin-top: 12px;

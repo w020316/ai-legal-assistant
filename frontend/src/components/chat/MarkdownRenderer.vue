@@ -14,46 +14,56 @@ const html = computed(() => render(props.content || ''))
 
 <style scoped lang="scss">
 .markdown-body {
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.85;
   color: var(--color-text-primary);
   word-break: break-word;
 
   :deep(p) {
-    margin: 8px 0;
+    margin: 10px 0;
   }
   :deep(h1),
   :deep(h2),
   :deep(h3),
   :deep(h4) {
-    margin: 16px 0 8px;
+    margin: 20px 0 10px;
     font-weight: 600;
     color: var(--color-primary);
+    line-height: 1.35;
   }
   :deep(h1) {
-    font-size: 20px;
+    font-size: 21px;
   }
   :deep(h2) {
     font-size: 18px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border-light);
   }
   :deep(h3) {
-    font-size: 16px;
+    font-size: 16.5px;
+  }
+  :deep(strong) {
+    color: var(--color-primary);
+    font-weight: 600;
   }
   :deep(ul),
   :deep(ol) {
-    padding-left: 24px;
-    margin: 8px 0;
+    padding-left: 26px;
+    margin: 10px 0;
   }
   :deep(li) {
+    margin: 6px 0;
+  }
+  :deep(li p) {
     margin: 4px 0;
   }
   :deep(blockquote) {
-    margin: 8px 0;
-    padding: 8px 12px;
+    margin: 12px 0;
+    padding: 10px 16px;
     border-left: 3px solid var(--color-accent);
-    background: var(--color-bg);
+    background: linear-gradient(90deg, var(--color-accent-light), transparent 90%);
     color: var(--color-text-regular);
-    border-radius: 0 var(--radius-tag) var(--radius-tag) 0;
+    border-radius: var(--radius-sm);
   }
   :deep(table) {
     width: 100%;
@@ -102,6 +112,14 @@ const html = computed(() => render(props.content || ''))
   :deep(img) {
     max-width: 100%;
     border-radius: var(--radius-tag);
+  }
+}
+
+/* v1.16.0 移动端：页面固定、内容自适应 —— 正文进一步加大，提升小屏阅读舒适度 */
+@media (max-width: 768px) {
+  .markdown-body {
+    font-size: 16px;
+    line-height: 1.95;
   }
 }
 </style>

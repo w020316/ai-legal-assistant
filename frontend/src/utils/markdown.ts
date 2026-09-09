@@ -39,7 +39,9 @@ const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  breaks: false,
+  // v1.16.0：LLM 常用「单换行」而非空行分段，breaks:false 会把多行合成一段，形成"文字墙"。
+  // 开启后软换行(单 \n)渲染为 <br>，LLM 自然换行即可正确分段。列表/表格/代码块不受影响。
+  breaks: true,
   highlight(code, lang) {
     // 代码高亮：返回高亮后的 HTML，空字符串回退到默认转义
     if (lang && hljs.getLanguage(lang)) {
@@ -99,7 +101,8 @@ function renderKatexInline(expr: string): string {
 }
 
 // v1.14.0：流式/模型常输出 `##`、`-` 后缺空格的紧凑 Markdown，多数解析器不识别导致显示原始符号。
-// 渲染前做轻量规范化：给标题符、无序列表符后补空格；跳过代码块，避免破坏代码内容。
+// v1.16.0：进一步清洗 LLM 常见的装饰符粘连（`——#大前提`、`. #结论`、`1.xxx` 等），还原为合法 Markdown。
+// 渲染前做轻量规范化：跳过代码块，避免破坏代码内容。
 function normalizeMarkdown(src: string): string {
   if (!src) return ''
   const lines = src.split('\n')
@@ -109,10 +112,14 @@ function normalizeMarkdown(src: string): string {
     if (/^\s*(```|~~~)/.test(raw)) inFence = !inFence
     if (!inFence) {
       let line = raw
+      // 剥离标题前的装饰符：`——#大前提` → `#大前提`；`· #结论`/`. #` 同理
+      line = line.replace(/^\s*(?:[—–\-·,、]+|\.)\s*(?=#{1,6})/g, '')
       // 标题 `##xxx` → `## xxx`
       line = line.replace(/^(#{1,6})(?!\s)/, '$1 ')
       // 无序列表 `-xxx`/`*xxx` → `- xxx`
       line = line.replace(/^( {0,3})([-*+])(?![\s*-])/, '$1$2 ')
+      // 有序列表 `1.xxx` → `1. xxx`（仅行首数字+点，避免误伤小数/年份）
+      line = line.replace(/^( {0,3})(\d{1,3})\.(?![.\d])/, '$1$2. ')
       out.push(line)
     } else {
       out.push(raw)
