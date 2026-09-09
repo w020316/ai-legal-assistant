@@ -168,8 +168,9 @@ public class AuthService {
         try {
             redisTemplate.opsForValue().set(BLACKLIST_PREFIX + token, "1", BLACKLIST_TTL);
         } catch (Exception e) {
-            log.error("Redis 黑名单写入失败，token 仍可能有效: {}", e.getMessage(), e);
-            throw BusinessException.of(ResultCode.SYSTEM_ERROR, "登出处理失败，请稍后重试");
+            // v1.16 fail-open：Redis(Upstash) 抖动时仍允许登出。登出的关键是前端清除本地 token 并跳转，
+            // 黑名单是安全增强而非必需；写失败只降级记录，避免用户被"登出处理失败"阻塞。
+            log.warn("Redis 黑名单写入失败，fail-open 放行登出: {}", e.getMessage());
         }
     }
 

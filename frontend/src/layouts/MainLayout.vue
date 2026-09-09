@@ -79,7 +79,9 @@ async function handleLogout() {
     return // 用户取消
   }
   try {
-    await http.post('/auth/logout')
+    // v1.16：用 raw(底层 axios) 登出，绕过响应拦截器——后端登出失败(如 Redis 抖动)也不弹错误 toast，
+    // 登出以本地清理+跳转为准，best-effort 调用后端黑名单。
+    await http.raw.post('/auth/logout')
   } catch {
     // best-effort：后端登出失败不阻塞前端清理
   }

@@ -1,0 +1,28 @@
+# ============================================================
+# 长时间保活（keep-alive）
+# 让 Render free 实例保持热，避免空闲 15 分钟休眠导致"首问慢几十秒"。
+# 每 5 分钟定时 ping 后端 /health 一次（轻量、匿名、无依赖）。
+# 免费方案：git push 到 master 即自动生效，无需第三方账号。
+# ============================================================
+name: Keep-Alive
+
+on:
+  schedule:
+    # 每 5 分钟唤醒一次后端（Render free 空闲约 15 分钟才休眠，5 分钟足够保持热）
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # 支持手动触发
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping-backend:
+    name: Ping lawai-backend /health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health
+        run: |
+          curl -fsS -o /dev/null -w "health=%{http_code}\n" \
+            https://lawai-backend-vgk2.onrender.com/api/v1/health \
+            || echo "ping non-200 (实例冷启动/网络抖动)，下次再试，保活计划继续"
