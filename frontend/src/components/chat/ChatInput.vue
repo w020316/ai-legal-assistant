@@ -62,6 +62,12 @@ function handleSend() {
   input.value = ''
 }
 
+// v1.14.0：触屏设备无 Shift 键，提示文案差异化
+const isTouch = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
+const placeholderText = computed(() =>
+  props.disabled ? '请先选择或新建会话' : isTouch ? '输入法律问题，回车发送' : '输入法律问题，Enter 发送，Shift+Enter 换行',
+)
+
 // 键盘事件：Enter 发送，Shift+Enter 换行，输入法 composing 时不触发
 function handleKeydown(e: Event | KeyboardEvent) {
   const ev = e as KeyboardEvent
@@ -111,7 +117,7 @@ function handleImageChange(e: Event) {
         :rows="3"
         :maxlength="maxLen"
         resize="none"
-        :placeholder="disabled ? '请先选择或新建会话' : '输入法律问题，Enter 发送，Shift+Enter 换行'"
+        :placeholder="placeholderText"
         :disabled="disabled"
         @keydown="handleKeydown"
       />

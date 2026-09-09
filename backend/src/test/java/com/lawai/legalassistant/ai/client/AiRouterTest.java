@@ -16,11 +16,9 @@ import static org.mockito.Mockito.when;
 /**
  * {@link AiRouter} 路由决策单元测试（v1.13.0 新增）
  * <p>
- * 验证 GLM(Tacklekey) 自动启用逻辑：
- * - 显式开启 → 以 GLM 为主模型；
- * - 未开启但已配置 TACKLEKEY_API_KEY → 自动以 GLM 为主模型；
- * - 未配置 Key → 仅走 Agnes；
- * - GLM 失败 → 自动降级 Agnes。
+ * 验证三级降级链：B.AI → GLM(Tacklekey) → Agnes。
+ * 构造签名：new AiRouter(agnesClient, Optional<BaiClient>, Optional<TacklekeyClient>,
+ *                         baiApiKey, glmEnabledFlag, glmApiKey)
  */
 @DisplayName("AiRouter 路由决策")
 @ExtendWith(MockitoExtension.class)
@@ -30,6 +28,8 @@ class AiRouterTest {
     private AgnesClient agnesClient;
     @Mock
     private TacklekeyClient tacklekeyClient;
+    @Mock
+    private BaiClient baiClient;
 
     private static final String SYSTEM = "sys";
     private static final String USER = "user";
@@ -37,7 +37,7 @@ class AiRouterTest {
     @Test
     @DisplayName("未开启且无 Key：仅走 Agnes")
     void disabledWithoutKey() {
-        AiRouter router = new AiRouter(agnesClient, false, "", Optional.of(tacklekeyClient));
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "");
         when(agnesClient.chat(SYSTEM, USER)).thenReturn("agnes");
 
         String answer = router.chat(SYSTEM, USER);
@@ -47,9 +47,9 @@ class AiRouterTest {
     }
 
     @Test
-    @DisplayName("未开启但已配置 Key：自动以 GLM 为主")
+    @DisplayName("未开启 GLM 但已配置 GLM Key：自动以 GLM 为主")
     void autoEnabledWhenKeyPresent() {
-        AiRouter router = new AiRouter(agnesClient, false, "tk-key-123", Optional.of(tacklekeyClient));
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key-123");
         when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
 
         String answer = router.chat(SYSTEM, USER);
@@ -59,9 +59,9 @@ class AiRouterTest {
     }
 
     @Test
-    @DisplayName("显式开启：以 GLM 为主")
+    @DisplayName("显式开启 GLM：以 GLM 为主")
     void explicitlyEnabled() {
-        AiRouter router = new AiRouter(agnesClient, true, "", Optional.of(tacklekeyClient));
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", true, "");
         when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
 
         String answer = router.chat(SYSTEM, USER);
@@ -70,10 +70,37 @@ class AiRouterTest {
     }
 
     @Test
-    @DisplayName("GLM 失败：自动降级 Agnes")
-    void gracefulDegradeOnGlmFailure() {
-        AiRouter router = new AiRouter(agnesClient, true, "", Optional.of(tacklekeyClient));
-        when(tacklekeyClient.chat(SYSTEM, USER)).thenThrow(new RuntimeException("quota exhausted"));
+    @DisplayName("配置 BAI ApiKey：以 B.AI 为主模型(第一优先级)")
+    void baiIsPrimaryWhenKeyConfigured() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenReturn("bai");
+
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("bai");
+        verify(tacklekeyClient, never()).chat(SYSTEM, USER);
+        verify(agnesClient, never()).chat(SYSTEM, USER);
+    }
+
+    @Test
+    @DisplayName("B.AI 失败：降级 GLM")
+    void baiFailureDegradesToGlm() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenThrow(new RuntimeException("bai down"));
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
+
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("glm");
+        verify(agnesClient, never()).chat(SYSTEM, USER);
+    }
+
+    @Test
+    @DisplayName("B.AI 与 GLM 均失败：降级 Agnes")
+    void allPrimaryFailDegradesToAgnes() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenThrow(new RuntimeException("bai down"));
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenThrow(new RuntimeException("glm quota"));
         when(agnesClient.chat(SYSTEM, USER)).thenReturn("agnes");
 
         String answer = router.chat(SYSTEM, USER);
@@ -82,11 +109,14 @@ class AiRouterTest {
     }
 
     @Test
-    @DisplayName("未启用客户端为 null：仅走 Agnes")
-    void noClientDisablesGlm() {
-        AiRouter router = new AiRouter(agnesClient, true, "", Optional.empty());
-        when(agnesClient.chat(SYSTEM, USER)).thenReturn("agnes");
+    @DisplayName("未配置 B.AI：退化为 GLM/Agnes")
+    void noBaiKeyFallsBackToGlm() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "", true, "glm-key");
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
 
-        assertThat(router.chat(SYSTEM, USER)).isEqualTo("agnes");
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("glm");
+        verify(baiClient, never()).chat(SYSTEM, USER);
     }
 }

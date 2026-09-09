@@ -76,6 +76,13 @@ lawai:
       vision-model: ${GLM_VISION_MODEL:${TACKLEKEY_VISION_MODEL:glm-4v-flash}}
       chat-path: ${GLM_CHAT_PATH:/chat/completions}
       timeout: ${GLM_TIMEOUT:${TACKLEKEY_TIMEOUT:60}}
+    # 主模型①：B.AI 免费模型（OpenAI 兼容，https://chat.b.ai/v1）。
+    # 配置 BAI_API_KEY 即以 B.AI 为主，失败/超时由 AiRouter 依次降级 GLM → Agnes。
+    bai:
+      base-url: ${BAI_BASE_URL:https://chat.b.ai/v1}
+      api-key: ${BAI_API_KEY:}
+      model: ${BAI_MODEL:glm-5.3-flash}
+      timeout: ${BAI_TIMEOUT:25}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）
   # 注意：AI 测试接口仅在 dev profile 放行，prod 不放行
   security:

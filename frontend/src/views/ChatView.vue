@@ -95,13 +95,62 @@ function handleUploadImage(file: File) {
   chatStore.sendImageMessage(file)
 }
 
-// 推荐问题
-const suggestions = [
-  '什么是诉讼时效？',
-  '劳动合同解除的法定情形有哪些？',
-  '民间借贷利率的上限是多少？',
-  '如何认定夫妻共同财产？',
+// 推荐问题：预定义多组，每次新建/空会话随机抽取一组（避免太固定）
+// 分类：劳动合同/借贷/婚姻/侵权/刑事/房产/工伤/遗嘱
+const suggestionBanks: string[][] = [
+  [
+    '试用期被辞退怎么赔偿？',
+    '劳动合同到期不续签有补偿吗？',
+    '违法解除劳动合同赔偿金怎么算？',
+    '试用期最长可以约定多久？',
+  ],
+  [
+    '民间借贷利率的上限是多少？',
+    '借条没写还款日期有效吗？',
+    '欠钱不还怎么起诉？',
+    '高利贷可以不还吗？',
+  ],
+  [
+    '婚前房产婚后加名算共同财产吗？',
+    '如何认定夫妻共同财产？',
+    '离婚怎么分割夫妻共同财产？',
+    '什么是诉讼时效？',
+  ],
+  [
+    '交通事故对方全责不赔偿怎么办？',
+    '工伤认定需要哪些材料？',
+    '工伤不赔偿怎么维权？',
+    '伤残等级鉴定什么时候做？',
+  ],
+  [
+    '盗窃罪立案标准是多少？',
+    '醉驾取保候审一般怎么判？',
+    '故意伤害轻伤怎么量刑？',
+    '什么是正当防卫？',
+  ],
+  [
+    '二手房买卖合同需要注意什么？',
+    '开发商延期交房怎么退房？',
+    '房产证逾期不办怎么办？',
+    '小区物业费包含哪些项目？',
+  ],
+  [
+    '遗嘱怎么写才有效？',
+    '没有遗嘱怎么继承遗产？',
+    '遗赠和遗嘱继承有什么区别？',
+    '代位继承和转继承的区别？',
+  ],
 ]
+// 每次从所有预定义中随机选一组（4 个）
+function getRandomSuggestions(): string[] {
+  const bank = suggestionBanks[Math.floor(Math.random() * suggestionBanks.length)]
+  return bank
+}
+const suggestions = ref(getRandomSuggestions())
+// 换一组推荐
+function refreshSuggestions() {
+  suggestions.value = getRandomSuggestions()
+}
 
 function handleSuggestion(text: string) {
   handleSend(text)
@@ -183,7 +232,10 @@ onMounted(() => {
           <!-- 空会话推荐问题：公报目录式 -->
           <div v-if="chatStore.messages.length === 0" class="suggestions">
             <div class="suggestions-eyebrow">TABLE OF INQUIRIES</div>
-            <div class="suggestions-title">您可以直接提问，或试试以下问题</div>
+            <div class="suggestions-head">
+              <div class="suggestions-title">您可以直接提问，或试试以下问题</div>
+              <button type="button" class="suggestions-refresh" @click="refreshSuggestions">换一批</button>
+            </div>
             <div class="suggestion-grid">
               <div
                 v-for="(s, i) in suggestions"
@@ -265,6 +317,30 @@ onMounted(() => {
   letter-spacing: 0.32em;
   text-transform: uppercase;
   margin-bottom: 8px;
+}
+.suggestions-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.suggestions-refresh {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px 14px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
 }
 .suggestions-title {
   font-family: var(--font-display);

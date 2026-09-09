@@ -139,6 +139,36 @@ export const useChatStore = defineStore('chat', () => {
     // v1.11.0 修复 C-1：通过索引访问代理对象修改属性，确保响应式触发
     const aiMsgIdx = messages.value.length - 1
 
+    // v1.14.0：流式内容缓冲 + 节流刷新（约 80ms 一次），避免逐 token 触发整段 Markdown 重渲染
+    // —— 显著减少移动端卡顿，并让刷新时接收到更完整的语义单元（缓解内容乱码）
+    // 增加 SSE 无数据超时：X 秒未收到新 chunk → 主动停止，避免卡死在"生成一半"
+    let contentBuffer = ''
+    let flushTimer: number | undefined = undefined
+    let idleTimer: number | undefined = undefined
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+    const IDLE_TIMEOUT_MS = 25 * 1000 // 25 秒无新 chunk 认为卡死
+    const resetIdleTimer = () => {
+      if (idleTimer !== undefined) clearTimeout(idleTimer)
+      idleTimer = window.setTimeout(() => {
+        // 长 idle：判定卡死，停止并给出可恢复提示（不自我重置，避免死循环）
+        if (reader && !reader.closed) reader.cancel()
+        if (contentBuffer) flushContent()
+        if (!messages.value[aiMsgIdx].content) {
+          messages.value[aiMsgIdx].content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
+        }
+        sending.value = false
+        loadSessions()
+      }, IDLE_TIMEOUT_MS)
+    }
+    const flushContent = () => {
+      flushTimer = undefined
+      messages.value[aiMsgIdx].content = contentBuffer
+    }
+    const scheduleFlush = () => {
+      if (flushTimer !== undefined) return
+      flushTimer = window.setTimeout(flushContent, 80)
+    }
+
     try {
       const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/sessions/${sessionId}/stream`, {
         method: 'POST',
@@ -153,7 +183,8 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error(`SSE 请求失败: ${resp.status}`)
       }
 
-      const reader = resp.body.getReader()
+      const readerRef = resp.body.getReader()
+      reader = readerRef
       const decoder = new TextDecoder()
       let buffer = ''
       let receivedChunk = false
@@ -161,17 +192,19 @@ export const useChatStore = defineStore('chat', () => {
       while (true) {
         if (!sending.value) {
           // 用户点击了停止
-          reader.cancel()
+          readerRef.cancel()
+          flushContent()
           if (!messages.value[aiMsgIdx].content) messages.value[aiMsgIdx].content = '已停止生成'
           break
         }
         if (currentSession.value?.id !== sessionId) {
           // 会话已切换，停止旧流
-          reader.cancel()
+          readerRef.cancel()
+          flushContent()
           break
         }
 
-        const { done, value } = await reader.read()
+        const { done, value } = await readerRef.read()
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
@@ -190,8 +223,10 @@ export const useChatStore = defineStore('chat', () => {
 
           if (eventName === 'chunk') {
             receivedChunk = true
-            // v1.11.0 修复 C-1：通过代理索引修改，确保流式 chunk 触发响应式更新
-            messages.value[aiMsgIdx].content += eventData
+            // v1.14.0：缓冲累积，节流刷新到内容（减少整段 Markdown 高频重渲染）
+            contentBuffer += eventData
+            resetIdleTimer() // 有新数据即刷新看门狗
+            scheduleFlush()
           } else if (eventName === 'citations') {
             try {
               messages.value[aiMsgIdx].citations = JSON.parse(eventData)
@@ -200,6 +235,7 @@ export const useChatStore = defineStore('chat', () => {
             }
           } else if (eventName === 'done') {
             sending.value = false
+            flushContent() // 兜底刷新未清的空缓冲
             loadSessions()
             return true
           } else if (eventName === 'error') {
@@ -209,7 +245,8 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       // 流正常结束但没收到 done 事件
-      if (receivedChunk && messages.value[aiMsgIdx].content) {
+      if (receivedChunk && contentBuffer) {
+        flushContent()
         loadSessions()
         return true
       }
@@ -226,6 +263,8 @@ export const useChatStore = defineStore('chat', () => {
       if (idx >= 0) messages.value.splice(idx, 1)
       return false
     } finally {
+      if (flushTimer !== undefined) clearTimeout(flushTimer)
+      if (idleTimer !== undefined) clearTimeout(idleTimer)
       sending.value = false
     }
   }

@@ -98,11 +98,34 @@ function renderKatexInline(expr: string): string {
   }
 }
 
+// v1.14.0：流式/模型常输出 `##`、`-` 后缺空格的紧凑 Markdown，多数解析器不识别导致显示原始符号。
+// 渲染前做轻量规范化：给标题符、无序列表符后补空格；跳过代码块，避免破坏代码内容。
+function normalizeMarkdown(src: string): string {
+  if (!src) return ''
+  const lines = src.split('\n')
+  let inFence = false
+  const out: string[] = []
+  for (const raw of lines) {
+    if (/^\s*(```|~~~)/.test(raw)) inFence = !inFence
+    if (!inFence) {
+      let line = raw
+      // 标题 `##xxx` → `## xxx`
+      line = line.replace(/^(#{1,6})(?!\s)/, '$1 ')
+      // 无序列表 `-xxx`/`*xxx` → `- xxx`
+      line = line.replace(/^( {0,3})([-*+])(?![\s*-])/, '$1$2 ')
+      out.push(line)
+    } else {
+      out.push(raw)
+    }
+  }
+  return out.join('\n')
+}
+
 // 渲染 Markdown 为 HTML 字符串
 // 先渲染 markdown，再后处理 KaTeX 公式（法律文书场景可能含公式）
 export function render(content: string): string {
   if (!content) return ''
-  let html = md.render(content)
+  let html = md.render(normalizeMarkdown(content))
   // 块级公式 $$...$$
   html = html.replace(/\$\$([\s\S]+?)\$\$/g, (_m, expr: string) => renderKatexBlock(expr.trim()))
   // 行内公式 $...$（不跨行）
