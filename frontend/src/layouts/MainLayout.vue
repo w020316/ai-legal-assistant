@@ -6,6 +6,7 @@ import { ElMessageBox } from 'element-plus'
 import http from '@/api/request'
 import VersionUpdateDialog from '@/components/common/VersionUpdateDialog.vue'
 import { APP_VERSION } from '@/utils/version'
+import { warmUpBackend } from '@/utils/warmup'
 import {
   ChatDotRound,
   Monitor,
@@ -37,6 +38,8 @@ onMounted(() => {
   mediaQuery = window.matchMedia('(max-width: 768px)')
   isMobile.value = mediaQuery.matches
   mediaQuery.addEventListener('change', updateMobile)
+  // 登录进入主界面即后台预热后端，把 free 冷启动转到浏览/输入时段，减少首问等待
+  warmUpBackend()
 })
 
 onUnmounted(() => {
