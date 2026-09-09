@@ -142,7 +142,7 @@ function toggleMode() {
         </el-form>
         <div class="toggle">
           <span>{{ isLogin ? '还没有账号？' : '已有账号？' }}</span>
-          <el-link type="primary" :underline="false" @click="toggleMode">
+          <el-link type="primary" :underline="'never'" @click="toggleMode">
             {{ isLogin ? '去注册' : '去登录' }}
           </el-link>
         </div>
