@@ -82,7 +82,7 @@ lawai:
       base-url: ${BAI_BASE_URL:https://chat.b.ai/v1}
       api-key: ${BAI_API_KEY:}
       model: ${BAI_MODEL:glm-5.3-flash}
-      timeout: ${BAI_TIMEOUT:25}
+      timeout: ${BAI_TIMEOUT:12}
   # 安全放行路径（逗号分隔字符串，由 @Value 自动分割为 List<String>）
   # 注意：AI 测试接口仅在 dev profile 放行，prod 不放行
   security:

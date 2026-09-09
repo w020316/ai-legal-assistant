@@ -47,7 +47,7 @@ public class BaiClient {
         this.model = model != null && !model.isBlank() ? model : "glm-5.3-flash";
         // 独立连接与读取超时，防止挂起耗尽线程池
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(10000);
+        factory.setConnectTimeout(8000);
         factory.setReadTimeout((int) (timeoutSeconds * 1000));
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -109,7 +109,7 @@ public class BaiClient {
                 .bodyValue(req)
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
-                .timeout(Duration.ofSeconds(30)) // 流若无数据超过30s则中断，交路由层降级 GLM/Agnes，避免前端长期卡死
+                .timeout(Duration.ofSeconds(16)) // 流若无数据超过16s则中断，快速交路由层降级 GLM/Agnes，避免卡顿
                 .mapNotNull(e -> e == null ? null : e.data())
                 .takeWhile(data -> data != null && !"[DONE]".equals(data))
                 .map(data -> extractDeltaContent((String) data))
