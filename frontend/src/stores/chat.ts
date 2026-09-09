@@ -226,7 +226,10 @@ export const useChatStore = defineStore('chat', () => {
             // v1.14.0：缓冲累积，节流刷新到内容（减少整段 Markdown 高频重渲染）
             contentBuffer += eventData
             resetIdleTimer() // 有新数据即刷新看门狗
-            scheduleFlush()
+            // v1.15.0：首个 chunk 立即上屏提升「首字」感知（国内链路较长，首字越早越好），
+            // 后续 chunk 仍走 80ms 节流避免高频触发整段 Markdown 重渲染卡顿
+            if (!messages.value[aiMsgIdx].content) flushContent()
+            else scheduleFlush()
           } else if (eventName === 'citations') {
             try {
               messages.value[aiMsgIdx].citations = JSON.parse(eventData)

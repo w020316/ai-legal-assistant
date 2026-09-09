@@ -204,8 +204,12 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--color-primary);
-  border-bottom: 3px double var(--color-accent);
+  // 液态玻璃深墨顶栏：酒红/古铜角落光晕
+  background:
+    radial-gradient(90% 150% at 100% 0%, rgba(122, 31, 43, 0.30), transparent 55%),
+    radial-gradient(70% 170% at 0% 100%, rgba(154, 107, 47, 0.18), transparent 60%),
+    linear-gradient(180deg, #201a16 0%, #14110f 100%);
+  border-bottom: 1px solid rgba(154, 107, 47, 0.30);
   padding: 0 var(--space-xl);
   height: 64px;
 }
@@ -262,10 +266,13 @@ async function handleLogout() {
   font-size: 13px;
 }
 
-// ===== 侧边栏：深墨面板 =====
+// ===== 侧边栏：深墨玻璃面板（古铜/酒红光晕） =====
 .aside {
-  background-color: var(--color-primary);
-  border-right: 1px solid var(--color-primary-light);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(154, 107, 47, 0.14), transparent 60%),
+    radial-gradient(140% 100% at 100% 100%, rgba(122, 31, 43, 0.20), transparent 60%),
+    var(--color-primary);
+  border-right: 1px solid rgba(154, 107, 47, 0.16);
   transition: width 0.25s var(--ease-out);
   display: flex;
   flex-direction: column;
@@ -366,7 +373,7 @@ async function handleLogout() {
   to { transform: translateY(-50%) scaleY(1); }
 }
 .main {
-  background-color: var(--color-bg);
+  background-color: transparent; // 透出全局液态玻璃背景
   padding: 20px;
 }
 .route-fade-enter-active,
@@ -398,7 +405,10 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-primary);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(154, 107, 47, 0.14), transparent 60%),
+    radial-gradient(140% 100% at 100% 100%, rgba(122, 31, 43, 0.20), transparent 60%),
+    var(--color-primary);
 }
 .drawer-masthead {
   padding: 20px 24px 16px;

@@ -275,24 +275,37 @@ onMounted(() => {
 .chat-view {
   display: flex;
   height: 100%;
-  background: var(--color-bg-card);
-  border-radius: var(--radius-card);
+  /* 浅色液态玻璃面板（滚动容器，不用 blur，性能安全） */
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 40%),
+    var(--glass-bg);
+  border-radius: var(--radius-glass);
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-card);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 28%, rgba(154, 107, 47, 0.4) 72%, transparent);
+    border-radius: var(--radius-glass) var(--radius-glass) 0 0;
+    pointer-events: none;
+  }
 }
 .left-panel {
   width: 260px;
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--glass-border);
   flex-shrink: 0;
-  background: var(--color-bg-card);
+  background: rgba(255, 253, 248, 0.35);
 }
 .right-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--color-bg);
+  background: transparent;
 }
 .message-stream {
   flex: 1;
@@ -370,11 +383,14 @@ onMounted(() => {
   align-items: flex-start;
   gap: 14px;
   padding: 16px 18px;
-  border: 1px solid var(--color-border);
-  // 预留 3px 左边框，hover 时染色为牛血红竖线（公报引文标记）
+  /* 浅色玻璃推荐卡：半透明白 + 细金边 + 弥散影 */
+  border: 1px solid var(--glass-border);
   border-left: 3px solid transparent;
-  border-radius: var(--radius-card);
-  background: var(--color-bg-card);
+  border-radius: var(--radius-glass-sm);
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 46%),
+    var(--glass-bg);
+  box-shadow: var(--glass-shadow);
   cursor: pointer;
   font-family: var(--font-serif);
   font-size: 14px;
@@ -392,12 +408,11 @@ onMounted(() => {
     margin-top: 20px;
   }
   &:hover {
-    border-color: var(--color-border);
-    // 左侧出现 3px 牛血红竖线（公报引文式）
+    border-color: var(--glass-border-hover);
     border-left: 3px solid var(--color-accent);
     color: var(--color-primary);
-    box-shadow: var(--shadow-hover);
-    transform: translateY(-1px);
+    box-shadow: var(--glass-shadow-hover);
+    transform: translateY(-2px);
     .suggestion-index {
       color: var(--color-accent);
       opacity: 1;

@@ -164,11 +164,16 @@ function toggleMode() {
   background: var(--color-bg);
 }
 
-// ===== 左半：公报封面（深墨面板） =====
+// ===== 左半：公报封面（深墨玻璃面板，液态玻璃 + 古铜/酒红多光晕） =====
 .brand-panel {
   position: relative;
   overflow: hidden;
-  background: var(--color-bg-deep);
+  // 液态玻璃深墨基底：多层径向光晕 + 顶部柔光，纵深层次
+  background:
+    radial-gradient(120% 90% at 15% -10%, rgba(154, 107, 47, 0.22), transparent 55%),
+    radial-gradient(130% 100% at 110% 110%, rgba(122, 31, 43, 0.30), transparent 62%),
+    radial-gradient(55% 40% at 92% 6%, rgba(255, 255, 255, 0.07), transparent 70%),
+    linear-gradient(160deg, #241e19 0%, #14110f 100%);
   padding: 56px 56px 48px;
   display: flex;
   flex-direction: column;
@@ -326,18 +331,37 @@ function toggleMode() {
   max-width: 50ch;
 }
 
-// ===== 右半：表单区（象牙纸） =====
+// ===== 右半：表单区（浅色玻璃） =====
 .form-panel {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 64px 48px;
-  background: var(--color-bg);
+  background: transparent; // 透出全局玻璃背景光晕
   position: relative;
 }
 .form-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
+  padding: 40px 40px 32px;
+  /* 浅色液态玻璃卡片：半透明白 + 细金边 + 顶部内高光 + 弥散影 */
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 44%),
+    var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  backdrop-filter: blur(10px) saturate(130%);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 28%, rgba(154, 107, 47, 0.4) 72%, transparent);
+    border-radius: var(--radius-glass) var(--radius-glass) 0 0;
+    pointer-events: none;
+  }
 }
 .form-head {
   margin-bottom: 32px;
