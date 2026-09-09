@@ -45,8 +45,11 @@
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
 | `JWT_SECRET` | JWT 签名密钥 |
 | `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型，降级用） |
-| `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` / `GLM_VISION_MODEL` | **主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。配置 `GLM_API_KEY` 即自动以智谱为主，无需开关；默认文本模型 `glm-4.5-flash`（免费最强），图片识别走 `glm-4v-flash`；失败/配额耗尽自动降级 Agnes |
+| `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` / `GLM_VISION_MODEL` | **次级主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。失败/配额耗尽自动降级 Agnes |
+| `BAI_API_KEY` / `BAI_BASE_URL` / `BAI_MODEL` / `BAI_TIMEOUT` | **首选主模型：B.AI 免费模型**（`https://chat.b.ai/v1`，OpenAI 兼容）。配置 `BAI_API_KEY` 即以 B.AI 为主；默认模型 `glm-5.3-flash`（本站免费模型）；失败/超时自动降级 GLM → Agnes |
 | `TACKLEKEY_API_KEY` / `TACKLEKEY_MODEL` / `TACKLEKEY_ENABLED` | （兼容别名，等价 GLM_*，可忽略） |
+
+> AI 路由优先级：**B.AI → GLM → Agnes**，按顺序自动降级，保证问答不中断。
 
 > `CORS_ALLOWED_ORIGINS` 不必配置：默认值已在 `application.yml` 中包含
 > `https://lawai-frontend.pages.dev` 等前端域名。
