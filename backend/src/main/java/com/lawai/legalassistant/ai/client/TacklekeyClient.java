@@ -129,6 +129,9 @@ public class TacklekeyClient {
                 Map.of("role", "system", "content", systemPrompt),
                 Map.of("role", "user", "content", userMessage)
         ));
+        // v1.16：glm-4.5-flash 默认开推理，正文在 reasoning_content、content 恒为空(会误判失败而跌落 Agnes)。
+        // 显式禁用思考，让 content 直接返回正文。
+        req.put("thinking", Map.of("type", "disabled"));
         req.put("temperature", 0.3);
         req.put("max_tokens", 4096);
         req.put("stream", true);
