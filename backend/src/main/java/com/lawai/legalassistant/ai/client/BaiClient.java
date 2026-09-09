@@ -70,28 +70,35 @@ public class BaiClient {
 
     public String chat(String systemPrompt, String userMessage) {
         long start = System.currentTimeMillis();
-        try {
-            ChatRequest req = new ChatRequest(
-                    model,
-                    List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userMessage)),
-                    0.3, 4096);
-            ChatResponse resp = restClient.post()
-                    .uri("/chat/completions")
-                    .body(req)
-                    .retrieve()
-                    .body(ChatResponse.class);
-            if (resp == null || resp.choices() == null || resp.choices().isEmpty()) {
-                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
+        // v1.16：Render→api.b.ai 瞬时抖动时重试1次，提升稳定性，避免直接落入 GLM/Agnes
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                ChatRequest req = new ChatRequest(
+                        model,
+                        List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userMessage)),
+                        0.3, 4096);
+                ChatResponse resp = restClient.post()
+                        .uri("/chat/completions")
+                        .body(req)
+                        .retrieve()
+                        .body(ChatResponse.class);
+                if (resp == null || resp.choices() == null || resp.choices().isEmpty()) {
+                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
+                }
+                String text = resp.choices().get(0).message().content();
+                log.info("B.AI 同步调用成功 | 耗时={}ms | model={}", System.currentTimeMillis() - start, model);
+                return text;
+            } catch (BusinessException e) {
+                // 业务逻辑错误（如"返回空结果"）不重试，直接抛出交由路由降级
+                throw e;
+            } catch (Exception e) {
+                log.warn("B.AI 同步调用失败(第{}次) | 耗时={}ms | error={}", attempt + 1, System.currentTimeMillis() - start, e.getMessage());
+                if (attempt == 1) {
+                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用", e);
+                }
             }
-            String text = resp.choices().get(0).message().content();
-            log.info("B.AI 同步调用成功 | 耗时={}ms | model={}", System.currentTimeMillis() - start, model);
-            return text;
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("B.AI 同步调用失败 | 耗时={}ms | error={}", System.currentTimeMillis() - start, e.getMessage());
-            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用", e);
         }
+        throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用");
     }
 
     public Flux<String> streamChat(String systemPrompt, String userMessage) {
@@ -110,6 +117,7 @@ public class BaiClient {
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
                 .timeout(Duration.ofSeconds(12)) // 流若无数据超过12s则中断，快速交路由层降级 GLM/Agnes，避免卡顿
+                .retry(1) // v1.16：Render→api.b.ai 链路偶发瞬时抖动，重试1次自愈，避免直接落入 GLM/Agnes 导致"暂时不可用"
                 .mapNotNull(e -> e == null ? null : e.data())
                 .takeWhile(data -> data != null && !"[DONE]".equals(data))
                 .map(data -> extractDeltaContent((String) data))
