@@ -51,6 +51,13 @@ public class ChatService {
     private static final int RAG_TOP_K = 5;
     /** 历史上下文最大字符数（v1.9.0 新增，防止长对话 token 超限） */
     private static final int MAX_HISTORY_CHARS = 4000;
+    /**
+     * 异步问答外层总超时（秒）。
+     * v1.16.1：此前 90s 小于降级链聚合上限（B.AI 同步可达 25s×重试2≈50s + GLM 60s≈110s），
+     * 在 B.AI/GLM 均慢或不可用时外层先超时，Agnes 兜底永远来不及生效，用户得到"AI 回复超时"而非答案。
+     * 提高至可覆盖整条链并给 Agnes 兜底留余量；常见路径(主模型快速应答)不受影响。
+     */
+    private static final int ASYNC_AI_TIMEOUT_SECONDS = 150;
 
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
@@ -295,7 +302,7 @@ public class ChatService {
                     saveAssistantMessage(sessionId, "AI 服务暂时不可用，请稍后重试。", null);
                 }
             }
-        }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
+        }, aiExecutor).orTimeout(ASYNC_AI_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
             log.error("异步 AI 调用超时: sessionId={}", sessionId, ex);
             if (saved.compareAndSet(false, true)) {
                 saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
@@ -392,7 +399,7 @@ public class ChatService {
                     saveAssistantMessage(sessionId, "图片识别失败，请稍后重试或直接输入您的问题。", null);
                 }
             }
-        }, aiExecutor).orTimeout(90, TimeUnit.SECONDS).exceptionally(ex -> {
+        }, aiExecutor).orTimeout(ASYNC_AI_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
             log.error("图片消息处理超时: sessionId={}", sessionId, ex);
             if (saved.compareAndSet(false, true)) {
                 saveAssistantMessage(sessionId, "AI 回复超时，请稍后重试", null);
