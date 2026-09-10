@@ -147,10 +147,12 @@ export const useChatStore = defineStore('chat', () => {
     let idleTimer: number | undefined = undefined
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
     const IDLE_TIMEOUT_MS = 25 * 1000 // 25 秒无新 chunk 认为卡死
+    let stalled = false // 看门狗判定卡死，用于打断后续"正常完成"成功路径
     const resetIdleTimer = () => {
       if (idleTimer !== undefined) clearTimeout(idleTimer)
       idleTimer = window.setTimeout(() => {
         // 长 idle：判定卡死，停止并给出可恢复提示（不自我重置，避免死循环）
+        stalled = true
         if (reader && !reader.closed) reader.cancel()
         if (contentBuffer) flushContent()
         if (!messages.value[aiMsgIdx].content) {
@@ -245,6 +247,16 @@ export const useChatStore = defineStore('chat', () => {
             throw new Error(eventData || 'AI 服务错误')
           }
         }
+      }
+
+      // 看门狗判定卡死：不再走"正常完成"路径，避免二次 flush 覆盖卡死提示；
+      // 半截内容已在 idle 回调中上屏，这里补足空内容时的提示后退出
+      if (stalled) {
+        if (!messages.value[aiMsgIdx].content) {
+          messages.value[aiMsgIdx].content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
+        }
+        loadSessions()
+        return true
       }
 
       // 流正常结束但没收到 done 事件
