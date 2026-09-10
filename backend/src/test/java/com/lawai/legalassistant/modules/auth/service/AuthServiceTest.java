@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -398,15 +399,18 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Redis 写入失败抛 SYSTEM_ERROR（fail-close）")
+        @DisplayName("Redis 写入失败 fail-open：登出不抛异常且仍记录 LOGOUT 审计")
         void logoutRedisFailure() {
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             doThrow(new RuntimeException("redis down"))
                     .when(valueOperations).set(anyString(), anyString(), any(Duration.class));
 
-            assertThatThrownBy(() -> authService.logout("access", null, 1L))
-                    .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("登出处理失败");
+            // v1.16 起登出黑名单为 fail-open：Redis(Upstash) 抖动不再阻塞登出（登出的关键是前端清 token+跳转），
+            // 故登出应正常返回而非抛异常；LOGOUT 审计仍应记录。
+            assertThatCode(() -> authService.logout("access", null, 1L))
+                    .doesNotThrowAnyException();
+
+            verify(auditService).record(eq(1L), eq("LOGOUT"), any(), any());
         }
     }
 }
