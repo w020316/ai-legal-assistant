@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import type { MessageVO } from '@/api'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import CitationCard from './CitationCard.vue'
@@ -91,6 +91,45 @@ const formattedTime = computed(() => {
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
 })
+
+// ===== 等待首字阶段反馈（v1.16.1）=====
+// 首字前的阶段文案轮播 + 计时，缓解 B.AI/降级链下"长时间无反馈"的等待焦虑（阶段四 P2）。
+const WAIT_STAGES = ['正在思考中…', '正在检索相关法条…', '正在组织回答…']
+const stageIndex = ref(0)
+const waitSeconds = ref(0)
+let stageTimer: number | undefined
+let secondTimer: number | undefined
+
+watch(
+  () => [props.streaming, props.message.content],
+  ([streaming, content]) => {
+    stopWaitTimers()
+    if (streaming && !content) {
+      stageIndex.value = 0
+      waitSeconds.value = 0
+      stageTimer = window.setInterval(() => {
+        stageIndex.value = (stageIndex.value + 1) % WAIT_STAGES.length
+      }, 2400)
+      secondTimer = window.setInterval(() => {
+        waitSeconds.value += 1
+      }, 1000)
+    }
+  },
+  { immediate: true },
+)
+
+function stopWaitTimers() {
+  if (stageTimer !== undefined) clearInterval(stageTimer)
+  if (secondTimer !== undefined) clearInterval(secondTimer)
+  stageTimer = undefined
+  secondTimer = undefined
+}
+
+onBeforeUnmount(stopWaitTimers)
+
+const waitStageText = computed(() => WAIT_STAGES[stageIndex.value % WAIT_STAGES.length])
+// 超 12s 才展示计时（对齐 B.AI 流式 12s 降级，掩蔽正常偏慢范围内的抖动）
+const showWaitClock = computed(() => waitSeconds.value >= 12)
 </script>
 
 <template>
@@ -108,10 +147,11 @@ const formattedTime = computed(() => {
           <span v-if="formattedTime" class="ai-time">{{ formattedTime }}</span>
         </div>
         <div class="card-body">
-        <!-- 等待首字时显示加载动画 -->
-        <div v-if="streaming && !message.content" class="loading-wrap">
+        <!-- 等待首字时显示加载动画（阶段文案轮播 + 长时计时） -->
+        <div v-if="streaming && !message.content" class="loading-wrap" role="status" aria-live="polite">
           <span class="loading-dots"><i></i><i></i><i></i></span>
-          <span class="loading-text">正在思考中…</span>
+          <span class="loading-text" :key="stageIndex">{{ waitStageText }}</span>
+          <span v-if="showWaitClock" class="loading-clock">已等待 {{ waitSeconds }}s</span>
         </div>
         <!-- Markdown 内容（流式或无详细分析时直接渲染） -->
         <MarkdownRenderer
@@ -381,6 +421,34 @@ const formattedTime = computed(() => {
   font-family: var(--font-sans);
   font-size: 13px;
   color: var(--color-text-secondary);
+  // 阶段文案轮播：切换时轻微淡入，制造"仍在推进"的感知
+  animation: loadingFade 0.3s ease-in-out;
+}
+.loading-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-gilt);
+  opacity: 0.9;
+  padding-left: 4px;
+  border-left: 1px solid var(--color-border-light);
+  white-space: nowrap;
+}
+@keyframes loadingFade {
+  from { opacity: 0.1; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+// 无障碍：用户偏好减弱动效时，收敛等待动画
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots i {
+    animation: none;
+    opacity: 0.5;
+  }
+  .loading-text {
+    animation: none;
+  }
+  .cursor {
+    animation: none;
+  }
 }
 .actions {
   margin-top: 12px;
