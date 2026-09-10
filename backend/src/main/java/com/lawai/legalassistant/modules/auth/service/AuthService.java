@@ -162,7 +162,8 @@ public class AuthService {
     /**
      * 将 token 加入黑名单。
      * <p>
-     * 安全策略：写入失败时抛出异常，避免登出后 token 仍然有效。
+     * 安全策略（v1.16 起 fail-open）：写入失败仅记录 WARN 并放行登出——登出的关键是
+     * 前端清除本地 token 并跳转，黑名单是安全增强而非必需；避免 Redis(Upstash) 抖动阻塞用户登出。
      */
     private void blacklist(String token) {
         try {
