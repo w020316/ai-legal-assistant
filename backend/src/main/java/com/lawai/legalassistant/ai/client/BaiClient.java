@@ -117,7 +117,8 @@ public class BaiClient {
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
                 .timeout(Duration.ofSeconds(12)) // 流若无数据超过12s则中断，快速交路由层降级 GLM/Agnes，避免卡顿
-                .retry(1) // v1.16：Render→api.b.ai 链路偶发瞬时抖动，重试1次自愈，避免直接落入 GLM/Agnes 导致"暂时不可用"
+                // 注意：流式不可用 retry(1) —— 若已发出部分 chunk 后再失败，重试会从头重放全部 chunk，导致前后端文本重复；
+                // 瞬时抖动依赖 AiRouter 的 GLM→Agnes 降级链兜底（同步 chat() 的重试保留，响应前失败不产生重复）
                 .mapNotNull(e -> e == null ? null : e.data())
                 .takeWhile(data -> data != null && !"[DONE]".equals(data))
                 .map(data -> extractDeltaContent((String) data))
