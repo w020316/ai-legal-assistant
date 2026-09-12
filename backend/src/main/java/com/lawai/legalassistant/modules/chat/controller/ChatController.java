@@ -168,7 +168,9 @@ public class ChatController {
     @PostMapping(value = "/{id}/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
         Long userId = requireLogin();
-        SseEmitter emitter = new SseEmitter(120_000L);
+        // v1.17：emitter 传输层超时须长于 ChatService 的 ASYNC_AI_TIMEOUT_SECONDS(150s)，
+        // 让服务层先裁决并发送明确的 "AI 回复超时" 事件，emitter 超时仅作最终兜底。
+        SseEmitter emitter = new SseEmitter(155_000L);
         emitter.onCompletion(() -> log.debug("SSE 连接关闭: sessionId={}", id));
         emitter.onTimeout(() -> {
             log.warn("SSE 连接超时: sessionId={}", id);

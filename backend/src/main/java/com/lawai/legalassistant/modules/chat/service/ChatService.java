@@ -549,7 +549,7 @@ public class ChatService {
                 }
                 emitter.completeWithError(e);
             }
-        }, aiExecutor).orTimeout(120, TimeUnit.SECONDS).exceptionally(ex -> {
+        }, aiExecutor).orTimeout(ASYNC_AI_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
             log.error("SSE 流式问答超时: sessionId={}", sessionId, ex);
             try {
                 emitter.send(SseEmitter.event().name("error").data("AI 回复超时"));
