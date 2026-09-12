@@ -56,7 +56,7 @@ git push space main -f
 
 | Key | Value |
 |---|---|
-| `AGNES_API_KEY` | `sk-Cw3WSNHCOBCcogmkg9AzyIL41kks5ntryA6O3QRGnprgN2sy` |
+| `AGNES_API_KEY` | 你的 Agnes API Key（在 agnes-ai 控制台获取，勿提交入仓库） |
 | `AGNES_BASE_URL` | `https://agnes-ai.com` |
 | `DB_HOST` | Supabase 的 Host（如 `db.abc.supabase.co`） |
 | `DB_PORT` | `5432` |
@@ -66,7 +66,7 @@ git push space main -f
 | `REDIS_HOST` | Upstash Endpoint（如 `xxx.upstash.io`） |
 | `REDIS_PORT` | `6379` |
 | `REDIS_PASSWORD` | Upstash 密码 |
-| `JWT_SECRET` | `lawai-prod-jwt-secret-32-chars-minimum-2026` |
+| `JWT_SECRET` | 自行生成 32 字节以上随机串（如 `openssl rand -base64 32`），勿使用示例值 |
 
 ### 第六步：访问
 

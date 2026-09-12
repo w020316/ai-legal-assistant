@@ -10,17 +10,15 @@ primary_region = "nrt"
   DB_PORT = "5432"
   DB_NAME = "lawai"
   DB_USER = "lawai"
-  DB_PASSWORD = "lawai123"
+  # 安全：敏感密钥不入仓库，通过 `fly secrets set` 注入，见部署文档
+  # DB_PASSWORD / REDIS_PASSWORD / JWT_SECRET / ADMIN_PASSWORD / AGNES_API_KEY
   REDIS_HOST = "lawai-redis.internal"
   REDIS_PORT = "6379"
-  REDIS_PASSWORD = ""
   AGNES_BASE_URL = "https://apihub.agnes-ai.com"
-  JWT_SECRET = "lawai-prod-jwt-secret-32-chars-minimum-2026"
   JWT_ACCESS_EXPIRATION = "7200000"
   JWT_REFRESH_EXPIRATION = "604800000"
   UPLOAD_PATH = "/app/uploads"
   ADMIN_USERNAME = "admin"
-  ADMIN_PASSWORD = "admin123"
 
 [[services]]
   internal_port = 8080

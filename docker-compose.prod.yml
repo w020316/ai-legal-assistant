@@ -15,7 +15,7 @@ services:
     environment:
       POSTGRES_DB: lawai
       POSTGRES_USER: lawai
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-lawai123}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TZ: Asia/Shanghai
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -44,13 +44,13 @@ services:
       DB_PORT: 5432
       DB_NAME: lawai
       DB_USER: lawai
-      DB_PASSWORD: ${DB_PASSWORD:-lawai123}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
-      AGNES_API_KEY: ${AGNES_API_KEY}
+      AGNES_API_KEY: ${AGNES_API_KEY:?AGNES_API_KEY is required}
       AGNES_BASE_URL: ${AGNES_BASE_URL:-https://agnes-ai.com}
-      JWT_SECRET: ${JWT_SECRET:-lawai-prod-jwt-secret-32-chars-minimum-2026}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ACCESS_EXPIRATION: 7200000
       JWT_REFRESH_EXPIRATION: 604800000
       UPLOAD_PATH: /app/uploads

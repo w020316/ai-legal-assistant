@@ -11,7 +11,7 @@ primary_region = "nrt"
 [env]
   POSTGRES_DB = "lawai"
   POSTGRES_USER = "lawai"
-  POSTGRES_PASSWORD = "lawai123"
+  # 安全：口令不入仓库，通过 `fly secrets set POSTGRES_PASSWORD=...` 注入
   POSTGRES_HOST_AUTH_METHOD = "trust"
   # 关键修复：Fly.io volume 挂载点会创建 lost+found 目录，
   # 导致 initdb 拒绝在挂载点直接初始化。改用子目录作为 PGDATA。
