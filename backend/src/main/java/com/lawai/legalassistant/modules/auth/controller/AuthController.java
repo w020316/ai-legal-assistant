@@ -4,6 +4,7 @@ import com.lawai.legalassistant.common.result.Result;
 import com.lawai.legalassistant.common.utils.SecurityUtil;
 import com.lawai.legalassistant.modules.auth.dto.AuthResponse;
 import com.lawai.legalassistant.modules.auth.dto.LoginRequest;
+import com.lawai.legalassistant.modules.auth.dto.LogoutRequest;
 import com.lawai.legalassistant.modules.auth.dto.RefreshRequest;
 import com.lawai.legalassistant.modules.auth.dto.RegisterRequest;
 import com.lawai.legalassistant.modules.auth.service.AuthService;
@@ -51,11 +52,13 @@ public class AuthController {
 
     @Operation(summary = "登出")
     @PostMapping("/logout")
-    public Result<Void> logout(HttpServletRequest request) {
+    public Result<Void> logout(@RequestBody(required = false) LogoutRequest body, HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         String accessToken = authHeader != null && authHeader.startsWith("Bearer ")
                 ? authHeader.substring(7) : null;
-        authService.logout(accessToken, null, SecurityUtil.getCurrentUserId());
+        // v1.17：透传 refreshToken，服务端一并吊销；旧客户端无 body 时为 null，仍可登出
+        String refreshToken = body != null ? body.getRefreshToken() : null;
+        authService.logout(accessToken, refreshToken, SecurityUtil.getCurrentUserId());
         return Result.success();
     }
 

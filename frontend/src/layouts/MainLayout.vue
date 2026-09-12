@@ -81,7 +81,8 @@ async function handleLogout() {
   try {
     // v1.16：用 raw(底层 axios) 登出，绕过响应拦截器——后端登出失败(如 Redis 抖动)也不弹错误 toast，
     // 登出以本地清理+跳转为准，best-effort 调用后端黑名单。
-    await http.raw.post('/auth/logout')
+    // v1.17：在清 store 之前带上 refreshToken，使服务端一并吊销（否则被盗 refresh token 仍可换新 token）。
+    await http.raw.post('/auth/logout', { refreshToken: userStore.refreshToken })
   } catch {
     // best-effort：后端登出失败不阻塞前端清理
   }
