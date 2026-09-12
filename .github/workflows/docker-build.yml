@@ -72,3 +72,14 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/user/packages/container/${{ matrix.image }}" \
             -d '{"visibility":"public"}' || true
+
+  # =============== Render 后端部署触发 (v1.17.0 P1 修复) ===============
+  # 前提: Render 后端服务 Settings → Deploy Hook 生成 URL, 填到 GitHub Secrets RENDER_DEPLOY_HOOK_URL。
+  # 镜像构建推送完成后 POST 该 hook, 强制 Render 重新部署最新镜像, 不再依赖 Dashboard 集成是否开启。
+  deploy-render-backend:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+    steps:
+      - name: 触发 Render 重新部署后端
+        run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

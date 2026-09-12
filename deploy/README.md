@@ -43,6 +43,7 @@
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 初始管理员 |
 | `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Neon PostgreSQL 连接信息 |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
+| `REDIS_SSL` | 是否启用 Redis TLS（**Upstash 必须 `true`**，v1.17.0 P1：缺此开关连接失败→JWT 黑名单 fail-open，吊销失效） |
 | `JWT_SECRET` | JWT 签名密钥 |
 | `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型，降级用） |
 | `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` / `GLM_VISION_MODEL` | **次级主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。失败/配额耗尽自动降级 Agnes |
@@ -60,8 +61,9 @@
 - `02-cases-seed.sql`：279 条法律案例种子数据
 
 ### 4. 部署触发
-- 推送到 `master` 分支自动重新部署
-- 可用 Render Dashboard 的 `Manual Deploy → Clear build cache & deploy`
+- 推送到 `master` 分支自动重新部署（Render 需开启 autoDeploy）
+- 推荐（v1.17.0）：Render 后端服务 **Settings → Deploy Hook** 生成 URL，填到 GitHub Secrets **`RENDER_DEPLOY_HOOK_URL`**；workflow `docker-build.yml` 推完镜像后自动 POST 该 hook 强制重部署，不再依赖 Dashboard 集成
+- 兜底：Render Dashboard **Manual Deploy → Clear build cache & deploy**
 
 ## 四、前端部署 (Cloudflare Pages)
 
