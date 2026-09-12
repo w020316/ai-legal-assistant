@@ -16,9 +16,10 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
       timeout: 5000ms
-      # Upstash Redis 强制 TLS (v1.17.0 P1 修复): 缺该开关连接必然失败,
-      # 触发 JWT 黑名单 fail-open, 导致登出/刷新吊销失效. Upstash 时须设 REDIS_SSL=true.
-      ssl: ${REDIS_SSL:false}
+      # Upstash Redis 强制 TLS (v1.17.1 P1 修复): 缺此开关连接必然失败, 触发 JWT 黑名单 fail-open, 吊销失效.
+      # 注意: Spring Boot 3.1+ 把 spring.data.redis.ssl 由布尔改为嵌套对象, 必须用 ssl.enabled. (此前误用布尔导致启动绑定失败)
+      ssl:
+        enabled: ${REDIS_SSL:false}
 
 # 生产环境关闭 Swagger，避免接口结构泄露
 springdoc:

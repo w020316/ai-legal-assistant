@@ -43,7 +43,7 @@
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 初始管理员 |
 | `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Neon PostgreSQL 连接信息 |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Upstash Redis |
-| `REDIS_SSL` | 是否启用 Redis TLS（**Upstash 必须 `true`**，v1.17.0 P1：缺此开关连接失败→JWT 黑名单 fail-open，吊销失效） |
+| `REDIS_SSL` | 是否启用 Redis TLS（**Upstash 须 `true`**，v1.17.1 P1：缺此开关连接失败→JWT 黑名单 fail-open；Boot 3.1+ 映射为 `spring.data.redis.ssl.enabled`） |
 | `JWT_SECRET` | JWT 签名密钥 |
 | `AGNES_API_KEY` / `AGNES_BASE_URL` | Agnes AI（辅助模型，降级用） |
 | `GLM_API_KEY` / `GLM_BASE_URL` / `GLM_MODEL` / `GLM_VISION_MODEL` | **次级主模型：智谱 GLM**（OpenAI 兼容 v4 端点）。失败/配额耗尽自动降级 Agnes |
