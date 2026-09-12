@@ -27,6 +27,53 @@ interface ChangeLog {
 
 const changelogs: ChangeLog[] = [
   {
+    version: 'v1.17.0',
+    date: '2026-09-12',
+    tag: '质量复审 + 安全加固',
+    highlights: [
+      { title: '密钥安全清理', desc: '移除仓库中遗留的明文 JWT/DB/管理员口令与文档中的 API Key，prod compose 改为强制注入环境变量' },
+      { title: 'AI 空响应降级', desc: '统一禁用 GLM 推理思考、对空/空白响应强制降级下一层，杜绝空答案被当作成功落库' },
+      { title: '流式稳健性', desc: 'SSE 帧解析兼容 CRLF/多行 data、不吞空格；外层超时统一 150s，emitter 超时作兜底' },
+      { title: '登出安全', desc: '登出时透传 refresh token 由服务端吊销，避免被盗 refresh token 登出后仍可换新 token' },
+    ],
+  },
+  {
+    version: 'v1.16.1',
+    date: '2026-09-10',
+    tag: '体验修复 + 等待态优化',
+    highlights: [
+      { title: '等待首字优化', desc: '首字前阶段文案轮播 + 长时计时（>12s），无障碍 aria-live + 减少动效适配' },
+      { title: '超时链路修复', desc: '异步问答外层超时 90→150s，覆盖 B.AI→GLM→Agnes 整条降级链' },
+    ],
+  },
+  {
+    version: 'v1.16.0',
+    date: '2026-09-09',
+    tag: 'AI 排版根治',
+    highlights: [
+      { title: '回复排版根治', desc: '剥离装饰符、软换行分段、大字号，消息卡片改现代圆角玻璃' },
+      { title: '降级链可靠化', desc: 'GLM 禁用推理思考直出正文，B.AI 失败稳定落 GLM 而非误跌 Agnes' },
+    ],
+  },
+  {
+    version: 'v1.15.0',
+    date: '2026-09-09',
+    tag: '液态玻璃焕新',
+    highlights: [
+      { title: '全站 UI 焕新', desc: '浅色液态玻璃 + 古铜金 + 酒红点缀，统一设计语言' },
+      { title: '首字即时渲染', desc: 'SSE 首字即时上屏，降低国内链路等待感' },
+    ],
+  },
+  {
+    version: 'v1.14.0',
+    date: '2026-09-09',
+    tag: 'B.AI 主模型',
+    highlights: [
+      { title: 'B.AI 免费模型主用', desc: '接入 B.AI 作主模型，配合 GLM/Agnes 三级降级' },
+      { title: '移动端与推荐体验', desc: '流式/移动端布局与推荐卡片体验修复' },
+    ],
+  },
+  {
     version: 'v1.13.1',
     date: '2026-09-08',
     tag: '智谱主模型 + 线上修复',
