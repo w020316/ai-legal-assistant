@@ -210,6 +210,9 @@ export const useChatStore = defineStore('chat', () => {
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
+        // v1.17：仅折叠完整的 CRLF（兼容个别代理/CDN 输出的 \r\n 帧）。
+        // 不单独处理裸 \r：若 \r 与 \n 恰好被拆到两次 read，仅折叠 \r\n 可在下次拼接后正确合并，避免误判事件边界。
+        buffer = buffer.replace(/\r\n/g, '\n')
         // SSE 事件以双换行分隔
         const events = buffer.split('\n\n')
         buffer = events.pop() || ''
@@ -217,11 +220,13 @@ export const useChatStore = defineStore('chat', () => {
         for (const eventStr of events) {
           const lines = eventStr.split('\n')
           let eventName = 'message'
-          let eventData = ''
+          const dataLines: string[] = []
           for (const line of lines) {
+            // SSE 规范：data 可多行，需以 \n 拼接；冒号后仅去掉一个可选前导空格，其余原样保留
             if (line.startsWith('event:')) eventName = line.slice(6).trim()
-            else if (line.startsWith('data:')) eventData = line.slice(5).trim()
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''))
           }
+          const eventData = dataLines.join('\n')
 
           if (eventName === 'chunk') {
             receivedChunk = true
@@ -312,7 +317,7 @@ export const useChatStore = defineStore('chat', () => {
       // 发送消息，后端立即返回用户消息 ID
       await sendMessageApi(sessionId, content)
       // 轮询消息列表，等待 AI 回复出现
-      const maxAttempts = 60 // 最多轮询 60 次（约 120 秒）
+      const maxAttempts = 90 // 最多轮询 90 次（约 180 秒，大于后端 150s 外层超时，确保由后端裁决）
       const interval = 2000 // 每 2 秒轮询一次
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
@@ -384,7 +389,7 @@ export const useChatStore = defineStore('chat', () => {
       const sessionId = currentSession.value.id
       await sendMessageWithImage(sessionId, file)
       // 轮询消息列表
-      const maxAttempts = 60
+      const maxAttempts = 90 // 约 180 秒，对齐后端 150s 外层超时
       const interval = 2000
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
