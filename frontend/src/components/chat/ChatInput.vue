@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { Promotion, VideoPause, Loading, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -21,38 +21,8 @@ const maxLen = 2000
 // 是否可发送
 const canSend = computed(() => input.value.trim().length > 0 && !props.sending && !props.disabled)
 
-// AI 生成阶段提示
-const stageText = ref('')
-const stages = ['正在理解您的问题…', '正在检索相关法律法规…', '正在整理建议…']
-let stageTimer: ReturnType<typeof setInterval> | null = null
-
-watch(
-  () => props.sending,
-  (sending) => {
-    if (sending) {
-      let idx = 0
-      stageText.value = stages[0]
-      stageTimer = setInterval(() => {
-        idx = (idx + 1) % stages.length
-        stageText.value = stages[idx]
-      }, 3000)
-    } else {
-      stageText.value = ''
-      if (stageTimer) {
-        clearInterval(stageTimer)
-        stageTimer = null
-      }
-    }
-  },
-)
-
-// 组件卸载时清理定时器，避免内存泄漏
-onUnmounted(() => {
-  if (stageTimer) {
-    clearInterval(stageTimer)
-    stageTimer = null
-  }
-})
+// v1.17：输入区只显示单条静态状态（控制面提示），逐段"思考→检索→组织"的过程叙事
+// 交由消息区的 MessageItem 呈现，避免两处重复且文案冲突的等待态。
 
 // 发送消息
 function handleSend() {
@@ -108,7 +78,7 @@ function handleImageChange(e: Event) {
   <div class="chat-input">
     <div v-if="sending" class="stage-hint">
       <el-icon class="loading-icon"><Loading /></el-icon>
-      <span>{{ stageText }}</span>
+      <span>正在生成回复…</span>
     </div>
     <div class="input-wrap">
       <el-input
