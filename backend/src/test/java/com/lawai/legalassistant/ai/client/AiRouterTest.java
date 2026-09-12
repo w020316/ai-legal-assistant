@@ -119,4 +119,58 @@ class AiRouterTest {
         assertThat(answer).isEqualTo("glm");
         verify(baiClient, never()).chat(SYSTEM, USER);
     }
+
+    // ===== v1.17：空/空白响应必须降级，不得当作成功返回 =====
+
+    @Test
+    @DisplayName("B.AI 返回空字符串：降级 GLM(不被当作成功)")
+    void blankBaiResponseDegradesToGlm() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenReturn("");
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
+
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("glm");
+        verify(agnesClient, never()).chat(SYSTEM, USER);
+    }
+
+    @Test
+    @DisplayName("B.AI 返回 null：降级 GLM")
+    void nullBaiResponseDegradesToGlm() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenReturn(null);
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("glm");
+
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("glm");
+    }
+
+    @Test
+    @DisplayName("B.AI 与 GLM 均返回空白：降级 Agnes")
+    void blankPrimariesDegradeToAgnes() {
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chat(SYSTEM, USER)).thenReturn("   ");
+        when(tacklekeyClient.chat(SYSTEM, USER)).thenReturn("");
+        when(agnesClient.chat(SYSTEM, USER)).thenReturn("agnes");
+
+        String answer = router.chat(SYSTEM, USER);
+
+        assertThat(answer).isEqualTo("agnes");
+    }
+
+    @Test
+    @DisplayName("图片：B.AI 返回空白降级 GLM，GLM 空白降级 Agnes")
+    void blankImageResponseDegrades() {
+        byte[] img = new byte[]{1, 2, 3};
+        AiRouter router = new AiRouter(agnesClient, Optional.of(baiClient), Optional.of(tacklekeyClient), "bai-key-1", true, "glm-key");
+        when(baiClient.chatWithImage(SYSTEM, USER, img, "image/png")).thenReturn("");
+        when(tacklekeyClient.chatWithImage(SYSTEM, USER, img, "image/png")).thenReturn("glm-img");
+
+        String answer = router.chatWithImage(SYSTEM, USER, img, "image/png");
+
+        assertThat(answer).isEqualTo("glm-img");
+        verify(agnesClient, never()).chatWithImage(SYSTEM, USER, img, "image/png");
+    }
 }

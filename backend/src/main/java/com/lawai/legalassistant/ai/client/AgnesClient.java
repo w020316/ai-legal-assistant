@@ -55,7 +55,13 @@ public class AgnesClient {
                     new SystemMessage(systemPrompt),
                     new UserMessage(userMessage)
             );
-            return chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
+            String text = chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Agnes 返回空结果");
+            }
+            return text;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Agnes AI 同步调用失败", e);
             throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "AI 服务暂时不可用", e);
@@ -80,7 +86,13 @@ public class AgnesClient {
                     new SystemMessage(systemPrompt),
                     UserMessage.builder().text(userMessage).media(List.of(media)).build()
             );
-            return chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
+            String text = chatModel.call(new Prompt(messages)).getResult().getOutput().getText();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Agnes 图片识别返回空结果");
+            }
+            return text;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Agnes AI 图片识别调用失败", e);
             throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "AI 图片识别服务暂时不可用", e);

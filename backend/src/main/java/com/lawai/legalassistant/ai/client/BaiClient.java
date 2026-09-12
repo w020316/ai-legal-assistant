@@ -86,6 +86,9 @@ public class BaiClient {
                     throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
                 }
                 String text = resp.choices().get(0).message().content();
+                if (text == null || text.isBlank()) {
+                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
+                }
                 log.info("B.AI 同步调用成功 | 耗时={}ms | model={}", System.currentTimeMillis() - start, model);
                 return text;
             } catch (BusinessException e) {
@@ -160,6 +163,9 @@ public class BaiClient {
                 throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 图片识别返回空结果");
             }
             String text = resp.choices().get(0).message().content();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 图片识别返回空结果");
+            }
             log.info("B.AI 图片识别成功 | 耗时={}ms", System.currentTimeMillis() - start);
             return text;
         } catch (BusinessException e) {

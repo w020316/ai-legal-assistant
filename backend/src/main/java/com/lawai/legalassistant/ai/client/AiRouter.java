@@ -51,12 +51,18 @@ public class AiRouter {
     /** 同步对话：B.AI → GLM → Agnes */
     public String chat(String systemPrompt, String userMessage) {
         if (baiEnabled && baiClient != null) {
-            try { return baiClient.chat(systemPrompt, userMessage); }
-            catch (Exception e) { log.warn("B.AI 失败，降级 GLM/Agnes | error={}", e.getMessage()); }
+            try {
+                String r = baiClient.chat(systemPrompt, userMessage);
+                if (isNotBlank(r)) return r;
+                log.warn("B.AI 返回空白，降级 GLM/Agnes");
+            } catch (Exception e) { log.warn("B.AI 失败，降级 GLM/Agnes | error={}", e.getMessage()); }
         }
         if (tacklekeyEnabled && tacklekeyClient != null) {
-            try { return tacklekeyClient.chat(systemPrompt, userMessage); }
-            catch (Exception e) { log.warn("GLM 失败，降级 Agnes | error={}", e.getMessage()); }
+            try {
+                String r = tacklekeyClient.chat(systemPrompt, userMessage);
+                if (isNotBlank(r)) return r;
+                log.warn("GLM 返回空白，降级 Agnes");
+            } catch (Exception e) { log.warn("GLM 失败，降级 Agnes | error={}", e.getMessage()); }
         }
         return agnesClient.chat(systemPrompt, userMessage);
     }
@@ -64,14 +70,25 @@ public class AiRouter {
     /** 带图片同步对话：B.AI → GLM → Agnes */
     public String chatWithImage(String systemPrompt, String userMessage, byte[] imageBytes, String mimeType) {
         if (baiEnabled && baiClient != null) {
-            try { return baiClient.chatWithImage(systemPrompt, userMessage, imageBytes, mimeType); }
-            catch (Exception e) { log.warn("B.AI 图片失败，降级 GLM/Agnes | error={}", e.getMessage()); }
+            try {
+                String r = baiClient.chatWithImage(systemPrompt, userMessage, imageBytes, mimeType);
+                if (isNotBlank(r)) return r;
+                log.warn("B.AI 图片返回空白，降级 GLM/Agnes");
+            } catch (Exception e) { log.warn("B.AI 图片失败，降级 GLM/Agnes | error={}", e.getMessage()); }
         }
         if (tacklekeyEnabled && tacklekeyClient != null) {
-            try { return tacklekeyClient.chatWithImage(systemPrompt, userMessage, imageBytes, mimeType); }
-            catch (Exception e) { log.warn("GLM 图片失败，降级 Agnes | error={}", e.getMessage()); }
+            try {
+                String r = tacklekeyClient.chatWithImage(systemPrompt, userMessage, imageBytes, mimeType);
+                if (isNotBlank(r)) return r;
+                log.warn("GLM 图片返回空白，降级 Agnes");
+            } catch (Exception e) { log.warn("GLM 图片失败，降级 Agnes | error={}", e.getMessage()); }
         }
         return agnesClient.chatWithImage(systemPrompt, userMessage, imageBytes, mimeType);
+    }
+
+    /** 返回文本非空白才算有效，否则交由路由层继续降级（防止空答案被当作成功返回并落库） */
+    private static boolean isNotBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     /** 流式对话：B.AI → GLM → Agnes（onErrorResume 逐级切入） */

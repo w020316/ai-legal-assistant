@@ -36,6 +36,13 @@ public class TacklekeyClient {
 
     private static final Logger log = LoggerFactory.getLogger(TacklekeyClient.class);
 
+    /**
+     * GLM 推理模型（glm-4.5-flash / glm-5.3-flash 等）默认开启思考，
+     * 正文会落在 reasoning_content 而 content 恒为空，导致被误判为失败。
+     * 显式禁用思考，让 content 直接返回正文。三处调用统一使用本常量。
+     */
+    private static final Map<String, Object> THINKING_DISABLED = Map.of("type", "disabled");
+
     private final RestClient restClient;
     private final WebClient streamClient;
     private final String model;
@@ -95,7 +102,8 @@ public class TacklekeyClient {
                             new ChatMessage("user", userMessage)
                     ),
                     0.3,
-                    4096
+                    4096,
+                    THINKING_DISABLED
             );
             ChatResponse resp = restClient.post()
                     .uri(chatPath)
@@ -106,6 +114,9 @@ public class TacklekeyClient {
                 throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Tacklekey 返回空结果");
             }
             String text = resp.choices().get(0).message().content();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Tacklekey 返回空结果");
+            }
             log.info("Tacklekey 同步调用成功 | 耗时={}ms | tokens={}", System.currentTimeMillis() - start, resp.usage() != null ? resp.usage().totalTokens() : -1);
             return text;
         } catch (BusinessException e) {
@@ -131,7 +142,7 @@ public class TacklekeyClient {
         ));
         // v1.16：glm-4.5-flash 默认开推理，正文在 reasoning_content、content 恒为空(会误判失败而跌落 Agnes)。
         // 显式禁用思考，让 content 直接返回正文。
-        req.put("thinking", Map.of("type", "disabled"));
+        req.put("thinking", THINKING_DISABLED);
         req.put("temperature", 0.3);
         req.put("max_tokens", 4096);
         req.put("stream", true);
@@ -141,6 +152,9 @@ public class TacklekeyClient {
                 .bodyValue(req)
                 .retrieve()
                 .bodyToFlux(ServerSentEvent.class)
+                // v1.17：流若无数据超过 20s 则中断，交路由层降级 Agnes。
+                // GLM 为中间层，取 20s（宽于 B.AI 首层的 12s），避免慢而活的流过早跌到最慢的 Agnes。
+                .timeout(Duration.ofSeconds(20))
                 .mapNotNull(e -> e == null ? null : e.data())
                 .takeWhile(data -> data != null && !"[DONE]".equals(data))
                 .map(data -> extractDeltaContent((String) data))
@@ -188,12 +202,12 @@ public class TacklekeyClient {
             );
             Map<String, Object> systemContent = Map.of("role", "system", "content", systemPrompt);
             // 视觉识别用视觉模型（glm-4v 系列），文本对话用 model
-            Map<String, Object> reqBody = Map.of(
-                    "model", visionModel,
-                    "messages", List.of(systemContent, userContent),
-                    "temperature", 0.3,
-                    "max_tokens", 4096
-            );
+            Map<String, Object> reqBody = new HashMap<>();
+            reqBody.put("model", visionModel);
+            reqBody.put("messages", List.of(systemContent, userContent));
+            reqBody.put("thinking", THINKING_DISABLED);
+            reqBody.put("temperature", 0.3);
+            reqBody.put("max_tokens", 4096);
             ChatResponse resp = restClient.post()
                     .uri(chatPath)
                     .body(reqBody)
@@ -203,6 +217,9 @@ public class TacklekeyClient {
                 throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Tacklekey 图片识别返回空结果");
             }
             String text = resp.choices().get(0).message().content();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "Tacklekey 图片识别返回空结果");
+            }
             log.info("Tacklekey 图片识别成功 | 耗时={}ms", System.currentTimeMillis() - start);
             return text;
         } catch (BusinessException e) {
@@ -219,7 +236,8 @@ public class TacklekeyClient {
             String model,
             List<ChatMessage> messages,
             double temperature,
-            @JsonProperty("max_tokens") int maxTokens
+            @JsonProperty("max_tokens") int maxTokens,
+            Map<String, Object> thinking
     ) {}
 
     record ChatMessage(String role, String content) {}
