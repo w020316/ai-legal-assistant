@@ -83,15 +83,20 @@ public class ExportController {
 
     /**
      * 将标题转为安全文件名：去除文件名非法字符，空标题回退为 "linzAI导出"
+     * <p>
+     * v1.18 修复（审查 V1-12）：截断长度必须取<b>清洗后</b>字符串的长度——此前用原始
+     * title.length()，而 replaceAll("\\s+","_") 会把连续空白折叠变短（如"合同  纠纷"
+     * 8 字符 → "合同_纠纷" 5 字符），substring(0, 8) 越界抛 StringIndexOutOfBoundsException，
+     * 导致 Word/PDF 导出接口 500。
      */
-    private String sanitizeFilename(String title) {
+    static String sanitizeFilename(String title) {
         if (title == null || title.isBlank()) {
             return "linzAI导出";
         }
-        return title.trim()
+        String safe = title.trim()
                 .replaceAll("[\\\\/:*?\"<>|]", "_")
-                .replaceAll("\\s+", "_")
-                .substring(0, Math.min(title.length(), 64));
+                .replaceAll("\\s+", "_");
+        return safe.substring(0, Math.min(safe.length(), 64));
     }
 
     private Long requireLogin() {
