@@ -1,0 +1,38 @@
+# v1.18（审查 P2#23）：后端测试 + JaCoCo 覆盖率门禁。
+# 此前 pom 中 BUNDLE LINE>=60% 的门槛因 exec 数据从未生成而静默跳过（本地 forkCount=0
+# 或中文路径 destfile 编码问题；CI 从未跑过测试）。ubuntu 的 ASCII 路径下
+# prepare-agent/report/check 全链路可正常工作，本 workflow 让门槛真正生效：
+# 覆盖率低于 60% 时 verify 失败、PR/推送变红。
+name: Backend Tests
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: mvn verify (tests + coverage gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run tests with coverage gate
+        run: mvn -f backend/pom.xml verify -B
+
+      - name: Print LINE coverage
+        if: always()
+        run: |
+          if [ -f backend/target/site/jacoco/jacoco.csv ]; then
+            awk -F, 'NR>1 {m+=$8; c+=$9} END {printf "LINE coverage: %d/%d = %.2f%%\n", c, c+m, c/(c+m)*100}' \
+              backend/target/site/jacoco/jacoco.csv
+          fi
