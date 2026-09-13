@@ -1,6 +1,8 @@
 package com.lawai.legalassistant.modules.rag.service;
 
 import com.lawai.legalassistant.ai.client.AiRouter;
+import com.lawai.legalassistant.common.exception.BusinessException;
+import com.lawai.legalassistant.common.result.ResultCode;
 import com.lawai.legalassistant.modules.rag.dto.RetrievedChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeChunk;
 import com.lawai.legalassistant.modules.rag.entity.KnowledgeDoc;
@@ -33,6 +35,10 @@ public class RagService {
     private static final int CHUNK_OVERLAP = 80;
     /** 默认 Top-K */
     private static final int TOP_K_DEFAULT = 5;
+    /** 单文档切片数上限（v1.18 V1-13）：20MB 文本可切 ~4 万片，无上限会一次性耗尽 embedding 配额/内存 */
+    private static final int MAX_CHUNKS_PER_DOC = 500;
+    /** embedding 批量分片大小（v1.18 V1-13）：单次 API 调用条数受限，超大批次整批失败 */
+    private static final int EMBED_BATCH_SIZE = 64;
 
     private final AiRouter aiRouter;
     private final KnowledgeDocMapper docMapper;
@@ -176,19 +182,37 @@ public class RagService {
         docMapper.insert(doc);
         Long docId = doc.getId();
 
-        // 2. 切片
+        // 2. 切片（v1.18 V1-13：单文档切片数上限，超出截断告警）
         List<String> chunks = splitText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+        if (chunks.size() > MAX_CHUNKS_PER_DOC) {
+            log.warn("文档切片数 {} 超上限 {}，截断入库: docId={}", chunks.size(), MAX_CHUNKS_PER_DOC, docId);
+            chunks = chunks.subList(0, MAX_CHUNKS_PER_DOC);
+        }
         log.info("文档入库: docId={}, title={}, 切片数={}", docId, title, chunks.size());
 
-        // 3. 批量向量化一次完成（v1.13.0 优化：N 次 AI 调用降为 1 次，降低延迟与配额消耗）
-        List<float[]> embs = aiRouter.embedBatch(chunks);
+        // 3. 批量向量化（v1.13.0：N 次调用降为批量；v1.18 V1-13：按 64 片分批——单次 API 调用条数受限，
+        //    超大批次（大文档时可达数万片）会整批失败、内存暴涨；并对返回条数做一致性校验防错位）
+        List<float[]> embs = new ArrayList<>(chunks.size());
+        for (int from = 0; from < chunks.size(); from += EMBED_BATCH_SIZE) {
+            List<String> batch = chunks.subList(from, Math.min(from + EMBED_BATCH_SIZE, chunks.size()));
+            embs.addAll(aiRouter.embedBatch(batch));
+        }
+        if (embs.size() != chunks.size()) {
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR,
+                    "向量化返回条数(" + embs.size() + ")与切片数(" + chunks.size() + ")不一致");
+        }
+        List<KnowledgeChunk> entities = new ArrayList<>(chunks.size());
         for (int i = 0; i < chunks.size(); i++) {
             KnowledgeChunk entity = new KnowledgeChunk();
             entity.setDocId(docId);
             entity.setChunkIndex(i);
             entity.setContent(chunks.get(i));
             entity.setEmbedding(toPgVector(embs.get(i)));
-            chunkMapper.insertChunk(entity);
+            entities.add(entity);
+        }
+        // v1.18 V1-13：逐条 INSERT 改为按批多行 INSERT（大文档场景下数万次往返是入库延迟主要来源）
+        for (int from = 0; from < entities.size(); from += EMBED_BATCH_SIZE) {
+            chunkMapper.insertChunks(entities.subList(from, Math.min(from + EMBED_BATCH_SIZE, entities.size())));
         }
 
         // 4. 更新文档状态为已向量化

@@ -30,6 +30,21 @@ public interface KnowledgeChunkMapper extends BaseMapper<KnowledgeChunk> {
     int insertChunk(KnowledgeChunk chunk);
 
     /**
+     * 批量插入切片（v1.18 V1-13）：多行 VALUES 单语句写入，替代逐条 insertChunk——
+     * 大文档场景下数万次单条往返是入库延迟的主要来源。
+     *
+     * @param chunks 切片实体列表（embedding 为 pgvector 字符串）
+     * @return 影响行数
+     */
+    @Insert("<script>" +
+            "INSERT INTO knowledge_chunk(doc_id, chunk_index, content, embedding, created_at) VALUES " +
+            "<foreach collection='list' item='c' separator=','>" +
+            "(#{c.docId}, #{c.chunkIndex}, #{c.content}, CAST(#{c.embedding} AS vector), NOW())" +
+            "</foreach>" +
+            "</script>")
+    int insertChunks(@Param("list") List<KnowledgeChunk> chunks);
+
+    /**
      * 余弦相似向量检索 Top-K
      * <p>
      * 仅检索公共知识库（owner_type='PUBLIC'）且 embedding 非空的切片，
