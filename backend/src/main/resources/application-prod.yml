@@ -31,6 +31,12 @@ springdoc:
   swagger-ui:
     enabled: false
 
+# v1.18（审查 P2#19）：生产关闭 SQL 全量日志——application.yml 的 StdOutImpl 会把所有 SQL
+# 及参数（用户名、bcrypt 哈希等）打进 Render 日志面板
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
 logging:
   level:
     com.lawai.legalassistant: info
