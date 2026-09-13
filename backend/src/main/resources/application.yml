@@ -2,7 +2,10 @@ spring:
   application:
     name: ai-legal-assistant
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    # v1.18：默认 prod（fail-fast）——容器/平台漏配 SPRING_PROFILES_ACTIVE 时，
+    # 以 dev 运行会暴露公开的 dev JWT 密钥、默认管理员口令、Swagger 与 AI 测试端点。
+    # 本地开发请显式设置 SPRING_PROFILES_ACTIVE=dev（docker-compose.local.yml 已显式设置）。
+    active: ${SPRING_PROFILES_ACTIVE:prod}
 
   # Jackson（Spring AI 1.0 与 Spring Boot 3.4 共用 Jackson 2，无版本冲突）
   jackson:

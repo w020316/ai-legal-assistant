@@ -76,7 +76,7 @@ git push space main -f
 https://你的用户名-ai-legal-assistant.hf.space
 ```
 
-登录：admin / admin123
+登录：使用你在 Space secrets 中配置的 `ADMIN_USERNAME` / `ADMIN_PASSWORD`（v1.18 起不再提供任何默认口令）
 
 ## 免费额度说明
 

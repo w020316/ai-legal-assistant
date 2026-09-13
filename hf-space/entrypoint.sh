@@ -4,6 +4,9 @@ set -e
 
 echo "===== AI 法律助手 HF Spaces 启动 ====="
 
+# v1.18：强制 prod profile，防止公网 Space 落到 dev 默认配置（公开 dev JWT 密钥、admin/admin123、Swagger 开放）
+export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-prod}"
+
 # 检查必需的环境变量
 if [ -z "$AGNES_API_KEY" ]; then
     echo "ERROR: AGNES_API_KEY 未设置，请在 HF Space Settings → Repository secrets 中配置"
