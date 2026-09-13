@@ -29,15 +29,18 @@ function statusLabel(status: string): string {
   const s = status.toLowerCase()
   if (s.includes('up') || s.includes('ok') || s.includes('healthy')) return '运行正常'
   if (s.includes('down') || s.includes('fail') || s.includes('error')) return '服务异常'
-  if (s.includes('warn')) return '存在告警'
+  if (s.includes('warn') || s.includes('degraded')) return '存在告警'
   return status
 }
 
+// v1.18（P2#16）：补 catch——后端 503 时拦截器 reject，无 catch 会产生 unhandled rejection
 async function fetchHealth() {
   loading.value = true
   try {
     const res = await getHealth()
     healthInfo.value = res.data
+  } catch {
+    // 错误已由请求拦截器统一提示
   } finally {
     loading.value = false
   }
