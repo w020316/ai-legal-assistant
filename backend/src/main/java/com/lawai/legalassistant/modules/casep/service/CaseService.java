@@ -123,6 +123,10 @@ public class CaseService {
     private List<CaseVO> searchByMetadata(CaseSearchRequest req) {
         int page = req.getPage() != null && req.getPage() > 0 ? req.getPage() : 1;
         int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 10;
+        // v1.18（审查 P2#18）：DTO 在 controller 内手动 new 且方法参数无 @Valid，@Max(100) 注解
+        // 校验失效——服务端兜底钳制上界，防止 ?size=1000000 拉取全库或深分页慢查询
+        size = Math.min(size, 100);
+        page = Math.min(page, 1000);
         int offset = (page - 1) * size;
         return caseMapper.searchByMetadata(
                 req.getCause(), req.getCourtLevel(), req.getYear(), offset, size);
