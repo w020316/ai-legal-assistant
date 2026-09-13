@@ -15,9 +15,12 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
+      username: ${REDIS_USERNAME:}
       timeout: 5000ms
-      # Upstash Redis 强制 TLS (v1.17.1 P1 修复): 缺此开关连接必然失败, 触发 JWT 黑名单 fail-open, 吊销失效.
-      # 注意: Spring Boot 3.1+ 把 spring.data.redis.ssl 由布尔改为嵌套对象, 必须用 ssl.enabled. (此前误用布尔导致启动绑定失败)
+      # Upstash Redis 强制 TLS：明文 6379 会被直接拒连 → 黑名单 fail-open，令牌吊销失效（v1.17.1/v1.18）。
+      # 注意：Spring Boot 3.1+ 把 spring.data.redis.ssl 由布尔改为嵌套对象，必须用 ssl.enabled（此前误用布尔导致启动绑定失败）。
+      # 默认 false 以兼容 docker-compose.prod.yml 内置 redis（无 TLS）；Render 使用 Upstash 时
+      # 必须设置环境变量 REDIS_SSL=true（如需用户名认证再配 REDIS_USERNAME=default）。
       ssl:
         enabled: ${REDIS_SSL:false}
 
