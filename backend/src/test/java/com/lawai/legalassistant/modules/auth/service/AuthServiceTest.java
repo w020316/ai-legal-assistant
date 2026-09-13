@@ -356,23 +356,42 @@ class AuthServiceTest {
     @DisplayName("logout：登出")
     class Logout {
 
+        private AuthService svcWithRealJwt() {
+            return new AuthService(userMapper, passwordEncoder, realJwtUtil, redisTemplate, auditService);
+        }
+
         @Test
-        @DisplayName("登出时 access 与 refresh 都加入黑名单")
+        @DisplayName("登出时合法 access 与 refresh 都加入黑名单")
         void logoutBothTokens() {
+            String access = realJwtUtil.generateAccessToken(1L, "alice", "LAWYER");
+            String refresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-            authService.logout("access", "refresh", 1L);
+            svcWithRealJwt().logout(access, refresh, 1L);
 
             verify(valueOperations, times(2)).set(anyString(), eq("1"), any(Duration.class));
             verify(auditService).record(eq(1L), eq("LOGOUT"), isNull(), isNull());
         }
 
         @Test
+        @DisplayName("v1.18：非法 token 不写黑名单（logout 免鉴权路径的匿名刷 key 防护）")
+        void logoutInvalidTokenSkipped() {
+            // 不 stub 任何 Redis 调用：非法 token 应在写黑名单前被拦截（若误触发也会因无 stub 而报错）
+
+            svcWithRealJwt().logout("garbage-token", "not-a-jwt", 1L);
+
+            verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+            verify(redisTemplate, never()).opsForValue();
+            verify(auditService).record(eq(1L), eq("LOGOUT"), isNull(), isNull());
+        }
+
+        @Test
         @DisplayName("access 为 null 时仅处理 refresh")
         void logoutNullAccess() {
+            String refresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-            authService.logout(null, "refresh", 1L);
+            svcWithRealJwt().logout(null, refresh, 1L);
 
             verify(valueOperations, times(1)).set(anyString(), eq("1"), any(Duration.class));
             verify(auditService).record(eq(1L), eq("LOGOUT"), isNull(), isNull());
@@ -381,9 +400,10 @@ class AuthServiceTest {
         @Test
         @DisplayName("refresh 为 null 时仅处理 access")
         void logoutNullRefresh() {
+            String access = realJwtUtil.generateAccessToken(1L, "alice", "LAWYER");
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-            authService.logout("access", null, 1L);
+            svcWithRealJwt().logout(access, null, 1L);
 
             verify(valueOperations, times(1)).set(anyString(), eq("1"), any(Duration.class));
         }
@@ -391,9 +411,11 @@ class AuthServiceTest {
         @Test
         @DisplayName("userId 为 null 时不记录审计日志")
         void logoutNullUserId() {
+            String access = realJwtUtil.generateAccessToken(1L, "alice", "LAWYER");
+            String refresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-            authService.logout("access", "refresh", null);
+            svcWithRealJwt().logout(access, refresh, null);
 
             verify(auditService, never()).record(anyLong(), anyString(), any(), any());
         }
@@ -401,13 +423,14 @@ class AuthServiceTest {
         @Test
         @DisplayName("Redis 写入失败 fail-open：登出不抛异常且仍记录 LOGOUT 审计")
         void logoutRedisFailure() {
+            String access = realJwtUtil.generateAccessToken(1L, "alice", "LAWYER");
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
             doThrow(new RuntimeException("redis down"))
                     .when(valueOperations).set(anyString(), anyString(), any(Duration.class));
 
             // v1.16 起登出黑名单为 fail-open：Redis(Upstash) 抖动不再阻塞登出（登出的关键是前端清 token+跳转），
             // 故登出应正常返回而非抛异常；LOGOUT 审计仍应记录。
-            assertThatCode(() -> authService.logout("access", null, 1L))
+            assertThatCode(() -> svcWithRealJwt().logout(access, null, 1L))
                     .doesNotThrowAnyException();
 
             verify(auditService).record(eq(1L), eq("LOGOUT"), any(), any());

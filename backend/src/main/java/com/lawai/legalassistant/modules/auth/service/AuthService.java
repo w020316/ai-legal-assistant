@@ -142,16 +142,20 @@ public class AuthService {
 
     /**
      * 登出：将 access/refresh 加入黑名单
+     * <p>
+     * v1.18：仅将能通过 JWT 签名解析的 token 写入黑名单——/auth/** 是匿名放行路径，
+     * 此前任意字符串都会原样写入 Redis（7 天 TTL），构成匿名刷 key 的内存/命令配额滥用面。
+     * 无法解析的 token 对系统本就无认证效力，忽略即可。
      *
      * @param accessToken  访问令牌
      * @param refreshToken 刷新令牌
      * @param userId       用户 ID（v1.7.0 新增，用于审计日志）
      */
     public void logout(String accessToken, String refreshToken, Long userId) {
-        if (accessToken != null) {
+        if (accessToken != null && jwtUtil.parse(accessToken) != null) {
             blacklist(accessToken);
         }
-        if (refreshToken != null) {
+        if (refreshToken != null && jwtUtil.parse(refreshToken) != null) {
             blacklist(refreshToken);
         }
         if (userId != null) {
