@@ -1,6 +1,7 @@
 package com.lawai.legalassistant.config;
 
 import com.lawai.legalassistant.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,6 +56,16 @@ public class SecurityConfig {
                     permitPaths.forEach(p -> auth.requestMatchers(p).permitAll());
                     auth.anyRequest().authenticated();
                 })
+                // v1.18：显式 401 入口——此前未认证请求走 Spring 默认 Http403ForbiddenEntryPoint 返回 403，
+                // 前端仅对 401/1002 触发自动刷新 token，导致 access 过期后用户只会看到"无权限访问"
+                // 且 7 天 refreshToken 形同虚设。现返回与业务层 requireLogin 一致的 1002/401 结构化体，
+                // 让前端拦截器走统一的"静默续期→重放请求"链路。
+                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write(
+                            "{\"code\":1002,\"message\":\"登录已过期，请重新登录\",\"data\":null}");
+                }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

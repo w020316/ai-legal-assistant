@@ -115,6 +115,12 @@ service.interceptors.response.use(
     // 1002：Token 过期 — 尝试自动刷新
     if (res.code === 1002) {
       const originalConfig = response.config as RetriableConfig
+      // v1.18：登录/注册等认证接口的业务性 1002（如密码错误）不是"token 过期"，
+      // 不走刷新链路（否则会误触发 forceLogout 清空表单且无任何错误提示），直接展示错误
+      if (/\/auth\/(login|register|refresh|logout)$/.test(originalConfig.url || '')) {
+        ElMessage.error(msg)
+        return Promise.reject(new Error(msg))
+      }
       // v1.11.0 修复 C-4：已重试过的 1002 直接失败，避免死循环
       if (originalConfig._retried) {
         ElMessage.error(msg)
