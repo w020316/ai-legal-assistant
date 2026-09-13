@@ -117,27 +117,47 @@ public class AuthService {
 
     /**
      * 刷新 Token
+     * <p>
+     * v1.18：旧 refresh 的吊销改为 <b>SETNX 原子消费</b>——原先 check-then-act（先 hasKey 再 set）
+     * 存在竞态，并发携带同一 refreshToken 的两个请求可同时通过检查、各铸一套会话；
+     * 且 Redis 不可达（fail-open）时同一 refreshToken 可被无限期重放轮换。
+     * 现在 setIfAbsent 原子裁决"谁先消费"，消费失败即 401；Redis 异常时 fail-closed
+     * （拒绝刷新、要求重新登录），因为 refresh 是轮换链上唯一的重放防线，宁拒勿放。
      */
     public AuthResponse refresh(String refreshToken) {
         if (!jwtUtil.isValid(refreshToken, JwtUtil.TYPE_REFRESH)) {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 无效或已过期");
         }
-        // 检查黑名单
-        if (isBlacklisted(refreshToken)) {
-            throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 已失效");
-        }
         Claims claims = jwtUtil.parse(refreshToken);
         if (claims == null) {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 无效或已过期");
         }
+        // 原子消费旧 refresh：SETNX 成功者获得轮换权，其余并发/重放请求全部拒绝
+        consumeTokenAtomic(refreshToken);
         Long userId = jwtUtil.getUserId(claims);
         String username = jwtUtil.getUsername(claims);
         String role = jwtUtil.getRole(claims);
-        // 旧 refresh 加入黑名单
-        blacklist(refreshToken);
         String access = jwtUtil.generateAccessToken(userId, username, role);
         String newRefresh = jwtUtil.generateRefreshToken(userId, username, role);
         return new AuthResponse(access, newRefresh, jwtUtil.getAccessExpiration() / 1000, username, role);
+    }
+
+    /**
+     * 原子消费 refresh token：key 不存在时写入并返回 true（首次消费）；已存在（已消费/已吊销）返回 false。
+     * Redis 异常时 fail-closed 抛 401。
+     */
+    private void consumeTokenAtomic(String token) {
+        try {
+            Boolean first = redisTemplate.opsForValue().setIfAbsent(BLACKLIST_PREFIX + token, "1", BLACKLIST_TTL);
+            if (!Boolean.TRUE.equals(first)) {
+                throw BusinessException.of(ResultCode.UNAUTHORIZED, "refreshToken 已失效");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Redis refresh 原子消费失败，fail-closed 拒绝刷新: {}", e.getMessage());
+            throw BusinessException.of(ResultCode.UNAUTHORIZED, "登录状态校验暂不可用，请重新登录");
+        }
     }
 
     /**
@@ -176,15 +196,6 @@ public class AuthService {
             // v1.16 fail-open：Redis(Upstash) 抖动时仍允许登出。登出的关键是前端清除本地 token 并跳转，
             // 黑名单是安全增强而非必需；写失败只降级记录，避免用户被"登出处理失败"阻塞。
             log.warn("Redis 黑名单写入失败，fail-open 放行登出: {}", e.getMessage());
-        }
-    }
-
-    private boolean isBlacklisted(String token) {
-        try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
-        } catch (Exception e) {
-            log.warn("Redis 黑名单查询失败，fail-open 放行刷新: {}", e.getMessage());
-            return false;
         }
     }
 }

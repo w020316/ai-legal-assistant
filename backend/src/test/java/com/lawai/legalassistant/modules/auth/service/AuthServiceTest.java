@@ -301,11 +301,11 @@ class AuthServiceTest {
     class Refresh {
 
         @Test
-        @DisplayName("正常刷新返回新 token")
+        @DisplayName("正常刷新返回新 token（SETNX 原子消费成功）")
         void refreshSuccess() {
             String oldRefresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
-            when(redisTemplate.hasKey(anyString())).thenReturn(false);
             when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(true);
 
             // 使用真实 JwtUtil 替代 mock
             AuthService svcWithReal = new AuthService(userMapper, passwordEncoder, realJwtUtil, redisTemplate, auditService);
@@ -315,9 +315,9 @@ class AuthServiceTest {
             assertThat(resp.getRefreshToken()).isNotBlank();
             assertThat(resp.getUsername()).isEqualTo("alice");
             assertThat(resp.getRole()).isEqualTo("LAWYER");
-            // 旧 token 加入黑名单
-            verify(redisTemplate).opsForValue();
-            verify(valueOperations).set(anyString(), eq("1"), any(Duration.class));
+            // v1.18：旧 token 经 SETNX 原子消费，不再走普通 SET 写入
+            verify(valueOperations).setIfAbsent(anyString(), eq("1"), any(Duration.class));
+            verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
         }
 
         @Test
@@ -340,15 +340,31 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("已黑名单的 refresh token 拒绝刷新")
+        @DisplayName("已消费/已吊销的 refresh token 拒绝刷新（SETNX 返回 false）")
         void blacklistedRefresh() {
             String refresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
             AuthService svc = new AuthService(userMapper, passwordEncoder, realJwtUtil, redisTemplate, auditService);
-            when(redisTemplate.hasKey(anyString())).thenReturn(true);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(false);
 
             assertThatThrownBy(() -> svc.refresh(refresh))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("refreshToken 已失效");
+        }
+
+        @Test
+        @DisplayName("v1.18：Redis 异常时 refresh fail-closed 拒绝刷新（防重放）")
+        void refreshRedisFailureFailClosed() {
+            String refresh = realJwtUtil.generateRefreshToken(1L, "alice", "LAWYER");
+            AuthService svc = new AuthService(userMapper, passwordEncoder, realJwtUtil, redisTemplate, auditService);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class)))
+                    .thenThrow(new RuntimeException("redis down"));
+
+            // refresh 是令牌轮换唯一的重放防线：Redis 不可用时宁拒勿放（与登出 fail-open 相反）
+            assertThatThrownBy(() -> svc.refresh(refresh))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("登录状态校验暂不可用");
         }
     }
 
