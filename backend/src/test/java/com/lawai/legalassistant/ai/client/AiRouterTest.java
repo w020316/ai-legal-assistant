@@ -173,4 +173,48 @@ class AiRouterTest {
         assertThat(answer).isEqualTo("glm-img");
         verify(agnesClient, never()).chatWithImage(SYSTEM, USER, img, "image/png");
     }
+
+    @Test
+    @DisplayName("v1.18：流式中段失败(已发chunk)不降级重放，错误向下游传播")
+    void streamMidwayFailureDoesNotReplay() {
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key");
+        when(tacklekeyClient.streamChat(SYSTEM, USER)).thenReturn(
+                reactor.core.publisher.Flux.just("前半段")
+                        .concatWith(reactor.core.publisher.Flux.error(new RuntimeException("midway boom"))));
+        // AiRouter 构建降级链时会急切调用 agnesClient.streamChat 生成冷 Flux，
+        // 因此用"是否被订阅"而非 verify(never) 判断是否真的降级
+        java.util.concurrent.atomic.AtomicBoolean agnesSubscribed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        when(agnesClient.streamChat(SYSTEM, USER)).thenReturn(
+                reactor.core.publisher.Flux.<String>never().doOnSubscribe(s -> agnesSubscribed.set(true)));
+
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        router.streamChat(SYSTEM, USER)
+                .doOnNext(seen::add)
+                .onErrorComplete()
+                .blockLast();
+
+        // 已发出"前半段"后失败：chunk 正常到达下游，且 Agnes 不得被订阅从头重发（否则前端出现重复内容）
+        assertThat(seen).containsExactly("前半段");
+        assertThat(agnesSubscribed.get()).isFalse();
+    }
+
+    @Test
+    @DisplayName("v1.18：流式首包前失败降级 Agnes")
+    void streamFailureBeforeFirstChunkDegrades() {
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key");
+        when(tacklekeyClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.error(new RuntimeException("boom")));
+        when(agnesClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.just("agnes-a", "agnes-b"));
+
+        assertThat(router.streamChat(SYSTEM, USER).collectList().block()).containsExactly("agnes-a", "agnes-b");
+    }
+
+    @Test
+    @DisplayName("v1.18：流式空完成(200+0 chunk)降级 Agnes，防空答落库")
+    void streamEmptyCompletionDegrades() {
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key");
+        when(tacklekeyClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.empty());
+        when(agnesClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.just("agnes"));
+
+        assertThat(router.streamChat(SYSTEM, USER).collectList().block()).containsExactly("agnes");
+    }
 }

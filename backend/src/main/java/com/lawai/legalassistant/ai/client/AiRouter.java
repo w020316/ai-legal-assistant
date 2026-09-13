@@ -91,23 +91,51 @@ public class AiRouter {
         return s != null && !s.isBlank();
     }
 
-    /** 流式对话：B.AI → GLM → Agnes（onErrorResume 逐级切入） */
+    /** 流式对话：B.AI → GLM → Agnes（逐级切入，见 {@link #withStreamFallback}） */
     public reactor.core.publisher.Flux<String> streamChat(String systemPrompt, String userMessage) {
         // 低层链路：Agnes（base）
         reactor.core.publisher.Flux<String> stream = agnesClient.streamChat(systemPrompt, userMessage);
         if (tacklekeyEnabled && tacklekeyClient != null) {
-            final reactor.core.publisher.Flux<String> fallback = stream;
-            stream = tacklekeyClient.streamChat(systemPrompt, userMessage)
-                    .onErrorResume(e -> { log.warn("GLM 流式失败，降级 Agnes | error={}", e.getMessage()); return fallback; });
-            log.info("流式对话加入 GLM 层 | model={}", tacklekeyClient.modelName());
+            final reactor.core.publisher.Flux<String> agnesFallback = stream;
+            stream = withStreamFallback(tacklekeyClient.streamChat(systemPrompt, userMessage), agnesFallback, "GLM");
+            log.debug("流式对话加入 GLM 层 | model={}", tacklekeyClient.modelName());
         }
         if (baiEnabled && baiClient != null) {
             final reactor.core.publisher.Flux<String> lower = stream;
-            stream = baiClient.streamChat(systemPrompt, userMessage)
-                    .onErrorResume(e -> { log.warn("B.AI 流式失败，降级 GLM/Agnes | error={}", e.getMessage()); return lower; });
-            log.info("流式对话走主模型(B.AI) | model={}", baiClient.modelName());
+            stream = withStreamFallback(baiClient.streamChat(systemPrompt, userMessage), lower, "B.AI");
+            log.debug("流式对话走主模型(B.AI) | model={}", baiClient.modelName());
         }
         return stream;
+    }
+
+    /**
+     * 流式降级包装（v1.18，修复审查 V1-05 与"空流不降级"两项）。
+     * <ul>
+     *   <li>防重放：主层已发出 chunk 后中段失败（网络断/包间隔超时/5xx）时<b>不降级</b>——
+     *       下层从头重发会让前端出现双份/三份文本且落库内容重复；仅当<b>尚未发出任何 chunk</b> 时才切换下层；</li>
+     *   <li>防空答：主层"正常完成但零 chunk"（上游过滤/空答）时切换下层，
+     *       与同步链的 isNotBlank 守卫语义对齐，防止空答案直达前端并落库。</li>
+     * </ul>
+     */
+    private reactor.core.publisher.Flux<String> withStreamFallback(
+            reactor.core.publisher.Flux<String> primary,
+            reactor.core.publisher.Flux<String> fallback,
+            String label) {
+        final java.util.concurrent.atomic.AtomicBoolean emitted = new java.util.concurrent.atomic.AtomicBoolean(false);
+        return primary
+                .doOnNext(chunk -> emitted.set(true))
+                .onErrorResume(e -> {
+                    if (emitted.get()) {
+                        log.warn("{} 流式已输出内容，中段失败不再降级重放 | error={}", label, e.getMessage());
+                        return reactor.core.publisher.Flux.error(e);
+                    }
+                    log.warn("{} 流式失败(未输出内容)，降级 | error={}", label, e.getMessage());
+                    return fallback;
+                })
+                .switchIfEmpty(reactor.core.publisher.Flux.defer(() -> {
+                    log.warn("{} 流式返回空内容，降级", label);
+                    return fallback;
+                }));
     }
 
     /** 文本向量化：仅 Agnes 支持 */
