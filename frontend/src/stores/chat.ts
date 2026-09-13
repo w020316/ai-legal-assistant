@@ -136,8 +136,10 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
-    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性，确保响应式触发
-    const aiMsgIdx = messages.value.length - 1
+    // v1.18 修复(V1-06)：持有数组内"响应式代理"对象引用而非下标——流式期间切换会话会整体替换
+    // messages 数组，旧下标会指向新会话消息（串写/或越界 TypeError 令 UI 永久卡"生成中"）。
+    // 数组元素即该对象的响应式代理，通过引用写入同样触发响应，且只作用于本会话的占位对象。
+    const aiMsgView = messages.value[messages.value.length - 1]
 
     // v1.14.0：流式内容缓冲 + 节流刷新（约 80ms 一次），避免逐 token 触发整段 Markdown 重渲染
     // —— 显著减少移动端卡顿，并让刷新时接收到更完整的语义单元（缓解内容乱码）
@@ -148,6 +150,9 @@ export const useChatStore = defineStore('chat', () => {
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
     const IDLE_TIMEOUT_MS = 25 * 1000 // 25 秒无新 chunk 认为卡死
     let stalled = false // 看门狗判定卡死，用于打断后续"正常完成"成功路径
+    // v1.18 修复(V1-07)：后端已受理(HTTP 200)即视为"已提交"——用户消息已/将落库，
+    // 此时任何中断都不允许降级重发同一内容（否则消息成对重复落库）
+    let committed = false
     const resetIdleTimer = () => {
       if (idleTimer !== undefined) clearTimeout(idleTimer)
       idleTimer = window.setTimeout(() => {
@@ -155,8 +160,8 @@ export const useChatStore = defineStore('chat', () => {
         stalled = true
         if (reader && !reader.closed) reader.cancel()
         if (contentBuffer) flushContent()
-        if (!messages.value[aiMsgIdx].content) {
-          messages.value[aiMsgIdx].content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
+        if (!aiMsgView.content) {
+          aiMsgView.content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
         }
         sending.value = false
         loadSessions()
@@ -164,7 +169,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     const flushContent = () => {
       flushTimer = undefined
-      messages.value[aiMsgIdx].content = contentBuffer
+      aiMsgView.content = contentBuffer
     }
     const scheduleFlush = () => {
       if (flushTimer !== undefined) return
@@ -184,6 +189,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!resp.ok || !resp.body) {
         throw new Error(`SSE 请求失败: ${resp.status}`)
       }
+      committed = true
 
       const readerRef = resp.body.getReader()
       reader = readerRef
@@ -196,7 +202,7 @@ export const useChatStore = defineStore('chat', () => {
           // 用户点击了停止
           readerRef.cancel()
           flushContent()
-          if (!messages.value[aiMsgIdx].content) messages.value[aiMsgIdx].content = '已停止生成'
+          if (!aiMsgView.content) aiMsgView.content = '已停止生成'
           break
         }
         if (currentSession.value?.id !== sessionId) {
@@ -235,14 +241,17 @@ export const useChatStore = defineStore('chat', () => {
             resetIdleTimer() // 有新数据即刷新看门狗
             // v1.15.0：首个 chunk 立即上屏提升「首字」感知（国内链路较长，首字越早越好），
             // 后续 chunk 仍走 80ms 节流避免高频触发整段 Markdown 重渲染卡顿
-            if (!messages.value[aiMsgIdx].content) flushContent()
+            if (!aiMsgView.content) flushContent()
             else scheduleFlush()
           } else if (eventName === 'citations') {
             try {
-              messages.value[aiMsgIdx].citations = JSON.parse(eventData)
+              aiMsgView.citations = JSON.parse(eventData)
             } catch {
               // JSON 解析失败时忽略
             }
+            // v1.18(P3)：citations 后上游可能挂死（如 Agnes 无空闲超时）——从此时也启动看门狗，
+            // 不再等到首个 chunk，25s 无后续数据即恢复 UI
+            resetIdleTimer()
           } else if (eventName === 'done') {
             sending.value = false
             flushContent() // 兜底刷新未清的空缓冲
@@ -257,8 +266,8 @@ export const useChatStore = defineStore('chat', () => {
       // 看门狗判定卡死：不再走"正常完成"路径，避免二次 flush 覆盖卡死提示；
       // 半截内容已在 idle 回调中上屏，这里补足空内容时的提示后退出
       if (stalled) {
-        if (!messages.value[aiMsgIdx].content) {
-          messages.value[aiMsgIdx].content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
+        if (!aiMsgView.content) {
+          aiMsgView.content = 'AI 回复超时卡住了，请点击「重新生成」重试。'
         }
         loadSessions()
         return true
@@ -271,14 +280,27 @@ export const useChatStore = defineStore('chat', () => {
         return true
       }
       // 没收到任何内容
-      if (!messages.value[aiMsgIdx].content) {
-        messages.value[aiMsgIdx].content = 'AI 回复为空，请稍后重试。'
+      if (!aiMsgView.content) {
+        aiMsgView.content = 'AI 回复为空，请稍后重试。'
       }
       return true
     } catch (e) {
       // v1.11.0 修复 H-5：SSE 失败时给用户明确提示，而非静默回退
       console.warn('[Chat] SSE 流式请求失败，将降级为轮询模式', e)
-      // SSE 失败，移除占位消息，返回 false 让调用方回退到轮询模式
+      // v1.18 修复(V1-07)：后端已受理的流中断（含后端 error 事件/网络断）——
+      // 用户消息已落库，重发同一内容会造成消息成对重复落库。就地终态：保留已收内容/给出提示。
+      if (committed) {
+        if (contentBuffer) flushContent()
+        if (!aiMsgView.content) {
+          aiMsg.content =
+            e instanceof Error && e.message && !e.message.startsWith('SSE 请求失败')
+              ? e.message
+              : 'AI 服务暂时不可用，请稍后重试。'
+        }
+        loadSessions()
+        return true
+      }
+      // 未受理（连接/鉴权层失败）：后端未保存用户消息，移除占位并降级轮询（重发安全）
       const idx = messages.value.findIndex((m) => m.id === placeholderId)
       if (idx >= 0) messages.value.splice(idx, 1)
       return false
