@@ -70,38 +70,35 @@ public class BaiClient {
 
     public String chat(String systemPrompt, String userMessage) {
         long start = System.currentTimeMillis();
-        // v1.16：Render→api.b.ai 瞬时抖动时重试1次，提升稳定性，避免直接落入 GLM/Agnes
-        for (int attempt = 0; attempt < 2; attempt++) {
-            try {
-                ChatRequest req = new ChatRequest(
-                        model,
-                        List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userMessage)),
-                        0.3, 4096);
-                ChatResponse resp = restClient.post()
-                        .uri("/chat/completions")
-                        .body(req)
-                        .retrieve()
-                        .body(ChatResponse.class);
-                if (resp == null || resp.choices() == null || resp.choices().isEmpty()) {
-                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
-                }
-                String text = resp.choices().get(0).message().content();
-                if (text == null || text.isBlank()) {
-                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
-                }
-                log.info("B.AI 同步调用成功 | 耗时={}ms | model={}", System.currentTimeMillis() - start, model);
-                return text;
-            } catch (BusinessException e) {
-                // 业务逻辑错误（如"返回空结果"）不重试，直接抛出交由路由降级
-                throw e;
-            } catch (Exception e) {
-                log.warn("B.AI 同步调用失败(第{}次) | 耗时={}ms | error={}", attempt + 1, System.currentTimeMillis() - start, e.getMessage());
-                if (attempt == 1) {
-                    throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用", e);
-                }
+        // v1.18（审查 P2#1）：移除 v1.16 的同步重试 1 次——计入连接超时后单层最坏 ~66s（读 25s×2 + 连 8s×2），
+        // 叠加 GLM 10+60s ≈ 136s，150s 外层超时下 Agnes 兜底只剩 ~14s，慢故障时兜底来不及生效。
+        // 瞬时抖动的可用性由 AiRouter 的 GLM→Agnes 降级链统一兜底，同层重试在慢故障下无兜底价值。
+        try {
+            ChatRequest req = new ChatRequest(
+                    model,
+                    List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userMessage)),
+                    0.3, 4096);
+            ChatResponse resp = restClient.post()
+                    .uri("/chat/completions")
+                    .body(req)
+                    .retrieve()
+                    .body(ChatResponse.class);
+            if (resp == null || resp.choices() == null || resp.choices().isEmpty()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
             }
+            String text = resp.choices().get(0).message().content();
+            if (text == null || text.isBlank()) {
+                throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI 返回空结果");
+            }
+            log.info("B.AI 同步调用成功 | 耗时={}ms | model={}", System.currentTimeMillis() - start, model);
+            return text;
+        } catch (BusinessException e) {
+            // 业务逻辑错误（如"返回空结果"）原样抛出交由路由降级
+            throw e;
+        } catch (Exception e) {
+            log.warn("B.AI 同步调用失败 | 耗时={}ms | error={}", System.currentTimeMillis() - start, e.getMessage());
+            throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用", e);
         }
-        throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "B.AI AI 服务暂时不可用");
     }
 
     public Flux<String> streamChat(String systemPrompt, String userMessage) {
