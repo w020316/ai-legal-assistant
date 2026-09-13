@@ -34,9 +34,10 @@ spring:
       embedding:
         options:
           model: agnes-embedding
-    # 减少重试次数，embedding 模型不可用时不阻塞太久
+    # v1.18：禁用 Spring AI 内部重试（默认 max-attempts 高且会重放已发内容）。
+    # 重试/降级统一由 AiRouter 降级链裁决，避免同一次提问被重复计费/重复输出。
     retry:
-      max-attempts: 2
+      max-attempts: 1
       backoff:
         initial-interval: 1000
         multiplier: 2.0
