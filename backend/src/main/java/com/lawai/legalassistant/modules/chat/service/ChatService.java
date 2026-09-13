@@ -289,7 +289,7 @@ public class ChatService {
                 List<RetrievedChunk> chunks = Collections.emptyList();
                 String citationsJson = null;
                 try {
-                    chunks = ragService.retrieveDeep(filteredContent, RAG_TOP_K);
+                    chunks = ragService.retrieveDeep(filteredContent, RAG_TOP_K, userId);
                     citationsJson = buildCitationsJson(chunks);
                 } catch (Exception e) {
                     log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
@@ -397,7 +397,7 @@ public class ChatService {
                 List<RetrievedChunk> chunks = Collections.emptyList();
                 String citationsJson = null;
                 try {
-                    chunks = ragService.retrieveDeep(filteredRecognized, RAG_TOP_K);
+                    chunks = ragService.retrieveDeep(filteredRecognized, RAG_TOP_K, userId);
                     citationsJson = buildCitationsJson(chunks);
                 } catch (Exception e) {
                     log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
@@ -536,7 +536,7 @@ public class ChatService {
                 List<RetrievedChunk> chunks = Collections.emptyList();
                 final String[] citationsHolder = {null};
                 try {
-                    chunks = ragService.retrieveDeep(filteredContent, RAG_TOP_K);
+                    chunks = ragService.retrieveDeep(filteredContent, RAG_TOP_K, userId);
                     citationsHolder[0] = buildCitationsJson(chunks);
                 } catch (Exception e) {
                     log.warn("SSE RAG 检索失败，降级为无上下文: {}", e.getMessage());

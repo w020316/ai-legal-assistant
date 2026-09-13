@@ -58,10 +58,14 @@ public interface KnowledgeChunkMapper extends BaseMapper<KnowledgeChunk> {
             "(1 - (c.embedding <=> CAST(#{vec} AS vector))) AS score " +
             "FROM knowledge_chunk c " +
             "JOIN knowledge_doc d ON c.doc_id = d.id " +
-            "WHERE d.owner_type = 'PUBLIC' AND c.embedding IS NOT NULL " +
+            "WHERE c.embedding IS NOT NULL " +
+            // v1.18（审查 P2#11）：公共知识 + 本人私有文档——此前硬编码 owner_type='PUBLIC'，
+            // 用户上传的 PRIVATE 文档被切片向量化后永远不会被任何检索命中（入库即沉没）
+            "  AND (d.owner_type = 'PUBLIC' OR (d.owner_type = 'PRIVATE' AND d.owner_id = #{ownerId})) " +
             "ORDER BY c.embedding <=> CAST(#{vec} AS vector) " +
             "LIMIT #{topK}")
-    List<RetrievedChunk> searchByVector(@Param("vec") String vectorStr, @Param("topK") int topK);
+    List<RetrievedChunk> searchByVector(@Param("vec") String vectorStr, @Param("topK") int topK,
+                                        @Param("ownerId") Long ownerId);
 
     /**
      * 关键字文本检索（v1.12.0 检索套件，不依赖 embedding）
@@ -78,9 +82,11 @@ public interface KnowledgeChunkMapper extends BaseMapper<KnowledgeChunk> {
             "0.0 AS score " +
             "FROM knowledge_chunk c " +
             "JOIN knowledge_doc d ON c.doc_id = d.id " +
-            "WHERE d.owner_type = 'PUBLIC' " +
+            // v1.18（审查 P2#11）：同 searchByVector，私人文档按归属放行
+            "WHERE (d.owner_type = 'PUBLIC' OR (d.owner_type = 'PRIVATE' AND d.owner_id = #{ownerId})) " +
             "  AND c.content ILIKE '%' || #{keyword} || '%' " +
             "ORDER BY d.created_at DESC, c.chunk_index ASC " +
             "LIMIT #{limit}")
-    List<RetrievedChunk> searchByKeywordText(@Param("keyword") String keyword, @Param("limit") int limit);
+    List<RetrievedChunk> searchByKeywordText(@Param("keyword") String keyword, @Param("limit") int limit,
+                                             @Param("ownerId") Long ownerId);
 }

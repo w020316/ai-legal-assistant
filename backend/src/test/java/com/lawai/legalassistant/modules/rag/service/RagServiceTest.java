@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -66,8 +67,8 @@ class RagServiceTest {
     @Test
     @DisplayName("空问题返回空列表")
     void blankQuestionReturnsEmpty() {
-        assertThat(ragService.retrieveDeep("", 5)).isEmpty();
-        assertThat(ragService.retrieveDeep(null, 5)).isEmpty();
+        assertThat(ragService.retrieveDeep("", 5, 1L)).isEmpty();
+        assertThat(ragService.retrieveDeep(null, 5, 1L)).isEmpty();
     }
 
     @Test
@@ -75,10 +76,10 @@ class RagServiceTest {
     void fallbackToKeywordWhenEmbeddingFails() {
         // embed 抛异常 → 触发关键字降级
         when(aiRouter.embed(anyString())).thenThrow(new RuntimeException("embedding down"));
-        when(chunkMapper.searchByKeywordText(anyString(), anyInt())).thenReturn(
+        when(chunkMapper.searchByKeywordText(anyString(), anyInt(), any())).thenReturn(
                 List.of(chunk(1L, "包含不可抗力条款"), chunk(2L, "包含违约金条款")));
 
-        List<RetrievedChunk> result = ragService.retrieveDeep("不可抗力违约金比例", 5);
+        List<RetrievedChunk> result = ragService.retrieveDeep("不可抗力违约金比例", 5, 1L);
 
         assertThat(result).hasSize(2);
     }
@@ -87,14 +88,14 @@ class RagServiceTest {
     @DisplayName("关键字检索对通配符进行转义，防止扩大匹配")
     void escapesLikeWildcards() {
         when(aiRouter.embed(anyString())).thenThrow(new RuntimeException("embedding down"));
-        when(chunkMapper.searchByKeywordText(anyString(), anyInt())).thenReturn(
+        when(chunkMapper.searchByKeywordText(anyString(), anyInt(), any())).thenReturn(
                 List.of(chunk(3L, "包含 100% 违约金条款")));
 
-        ragService.retrieveDeep("违约金100%_条款", 5);
+        ragService.retrieveDeep("违约金100%_条款", 5, 1L);
 
-        // 验证传给 Mapper 的关键字不含裸通配符（已转义）
+        // 验证传给 Mapper 的关键字不含裸通配符（已转义），且 ownerId 透传到 SQL（PRIVATE 按归属放行）
         var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-        org.mockito.Mockito.verify(chunkMapper).searchByKeywordText(captor.capture(), anyInt());
+        org.mockito.Mockito.verify(chunkMapper).searchByKeywordText(captor.capture(), anyInt(), eq(1L));
         String escaped = captor.getValue();
         // 通配符已转义（% → \%，_ → \_），避免 ILIKE 通配扩大匹配
         assertThat(escaped).contains("\\%").contains("\\_");
@@ -105,13 +106,13 @@ class RagServiceTest {
     void mergesSemanticAndKeywordDedup() {
         // 语义检索可用：返回 id 1、2
         when(aiRouter.embed(anyString())).thenReturn(new float[]{0.1f, 0.2f});
-        when(chunkMapper.searchByVector(anyString(), anyInt()))
+        when(chunkMapper.searchByVector(anyString(), anyInt(), any()))
                 .thenReturn(List.of(chunk(1L, "语义命中"), chunk(2L, "语义命中2")));
         // 关键字检索进一步命中 id 2（重复）、3
-        when(chunkMapper.searchByKeywordText(anyString(), anyInt()))
+        when(chunkMapper.searchByKeywordText(anyString(), anyInt(), any()))
                 .thenReturn(List.of(chunk(2L, "关键字命中"), chunk(3L, "关键字命中2")));
 
-        List<RetrievedChunk> result = ragService.retrieveDeep("不可抗力违约金", 5);
+        List<RetrievedChunk> result = ragService.retrieveDeep("不可抗力违约金", 5, 1L);
 
         assertThat(result).hasSize(3);
         // 顺序：先语义（1,2），再去重追加关键字（3），id 2 不重复

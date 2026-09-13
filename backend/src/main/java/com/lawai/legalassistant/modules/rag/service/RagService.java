@@ -59,7 +59,7 @@ public class RagService {
      * @param topK     返回条数，&lt;=0 时取默认值 5
      * @return 检索结果列表，检索失败返回空列表
      */
-    public List<RetrievedChunk> retrieve(String question, int topK) {
+    public List<RetrievedChunk> retrieve(String question, int topK, Long ownerId) {
         if (question == null || question.isBlank()) {
             return Collections.emptyList();
         }
@@ -67,7 +67,7 @@ public class RagService {
             float[] vec = aiRouter.embed(question);
             String vecStr = toPgVector(vec);
             int k = topK > 0 ? topK : TOP_K_DEFAULT;
-            return chunkMapper.searchByVector(vecStr, k);
+            return chunkMapper.searchByVector(vecStr, k, ownerId);
         } catch (Exception e) {
             log.error("RAG 检索失败: question={}", question, e);
             return Collections.emptyList();
@@ -89,7 +89,7 @@ public class RagService {
      * @param topK     返回条数
      * @return 检索结果列表
      */
-    public List<RetrievedChunk> retrieveDeep(String question, int topK) {
+    public List<RetrievedChunk> retrieveDeep(String question, int topK, Long ownerId) {
         if (question == null || question.isBlank()) {
             return Collections.emptyList();
         }
@@ -101,7 +101,7 @@ public class RagService {
         // 1. 语义检索（embedding 可用时）
         try {
             float[] vec = aiRouter.embed(question);
-            List<RetrievedChunk> semantic = chunkMapper.searchByVector(toPgVector(vec), k);
+            List<RetrievedChunk> semantic = chunkMapper.searchByVector(toPgVector(vec), k, ownerId);
             for (RetrievedChunk c : semantic) {
                 if (seen.add(c.getId())) {
                     merged.add(c);
@@ -113,7 +113,7 @@ public class RagService {
 
         // 2. 关键字定位（grepFile）：对复合查询的多关键词逐一定位
         for (String kw : extractKeywords(question)) {
-            List<RetrievedChunk> hits = chunkMapper.searchByKeywordText(escapeLike(kw), k);
+            List<RetrievedChunk> hits = chunkMapper.searchByKeywordText(escapeLike(kw), k, ownerId);
             for (RetrievedChunk c : hits) {
                 if (merged.size() >= k) {
                     break;
