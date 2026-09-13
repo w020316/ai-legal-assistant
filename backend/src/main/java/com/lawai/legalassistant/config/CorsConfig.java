@@ -30,7 +30,13 @@ public class CorsConfig {
     @Value("${lawai.cors.max-age}")
     private long maxAge;
 
+    /**
+     * v1.18（审查 P2#21）：显式置为最高优先级——此前该 Filter 未设 @Order，注册在
+     * Security 过滤链（order -100）之后，预检放行实际依赖 SecurityConfig 的 OPTIONS
+     * permitAll 兜底，逻辑分散脆弱；置于最高优先级后 CORS 处理独立且先于安全链。
+     */
     @Bean
+    @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins);

@@ -23,6 +23,11 @@ jobs:
     steps:
       - name: Ping backend health
         run: |
-          curl -fsS -o /dev/null -w "health=%{http_code}\n" \
-            https://lawai-backend-vgk2.onrender.com/api/v1/health \
-            || echo "ping non-200 (实例冷启动/网络抖动)，下次再试，保活计划继续"
+          # v1.18（审查 P2#22）：失败必须可观测——此前 || echo 吞掉退出码，job 恒绿无告警价值。
+          # 非 200 时输出 ::warning:: 注解（Actions 摘要页可见，即使 job 成功）。
+          code=$(curl -fsS -o /dev/null -w "%{http_code}" \
+            https://lawai-backend-vgk2.onrender.com/api/v1/health || echo "000")
+          echo "health=$code"
+          if [ "$code" != "200" ]; then
+            echo "::warning::保活 ping 返回 $code（实例冷启动或服务异常，请检查 Render）"
+          fi

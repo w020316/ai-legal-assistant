@@ -66,6 +66,14 @@ public class SecurityConfig {
                     response.getWriter().write(
                             "{\"code\":1002,\"message\":\"登录已过期，请重新登录\",\"data\":null}");
                 }))
+                // v1.18（审查 P2#20）：安全响应头——Spring 默认已含 X-Content-Type-Options/
+                // X-Frame-Options，补 Referrer-Policy 与 Permissions-Policy；API 域不加 CSP
+                // （Swagger UI 需要内联脚本），前端 CSP 由 Cloudflare Pages 的 public/_headers 提供
+                .headers(h -> h
+                        .referrerPolicy(r -> r.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
+                                        .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .permissionsPolicy(p -> p.policy("camera=(), microphone=(), geolocation=()")))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
