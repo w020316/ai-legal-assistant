@@ -406,14 +406,15 @@ async function handleSelectDoc(doc: UserDocumentVO) {
   }
 }
 
-// 拉取分析结果
+// 拉取分析结果（v1.18 P2#15：轮询期间切换文档后，旧结果不得覆盖新选中文档的展示区）
 async function fetchAnalysis(id: number) {
   try {
     const res = await getDocumentAnalysis(id)
+    if (currentDoc.value?.id !== id) return // 已切换文档，丢弃过期结果
     analysis.value = res.data
     plainExpanded.value = {}
   } catch {
-    analysis.value = null
+    if (currentDoc.value?.id === id) analysis.value = null
   }
 }
 
@@ -441,6 +442,7 @@ async function handleAnalyze() {
     await new Promise((resolve) => setTimeout(resolve, 3000))
     // 每 3 秒轮询一次，最多 10 次
     for (let i = 0; i < 10; i++) {
+      if (currentDoc.value?.id !== docId) break // v1.18 P2#15：已切换文档，终止旧轮询
       await fetchAnalysis(docId)
       if (analysis.value) break
       await new Promise((resolve) => setTimeout(resolve, 3000))
@@ -483,6 +485,7 @@ async function handleReanalyze() {
     ElMessage.success('已重新启动分析，正在生成新报告…')
     await new Promise((resolve) => setTimeout(resolve, 3000))
     for (let i = 0; i < 10; i++) {
+      if (currentDoc.value?.id !== docId) break // v1.18 P2#15：已切换文档，终止旧轮询
       await fetchAnalysis(docId)
       if (analysis.value) break
       await new Promise((resolve) => setTimeout(resolve, 3000))
