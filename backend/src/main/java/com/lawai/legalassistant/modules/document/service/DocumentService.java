@@ -10,6 +10,7 @@ import com.lawai.legalassistant.common.util.FileTypeValidator;
 import com.lawai.legalassistant.modules.document.dto.ContractCompareVO;
 import com.lawai.legalassistant.modules.document.dto.DocumentAnalysisVO;
 import com.lawai.legalassistant.modules.document.dto.UploadResponse;
+import com.lawai.legalassistant.modules.document.dto.UserDocumentVO;
 import com.lawai.legalassistant.modules.document.entity.UserDocument;
 import com.lawai.legalassistant.modules.document.mapper.UserDocumentMapper;
 import org.apache.pdfbox.Loader;
@@ -30,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -231,16 +233,35 @@ public class DocumentService {
     }
 
     /**
-     * 用户文档列表
+     * 用户文档列表（v1.18：返回轻量 VO）
      *
      * @param userId 用户 ID
-     * @return 文档列表
+     * @return 文档列表（不含 ocrText/analysisResult 大字段）
      */
-    public List<UserDocument> list(Long userId) {
-        return documentMapper.selectList(
+    public List<UserDocumentVO> list(Long userId) {
+        // v1.18（审查 P2#14）：列表投影排除 ocrText（最大 20MB 全文），避免列表接口一次性
+        // 返回数十 MB；analysisResult 保留用于派生状态
+        List<UserDocument> docs = documentMapper.selectList(
                 new LambdaQueryWrapper<UserDocument>()
+                        .select(UserDocument.class, i -> !"ocr_text".equals(i.getColumn()))
                         .eq(UserDocument::getUserId, userId)
                         .orderByDesc(UserDocument::getCreatedAt));
+        List<UserDocumentVO> result = new ArrayList<>(docs.size());
+        for (UserDocument d : docs) {
+            UserDocumentVO vo = new UserDocumentVO();
+            vo.setId(d.getId());
+            vo.setFilename(d.getFilename());
+            vo.setFileType(d.getFileType());
+            vo.setFileSize(d.getFileSize());
+            vo.setVersion(d.getVersion());
+            vo.setCreatedAt(d.getCreatedAt());
+            // v1.18（审查 V1-02）：由 analysisResult 是否存在派生状态——前端期望 analysisStatus
+            // 而后端实体从不返回，此前 undefined.toLowerCase() 直接令文档页渲染崩溃
+            vo.setAnalysisStatus(d.getAnalysisResult() != null && !d.getAnalysisResult().isBlank()
+                    ? "completed" : "pending");
+            result.add(vo);
+        }
+        return result;
     }
 
     /**

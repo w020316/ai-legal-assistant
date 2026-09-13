@@ -7,7 +7,7 @@ import com.lawai.legalassistant.common.utils.SecurityUtil;
 import com.lawai.legalassistant.modules.document.dto.ContractCompareVO;
 import com.lawai.legalassistant.modules.document.dto.DocumentAnalysisVO;
 import com.lawai.legalassistant.modules.document.dto.UploadResponse;
-import com.lawai.legalassistant.modules.document.entity.UserDocument;
+import com.lawai.legalassistant.modules.document.dto.UserDocumentVO;
 import com.lawai.legalassistant.modules.document.service.DocumentService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,10 +47,10 @@ public class DocumentController {
     }
 
     /**
-     * 用户文档列表
+     * 用户文档列表（v1.18：轻量 VO，含派生 analysisStatus）
      */
     @GetMapping
-    public Result<List<UserDocument>> list() {
+    public Result<List<UserDocumentVO>> list() {
         Long userId = requireLogin();
         return Result.success(documentService.list(userId));
     }

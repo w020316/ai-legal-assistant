@@ -70,23 +70,23 @@ function fileIconColor(type: string): string {
   return '#3D5C3A' // var(--color-success)
 }
 
-// 分析状态 -> 标签类型
-function statusTagType(status: string): 'success' | 'warning' | 'danger' | 'info' {
-  const s = status.toLowerCase()
+// 分析状态 -> 标签类型（v1.18 V1-02：兼容字段缺失，防止 undefined.toLowerCase() 令页面崩溃）
+function statusTagType(status?: string): 'success' | 'warning' | 'danger' | 'info' {
+  const s = (status || '').toLowerCase()
   if (s.includes('done') || s.includes('complete')) return 'success'
   if (s.includes('process') || s.includes('running')) return 'warning'
   if (s.includes('fail')) return 'danger'
   return 'info'
 }
 
-// 分析状态 -> 文案
-function statusLabel(status: string): string {
-  const s = status.toLowerCase()
+// 分析状态 -> 文案（v1.18：同步加空值防御）
+function statusLabel(status?: string): string {
+  const s = (status || '').toLowerCase()
   if (s.includes('done') || s.includes('complete')) return '已完成'
   if (s.includes('process') || s.includes('running')) return '分析中'
   if (s.includes('fail')) return '失败'
   if (s.includes('pending')) return '待分析'
-  return status
+  return status || ''
 }
 
 // 风险等级 -> 标签类型
