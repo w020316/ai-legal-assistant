@@ -367,9 +367,6 @@ public class ChatService {
                 // 更新用户消息为识别出的问题
                 ChatMessage updateUserMsg = new ChatMessage();
                 updateUserMsg.setId(userMsg.getId());
-                updateUserMsg.setContent(recognizedQuestion);
-                messageMapper.updateById(updateUserMsg);
-
                 // 如果未识别到法律问题，保存提示消息
                 if (recognizedQuestion.contains("未识别到法律相关问题")) {
                     if (saved.compareAndSet(false, true)) {
@@ -380,18 +377,34 @@ public class ChatService {
                     return;
                 }
 
+                // v1.18（审查 P2#7）：识别结果与文本消息同标准过敏感词——此前图片路径完全绕过过滤，
+                // 识别出的内容可绕过校验直接落库并参与 RAG/AI
+                if (sensitiveWordFilter.contains(recognizedQuestion)) {
+                    ChatMessage blockMsg = new ChatMessage();
+                    blockMsg.setId(userMsg.getId());
+                    blockMsg.setContent("[图片消息]（识别内容未通过安全校验）");
+                    messageMapper.updateById(blockMsg);
+                    if (saved.compareAndSet(false, true)) {
+                        saveAssistantMessage(sessionId, "图片中的内容未通过安全校验，无法处理。请更换图片或直接输入您的问题。", null);
+                    }
+                    return;
+                }
+                final String filteredRecognized = sensitiveWordFilter.filter(recognizedQuestion);
+                updateUserMsg.setContent(filteredRecognized);
+                messageMapper.updateById(updateUserMsg);
+
                 // 第二步：RAG 检索 + AI 回答
                 List<RetrievedChunk> chunks = Collections.emptyList();
                 String citationsJson = null;
                 try {
-                    chunks = ragService.retrieveDeep(recognizedQuestion, RAG_TOP_K);
+                    chunks = ragService.retrieveDeep(filteredRecognized, RAG_TOP_K);
                     citationsJson = buildCitationsJson(chunks);
                 } catch (Exception e) {
                     log.warn("RAG 检索失败，降级为无上下文对话: {}", e.getMessage());
                 }
                 String context = buildContext(chunks);
                 String userPrompt = PromptTemplates.render(PromptTemplates.LEGAL_QA_USER_TEMPLATE,
-                        Map.of("context", context, "history", history, "question", recognizedQuestion));
+                        Map.of("context", context, "history", history, "question", filteredRecognized));
                 String aiContent = aiRouter.chat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt);
                 if (saved.compareAndSet(false, true)) {
                     saveAssistantMessage(sessionId, aiContent, citationsJson);
@@ -400,7 +413,7 @@ public class ChatService {
                 // 第三步：自动命名
                 ChatSession session = sessionMapper.selectById(sessionId);
                 if (session != null && "新对话".equals(session.getTitle())) {
-                    autoRenameSession(sessionId, recognizedQuestion);
+                    autoRenameSession(sessionId, filteredRecognized);
                 }
 
                 log.info("图片消息处理完成: sessionId={}", sessionId);
