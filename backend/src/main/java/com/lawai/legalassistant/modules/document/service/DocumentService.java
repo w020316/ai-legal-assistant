@@ -158,12 +158,15 @@ public class DocumentService {
      * <p>
      * v1.8.0 新增缓存：若文档已有分析结果则直接返回，跳过 AI 调用，节省成本。
      * 如需重新分析，前端应先删除文档再重新上传，或后续提供"重新分析"接口。
+     * <p>
+     * v1.18（审查 P2#13）：移除 @Transactional——此前事务包裹整个 AI 同步调用
+     * （最坏数分钟），长事务持续占用 DB 连接，小规格实例上连接池易被打满。
+     * 本方法仅一次 update 写库（自带事务），AI 调用无需事务边界。
      *
      * @param userId 用户 ID
      * @param docId  文档 ID
      * @return 分析结果
      */
-    @Transactional(rollbackFor = Exception.class)
     public DocumentAnalysisVO analyze(Long userId, Long docId) {
         UserDocument doc = getOwnedDocument(userId, docId);
         if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {
@@ -181,7 +184,40 @@ public class DocumentService {
                 log.warn("缓存分析结果解析失败，重新调用 AI: docId={}", docId);
             }
         }
+        return doAnalyze(doc);
+    }
 
+    /**
+     * 重新分析：强制重新调用 AI（v1.9.0 新增）
+     * <p>
+     * 与 analyze 的区别：analyze 命中缓存直接返回，reanalyze 清除缓存后强制调用 AI。
+     * <p>
+     * v1.18（审查 P2#13）：移除 @Transactional——清除结果先独立提交（列表立即显示"分析中"），
+     * AI 调用与结果写入不再处于长事务中；AI 失败时旧结果已被清除，用户显式要求重跑属预期行为。
+     *
+     * @param userId 用户 ID
+     * @param docId  文档 ID
+     * @return 新的分析结果
+     */
+    public DocumentAnalysisVO reanalyze(Long userId, Long docId) {
+        // 1. 校验文档归属
+        UserDocument doc = getOwnedDocument(userId, docId);
+        if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {
+            throw BusinessException.of(ResultCode.PARAM_ERROR, "文档文本为空，无法分析");
+        }
+
+        // 2. 清除旧分析结果（列表状态即时变为"分析中"）
+        documentMapper.clearAnalysisResult(docId);
+        log.info("文档重新分析：已清除旧分析结果 docId={}", docId);
+
+        // 3. 重新调用 AI 分析并写库
+        return doAnalyze(doc);
+    }
+
+    /**
+     * 执行 AI 分析并写库（无事务边界，v1.18 从 analyze 中抽取）
+     */
+    private DocumentAnalysisVO doAnalyze(UserDocument doc) {
         try {
             // 1. 调用 AI 分析
             String aiResponse = aiRouter.chat(
@@ -192,44 +228,18 @@ public class DocumentService {
             String json = extractJson(aiResponse);
             DocumentAnalysisVO analysis = objectMapper.readValue(json, DocumentAnalysisVO.class);
 
-            // 3. 更新数据库
-            documentMapper.updateAnalysisResult(docId, json);
+            // 3. 更新数据库（单条 update 自带事务）
+            documentMapper.updateAnalysisResult(doc.getId(), json);
 
-            log.info("文档分析完成: docId={}, riskPoints={}", docId,
+            log.info("文档分析完成: docId={}, riskPoints={}", doc.getId(),
                     analysis.getRiskPoints() != null ? analysis.getRiskPoints().size() : 0);
             return analysis;
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("文档分析失败: docId={}", docId, e);
+            log.error("文档分析失败: docId={}", doc.getId(), e);
             throw BusinessException.of(ResultCode.AI_SERVICE_ERROR, "文档分析失败，请稍后重试");
         }
-    }
-
-    /**
-     * 重新分析：清除已有分析结果后强制重新调用 AI（v1.9.0 新增）
-     * <p>
-     * 与 analyze 的区别：analyze 命中缓存直接返回，reanalyze 先清除缓存再调用 AI。
-     * 适用于文档内容变更后需要刷新分析结果，或用户对旧分析不满意希望重新生成。
-     *
-     * @param userId 用户 ID
-     * @param docId  文档 ID
-     * @return 新的分析结果
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public DocumentAnalysisVO reanalyze(Long userId, Long docId) {
-        // 1. 校验文档归属
-        UserDocument doc = getOwnedDocument(userId, docId);
-        if (doc.getOcrText() == null || doc.getOcrText().isBlank()) {
-            throw BusinessException.of(ResultCode.PARAM_ERROR, "文档文本为空，无法分析");
-        }
-
-        // 2. 清除旧分析结果，确保 analyze 不会命中缓存
-        documentMapper.clearAnalysisResult(docId);
-        log.info("文档重新分析：已清除旧分析结果 docId={}", docId);
-
-        // 3. 重新调用 AI 分析（此时 analysisResult 已为 null，不会命中缓存）
-        return analyze(userId, docId);
     }
 
     /**
