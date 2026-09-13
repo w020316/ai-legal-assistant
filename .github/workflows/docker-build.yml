@@ -63,6 +63,22 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      # v1.18：后端镜像推送后触发 Render Deploy Hook，消除"GHCR 镜像已更新、Render 仍跑旧版"的双轨漂移
+      #（v1.17 已实证：docker-build success 但 Render 未见重部署）。Hook URL 在 Render Dashboard
+      # → Settings → Deploy Hook 创建后存入 GitHub Secrets 的 RENDER_DEPLOY_HOOK_URL；未配置时优雅跳过。
+      - name: Trigger Render deploy (backend only)
+        if: matrix.image == 'lawai-backend'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL 未配置，跳过 Render 自动部署（请在 Render Dashboard 创建 Deploy Hook 并存入 GitHub Secrets）"
+          else
+            for i in 1 2 3; do
+              curl -sf -X POST "$RENDER_DEPLOY_HOOK_URL" && { echo "Render deploy triggered"; break; } || { echo "attempt $i failed, retry in 5s"; sleep 5; }
+            done
+          fi
+
       - name: Set package visibility to public
         continue-on-error: true
         run: |
