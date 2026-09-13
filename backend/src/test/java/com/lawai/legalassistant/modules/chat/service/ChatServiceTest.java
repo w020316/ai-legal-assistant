@@ -444,27 +444,130 @@ class ChatServiceTest {
 
         @Test
         @DisplayName("v1.18：流式超时裁决——半截内容落库、发 error 事件并 dispose 上游")
-        void streamTimeoutSavesPartialAndSendsError() {
+        void streamTimeoutSavesPartialAndSendsError() throws Exception {
             stubSession();
             when(sensitiveWordFilter.contains("写一篇长文")).thenReturn(false);
             when(sensitiveWordFilter.filter("写一篇长文")).thenReturn("写一篇长文");
-            when(aiRouter.streamChat(any(), any())).thenReturn(reactor.core.publisher.Flux.just("前半段。")
-                    .concatWith(reactor.core.publisher.Flux.never()));
+            // chunk 送达（doOnNext 已执行、fullContent 已累积）后再触发超时，消除异步时序竞态
+            java.util.concurrent.CountDownLatch chunkDelivered = new java.util.concurrent.CountDownLatch(1);
+            when(aiRouter.streamChat(any(), any())).thenReturn(reactor.core.publisher.Flux.<String>create(sink -> {
+                sink.next("前半段。");
+                chunkDelivered.countDown();
+                // 保持打开：模拟上游挂起不结束
+            }));
 
             chatService.streamChat(1L, 9L, "写一篇长文", emitter);
 
             ArgumentCaptor<Runnable> timeoutCaptor = ArgumentCaptor.forClass(Runnable.class);
             verify(emitter, timeout(3000).atLeastOnce()).onTimeout(timeoutCaptor.capture());
+            assertThat(chunkDelivered.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
             // 模拟容器触发 emitter 超时（155s）
             timeoutCaptor.getValue().run();
 
             ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
-            verify(messageMapper, timeout(3000).atLeastOnce()).insertMessage(msgCaptor.capture());
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(msgCaptor.capture());
             ChatMessage saved = msgCaptor.getValue();
             assertThat(saved.getRole()).isEqualTo("assistant");
             assertThat(saved.getContent()).startsWith("前半段。");
             assertThat(saved.getContent()).contains("超时中断");
             verify(emitter, atLeastOnce()).complete();
+        }
+    }
+
+    @Nested
+    @DisplayName("sendMessageAsync：异步问答（v1.18 补覆盖）")
+    class SendMessageAsyncHappyPath {
+
+        @Test
+        @DisplayName("成功路径：用户消息落库 + AI 回复落库 + 自动命名触发")
+        void asyncSuccessSavesAssistantAndRenames() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            when(sensitiveWordFilter.contains("试用期违约金合法吗")).thenReturn(false);
+            when(sensitiveWordFilter.filter("试用期违约金合法吗")).thenReturn("试用期违约金合法吗");
+            when(aiRouter.chat(anyString(), anyString())).thenReturn("法律回答");
+            doAnswer(inv -> {
+                ChatMessage m = inv.getArgument(0);
+                m.setId(101L);
+                return 1;
+            }).when(messageMapper).insertMessage(any(ChatMessage.class));
+
+            Long userMsgId = chatService.sendMessageAsync(1L, 9L, "试用期违约金合法吗");
+
+            assertThat(userMsgId).isNotNull();
+
+            ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+            // 用户消息(同步) + 助手消息(异步) 共 2 次 insert；getValue 取最后一次 = 助手消息
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(msgCaptor.capture());
+            assertThat(msgCaptor.getValue().getRole()).isEqualTo("assistant");
+            assertThat(msgCaptor.getValue().getContent()).isEqualTo("法律回答");
+
+            // 标题为"新对话" → 触发自动命名（同步 AI 调用，等其完成）
+            verify(sessionMapper, timeout(3000).atLeast(2)).updateById(any(ChatSession.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("sendMessageWithImage：图片问答（v1.18 补覆盖）")
+    class SendMessageWithImagePath {
+
+        @Test
+        @DisplayName("成功路径：识别结果过敏感词后更新用户消息并回答")
+        void imageSuccess() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            when(aiRouter.chatWithImage(anyString(), anyString(), any(), anyString()))
+                    .thenReturn("图中问题是租房纠纷");
+            when(sensitiveWordFilter.contains("图中问题是租房纠纷")).thenReturn(false);
+            when(sensitiveWordFilter.filter("图中问题是租房纠纷")).thenReturn("图中问题是租房纠纷");
+            when(aiRouter.chat(anyString(), anyString())).thenReturn("图片回答");
+            doAnswer(inv -> {
+                ChatMessage m = inv.getArgument(0);
+                m.setId(77L);
+                return 1;
+            }).when(messageMapper).insertMessage(any(ChatMessage.class));
+
+            Long id = chatService.sendMessageWithImage(1L, 9L, new byte[]{1, 2, 3}, "image/png");
+
+            assertThat(id).isEqualTo(77L);
+            ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+            // 占位用户消息 + 助手消息 共 2 次 insert；getValue 取最后一次 = 助手消息
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(msgCaptor.capture());
+            assertThat(msgCaptor.getValue().getRole()).isEqualTo("assistant");
+            assertThat(msgCaptor.getValue().getContent()).isEqualTo("图片回答");
+        }
+
+        @Test
+        @DisplayName("v1.18 P2#7：识别结果命中敏感词时终止并提示")
+        void imageSensitiveBlocked() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            when(aiRouter.chatWithImage(anyString(), anyString(), any(), anyString())).thenReturn("违规内容");
+            when(sensitiveWordFilter.contains("违规内容")).thenReturn(true);
+            doAnswer(inv -> {
+                ChatMessage m = inv.getArgument(0);
+                m.setId(78L);
+                return 1;
+            }).when(messageMapper).insertMessage(any(ChatMessage.class));
+
+            chatService.sendMessageWithImage(1L, 9L, new byte[]{1}, "image/png");
+
+            // 用户消息改为"未通过安全校验"占位，并保存提示助手消息；不再进入 RAG/AI 问答
+            verify(messageMapper, timeout(3000).atLeastOnce()).updateById(any(ChatMessage.class));
+            ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(msgCaptor.capture());
+            assertThat(msgCaptor.getValue().getContent()).contains("未通过安全校验");
+            verify(aiRouter, timeout(3000).times(1)).chatWithImage(anyString(), anyString(), any(), anyString());
+            verify(aiRouter, never()).chat(anyString(), anyString());
         }
     }
 }
