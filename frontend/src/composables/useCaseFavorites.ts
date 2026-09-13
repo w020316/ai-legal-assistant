@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { CaseVO } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 案例收藏夹（v1.10.0 新增）
@@ -14,14 +15,24 @@ import type { CaseVO } from '@/api'
  * 设计取舍：案例库为只读数据，无需后端持久化，前端 localStorage 即可满足需求。
  */
 
-const STORAGE_KEY = 'linzai:caseFavorites'
+// v1.18（审查 P2#17）：存储键按用户隔离——此前固定键不分用户，同一浏览器
+// A 退出、B 登录后 B 直接看到 A 的收藏（共机场景隐私泄露）
+function storageKey(): string {
+  let username = 'guest'
+  try {
+    username = useUserStore().username || 'guest'
+  } catch {
+    // pinia 未激活（极早调用）时退化为 guest
+  }
+  return `linzai:caseFavorites:${username}`
+}
 
-// 全局共享的收藏列表（同一应用实例内多组件复用）
-const favorites = ref<CaseVO[]>(loadFromStorage())
+// 全局共享的收藏列表（同一应用实例内多组件复用；用户切换时由 useCaseFavorites 的 immediate watch 重载）
+const favorites = ref<CaseVO[]>([])
 
 function loadFromStorage(): CaseVO[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey())
     if (!raw) return []
     const arr = JSON.parse(raw)
     return Array.isArray(arr) ? arr : []
@@ -32,7 +43,7 @@ function loadFromStorage(): CaseVO[] {
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites.value))
+    localStorage.setItem(storageKey(), JSON.stringify(favorites.value))
   } catch (e) {
     // 配额超限或无痕模式，给出提示但不算失败
     console.warn('案例收藏持久化失败:', e)
@@ -43,6 +54,15 @@ function persist() {
 watch(favorites, persist, { deep: true })
 
 export function useCaseFavorites() {
+  // v1.18（P2#17）：用户切换（登录/登出/换号）时重新加载对应收藏
+  const userStore = useUserStore()
+  watch(
+    () => userStore.username,
+    () => {
+      favorites.value = loadFromStorage()
+    },
+    { immediate: true },
+  )
   // 判断是否已收藏
   function isFavorited(id: number): boolean {
     return favorites.value.some((c) => c.id === id)

@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import type { CaseSearchRequest } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 案例搜索历史（v1.11.0 新增）
@@ -15,7 +16,17 @@ import type { CaseSearchRequest } from '@/api'
  * 与收藏夹不同，搜索历史只记录「查询条件」而非「查询结果」，避免占用过多存储空间。
  */
 
-const STORAGE_KEY = 'linzai:caseSearchHistory'
+// v1.18（审查 P2#17）：存储键按用户隔离（同 useCaseFavorites），防止共机换号泄露搜索历史
+function storageKey(): string {
+  let username = 'guest'
+  try {
+    username = useUserStore().username || 'guest'
+  } catch {
+    // pinia 未激活（极早调用）时退化为 guest
+  }
+  return `linzai:caseSearchHistory:${username}`
+}
+
 const MAX_HISTORY = 20
 
 // 历史记录项：包含搜索条件与可选标签（用于展示）
@@ -30,12 +41,12 @@ export interface SearchHistoryItem {
   createdAt: string
 }
 
-// 全局共享的历史列表
-const history = ref<SearchHistoryItem[]>(loadFromStorage())
+// 全局共享的历史列表（用户切换时由 useCaseSearchHistory 的 immediate watch 重载）
+const history = ref<SearchHistoryItem[]>([])
 
 function loadFromStorage(): SearchHistoryItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey())
     if (!raw) return []
     const arr = JSON.parse(raw)
     return Array.isArray(arr) ? arr : []
@@ -46,7 +57,7 @@ function loadFromStorage(): SearchHistoryItem[] {
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.value))
+    localStorage.setItem(storageKey(), JSON.stringify(history.value))
   } catch (e) {
     console.warn('搜索历史持久化失败:', e)
   }
@@ -81,6 +92,16 @@ function isSameQuery(a: CaseSearchRequest, b: CaseSearchRequest): boolean {
 }
 
 export function useCaseSearchHistory() {
+  // v1.18（P2#17）：用户切换（登录/登出/换号）时重新加载对应历史
+  const userStore = useUserStore()
+  watch(
+    () => userStore.username,
+    () => {
+      history.value = loadFromStorage()
+    },
+    { immediate: true },
+  )
+
   /**
    * 记录一次搜索
    * - 与最近一次相同则跳过
