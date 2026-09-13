@@ -397,4 +397,74 @@ class ChatServiceTest {
         List<SessionVO> result = chatService.listSessions(100L);
         assertThat(result).isEmpty();
     }
+
+    @Nested
+    @DisplayName("streamChat：SSE 流式问答（v1.18 流式加固行为锁定）")
+    class Stream {
+
+        private final org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter =
+                org.mockito.Mockito.mock(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.class);
+
+        private ChatSession stubSession() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            return s;
+        }
+
+        @Test
+        @DisplayName("v1.18：未登录不发空流，先发 error 事件再 complete")
+        void streamValidationFailureSendsErrorEvent() throws Exception {
+            chatService.streamChat(null, 9L, "你好", emitter);
+
+            verify(emitter, atLeastOnce()).send(any(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.SseEventBuilder.class));
+            verify(emitter).complete();
+            verify(emitter, never()).completeWithError(any(Throwable.class));
+        }
+
+        @Test
+        @DisplayName("v1.18：流式正常完成——完整内容落库并发 done 事件")
+        void streamSuccessSavesAndCompletes() throws Exception {
+            stubSession();
+            when(sensitiveWordFilter.contains("你好")).thenReturn(false);
+            when(sensitiveWordFilter.filter("你好")).thenReturn("你好");
+            when(aiRouter.streamChat(any(), any())).thenReturn(reactor.core.publisher.Flux.just("你好", "世界"));
+
+            chatService.streamChat(1L, 9L, "你好", emitter);
+
+            ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+            // 用户消息(同步) + 助手消息(流式完成) 共 2 次 insert；getValue 取最后一次 = 助手消息
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(msgCaptor.capture());
+            assertThat(msgCaptor.getValue().getRole()).isEqualTo("assistant");
+            assertThat(msgCaptor.getValue().getContent()).isEqualTo("你好世界");
+            verify(emitter, timeout(3000)).complete();
+        }
+
+        @Test
+        @DisplayName("v1.18：流式超时裁决——半截内容落库、发 error 事件并 dispose 上游")
+        void streamTimeoutSavesPartialAndSendsError() {
+            stubSession();
+            when(sensitiveWordFilter.contains("写一篇长文")).thenReturn(false);
+            when(sensitiveWordFilter.filter("写一篇长文")).thenReturn("写一篇长文");
+            when(aiRouter.streamChat(any(), any())).thenReturn(reactor.core.publisher.Flux.just("前半段。")
+                    .concatWith(reactor.core.publisher.Flux.never()));
+
+            chatService.streamChat(1L, 9L, "写一篇长文", emitter);
+
+            ArgumentCaptor<Runnable> timeoutCaptor = ArgumentCaptor.forClass(Runnable.class);
+            verify(emitter, timeout(3000).atLeastOnce()).onTimeout(timeoutCaptor.capture());
+            // 模拟容器触发 emitter 超时（155s）
+            timeoutCaptor.getValue().run();
+
+            ArgumentCaptor<ChatMessage> msgCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+            verify(messageMapper, timeout(3000).atLeastOnce()).insertMessage(msgCaptor.capture());
+            ChatMessage saved = msgCaptor.getValue();
+            assertThat(saved.getRole()).isEqualTo("assistant");
+            assertThat(saved.getContent()).startsWith("前半段。");
+            assertThat(saved.getContent()).contains("超时中断");
+            verify(emitter, atLeastOnce()).complete();
+        }
+    }
 }

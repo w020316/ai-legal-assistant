@@ -96,6 +96,17 @@ public class ChatService {
     );
 
     /**
+     * SSE 心跳调度器（v1.18，审查 P2#10）：流式期间每 15s 发送注释帧保活，
+     * 覆盖 RAG 检索 + 模型首包的空闲期。单线程守护池，随应用关闭。
+     */
+    private final java.util.concurrent.ScheduledExecutorService heartbeatScheduler =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "sse-heartbeat");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
      * 新建会话
      */
     public ChatSession createSession(Long userId, String title) {
@@ -423,17 +434,62 @@ public class ChatService {
      * @param emitter   SSE 发射器
      */
     public void streamChat(Long userId, Long sessionId, String content, SseEmitter emitter) {
+        // v1.18（审查 V1-04）：流路径的最终超时裁决收敛到 emitter onTimeout 回调——
+        // 此前外层 runAsync(...).orTimeout(150s) 体内 .subscribe() 非阻塞即返回，future 秒级正常完成，
+        // orTimeout/exceptionally 永不触发，流式阶段实际只剩 emitter 155s 兜底且不发 error 事件。
+        // 心跳/裁决回调在此处同步注册（早于任何异步动作），保证任意时刻超时都有裁决者。
+        StringBuilder fullContent = new StringBuilder();
+        java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean(false);
+        java.util.concurrent.atomic.AtomicReference<reactor.core.Disposable> subRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        // v1.18（审查 P2#10）：15s 注释帧保活，防止 RAG 检索+模型首包的空闲期被中间代理/CDN 掐断
+        java.util.concurrent.ScheduledFuture<?> heartbeat = heartbeatScheduler.scheduleAtFixedRate(() -> {
+            if (finished.get()) {
+                return;
+            }
+            try {
+                synchronized (emitter) {
+                    emitter.send(SseEmitter.event().comment("ping"));
+                }
+            } catch (Exception ignored) {
+                // 客户端已断开时的发送异常交由 onError/onTimeout 回调收尾
+            }
+        }, 15, 15, TimeUnit.SECONDS);
+        Runnable cleanup = () -> {
+            heartbeat.cancel(false);
+            reactor.core.Disposable d = subRef.get();
+            if (d != null && !d.isDisposed()) {
+                d.dispose();
+            }
+        };
+        emitter.onTimeout(() -> {
+            if (finished.compareAndSet(false, true)) {
+                log.warn("SSE 流式超时(emitter 155s)，保存半截内容并通知前端: sessionId={}", sessionId);
+                savePartialAssistantMessage(sessionId, fullContent, null);
+                trySendEvent(emitter, "error", "AI 回复超时，请稍后重试");
+            }
+            cleanup.run();
+            emitter.complete();
+        });
+        emitter.onError(t -> {
+            finished.set(true);
+            cleanup.run();
+        });
+        emitter.onCompletion(cleanup);
+
+        // v1.18（审查 P2#6）：校验失败先发 error 事件再 complete——此前 completeWithError 后前端
+        // 只见 200+空流，统一显示"AI 回复为空"，无法区分 未登录/敏感词/参数错误
         if (userId == null) {
-            emitter.completeWithError(BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录"));
+            sendErrorAndComplete(emitter, "请先登录");
             return;
         }
         if (content == null || content.isBlank()) {
-            emitter.completeWithError(BusinessException.of(ResultCode.PARAM_ERROR, "消息内容不能为空"));
+            sendErrorAndComplete(emitter, "消息内容不能为空");
             return;
         }
         // 敏感词过滤
         if (sensitiveWordFilter.contains(content)) {
-            emitter.completeWithError(BusinessException.of(ResultCode.PARAM_ERROR, "消息包含敏感内容，请修改后重试"));
+            sendErrorAndComplete(emitter, "消息包含敏感内容，请修改后重试");
             return;
         }
         final String filteredContent = sensitiveWordFilter.filter(content);
@@ -442,7 +498,8 @@ public class ChatService {
         try {
             session = getSession(userId, sessionId);
         } catch (Exception e) {
-            emitter.completeWithError(e);
+            log.warn("SSE 会话校验失败: sessionId={}, {}", sessionId, e.getMessage());
+            sendErrorAndComplete(emitter, "会话不存在或无权限");
             return;
         }
 
@@ -461,7 +518,6 @@ public class ChatService {
 
         // 异步执行流式 AI 调用
         CompletableFuture.runAsync(() -> {
-            StringBuilder fullContent = new StringBuilder();
             try {
                 // RAG 检索
                 List<RetrievedChunk> chunks = Collections.emptyList();
@@ -479,85 +535,56 @@ public class ChatService {
 
                 // 发送引用来源（如果有）
                 if (citationsJson != null) {
-                    try {
-                        emitter.send(SseEmitter.event().name("citations").data(citationsJson));
-                    } catch (IOException e) {
-                        log.warn("SSE 发送引用失败: {}", e.getMessage());
-                    }
+                    trySendEvent(emitter, "citations", citationsJson);
                 }
 
-                // 流式调用 AI
-                // v1.11.0 修复 H-12：保存 Disposable，emitter 回调中 dispose，
+                // 流式调用 AI。v1.11.0 H-12：subRef 保存 Disposable，emitter 回调 dispose，
                 // 防止 emitter 超时/错误后上游 Flux 仍持续推送浪费 AI 配额与连接
-                reactor.core.Disposable disposable = aiRouter.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
+                // （v1.18：回调已统一在方法开头注册，此处仅填充引用）
+                subRef.set(aiRouter.streamChat(PromptTemplates.LEGAL_QA_SYSTEM, userPrompt)
                         .doOnNext(chunk -> {
-                            try {
-                                fullContent.append(chunk);
-                                emitter.send(SseEmitter.event().name("chunk").data(chunk));
-                            } catch (IOException e) {
-                                log.warn("SSE 发送 chunk 失败: {}", e.getMessage());
-                            }
+                            fullContent.append(chunk);
+                            trySendEvent(emitter, "chunk", chunk);
                         })
                         .doOnComplete(() -> {
-                            try {
-                                // 保存完整 AI 消息
-                                saveAssistantMessage(sessionId, fullContent.toString(), citationsJson);
-                                // 发送完成事件
-                                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                                emitter.complete();
-                                // 自动命名
-                                if ("新对话".equals(session.getTitle())) {
-                                    autoRenameSession(sessionId, filteredContent);
+                            if (finished.compareAndSet(false, true)) {
+                                heartbeat.cancel(false);
+                                // v1.18（审查 P2#2）：空回复不落库，与同步链 blank 守卫语义对齐
+                                if (fullContent.isEmpty() || fullContent.toString().isBlank()) {
+                                    log.warn("SSE 流式回复为空: sessionId={}", sessionId);
+                                    trySendEvent(emitter, "error", "AI 回复为空，请稍后重试");
+                                } else {
+                                    saveAssistantMessage(sessionId, fullContent.toString(), citationsJson);
+                                    trySendEvent(emitter, "done", "[DONE]");
+                                    log.info("SSE 流式回复完成: sessionId={}", sessionId);
                                 }
-                                log.info("SSE 流式回复完成: sessionId={}", sessionId);
-                            } catch (IOException e) {
-                                log.warn("SSE 发送 done 失败: {}", e.getMessage());
-                                emitter.complete();
+                            }
+                            emitter.complete();
+                            // v1.18（审查 P2#5）：自动命名是一次完整同步 AI 调用（最坏 ~130s），
+                            // 移出 reactor 线程执行，避免并发多流时占满 event loop 拖慢所有进行中的流
+                            if ("新对话".equals(session.getTitle())) {
+                                CompletableFuture.runAsync(() -> autoRenameSession(sessionId, filteredContent), aiExecutor);
                             }
                         })
                         .doOnError(e -> {
-                            log.error("SSE 流式调用失败: sessionId={}", sessionId, e);
-                            try {
-                                emitter.send(SseEmitter.event().name("error").data("AI 服务暂时不可用"));
-                            } catch (IOException ignored) {
+                            if (finished.compareAndSet(false, true)) {
+                                heartbeat.cancel(false);
+                                log.error("SSE 流式调用失败: sessionId={}", sessionId, e);
+                                // v1.18（审查 P2#4）：半截内容落库，避免前端已渲染内容刷新后消失
+                                savePartialAssistantMessage(sessionId, fullContent, null);
+                                trySendEvent(emitter, "error", "AI 服务暂时不可用");
                             }
-                            emitter.completeWithError(e);
+                            emitter.complete();
                         })
-                        .subscribe();
-                // v1.11.0 修复 H-12：emitter 提前完成/超时/出错时取消上游订阅
-                emitter.onCompletion(() -> {
-                    if (!disposable.isDisposed()) {
-                        disposable.dispose();
-                    }
-                });
-                emitter.onTimeout(() -> {
-                    if (!disposable.isDisposed()) {
-                        log.warn("SSE emitter 超时，dispose 上游订阅: sessionId={}", sessionId);
-                        disposable.dispose();
-                    }
-                });
-                emitter.onError(t -> {
-                    if (!disposable.isDisposed()) {
-                        disposable.dispose();
-                    }
-                });
+                        .subscribe());
             } catch (Exception e) {
                 log.error("SSE 流式问答异常: sessionId={}", sessionId, e);
-                try {
-                    emitter.send(SseEmitter.event().name("error").data("AI 服务暂时不可用"));
-                } catch (IOException ignored) {
+                if (finished.compareAndSet(false, true)) {
+                    heartbeat.cancel(false);
                 }
-                emitter.completeWithError(e);
+                sendErrorAndComplete(emitter, "AI 服务暂时不可用");
             }
-        }, aiExecutor).orTimeout(ASYNC_AI_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
-            log.error("SSE 流式问答超时: sessionId={}", sessionId, ex);
-            try {
-                emitter.send(SseEmitter.event().name("error").data("AI 回复超时"));
-            } catch (IOException ignored) {
-            }
-            emitter.completeWithError(ex);
-            return null;
-        });
+        }, aiExecutor);
     }
 
     /**
@@ -576,6 +603,43 @@ public class ChatService {
     }
 
     // ==================== 内部方法 ====================
+
+    /**
+     * v1.18（审查 P2#3）：SSE 发送统一助手。
+     * synchronized 序列化 chunk/事件/心跳的并发发送（SseEmitter 非线程安全，
+     * reactor 线程与容器回调线程可能同时 send/complete）；完成态后的发送异常属正常收尾竞态，静默降级。
+     */
+    private void trySendEvent(SseEmitter emitter, String event, Object data) {
+        try {
+            synchronized (emitter) {
+                emitter.send(SseEmitter.event().name(event).data(data));
+            }
+        } catch (IOException e) {
+            log.warn("SSE 发送 {} 失败: {}", event, e.getMessage());
+        } catch (Exception e) {
+            log.debug("SSE 发送 {} 被拒绝(emitter 已完成): {}", event, e.getMessage());
+        }
+    }
+
+    /**
+     * v1.18（审查 P2#6）：SSE 错误统一出口——先发 error 事件（前端可感知具体原因），再 complete 收尾。
+     */
+    private void sendErrorAndComplete(SseEmitter emitter, String message) {
+        trySendEvent(emitter, "error", message);
+        emitter.complete();
+    }
+
+    /**
+     * v1.18（审查 P2#4）：半截内容落库——超时/中断时保存已生成部分，
+     * 避免前端已渲染的内容在刷新后消失（用户消息已存、助手消息缺失的不一致状态）。
+     */
+    private void savePartialAssistantMessage(Long sessionId, StringBuilder partial, String citationsJson) {
+        String content = partial == null ? "" : partial.toString();
+        if (content.isBlank()) {
+            return;
+        }
+        saveAssistantMessage(sessionId, content + "\n\n*（回复因超时中断，以上为已生成部分）*", citationsJson);
+    }
 
     /**
      * 保存 AI 助手消息
@@ -736,6 +800,7 @@ public class ChatService {
      */
     @PreDestroy
     public void shutdown() {
+        heartbeatScheduler.shutdownNow();
         aiExecutor.shutdown();
         try {
             if (!aiExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
