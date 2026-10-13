@@ -53,6 +53,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
+      # v1.18（阶段二·审查 B-01）：内置 redis 无 TLS，显式关闭（dev profile 默认即 false，此处显式声明避免歧义）
+      REDIS_SSL: "false"
       AGNES_API_KEY: ${AGNES_API_KEY}
       AGNES_BASE_URL: ${AGNES_BASE_URL:-https://agnes-ai.com}
       JWT_SECRET: ${JWT_SECRET:-lawai-dev-jwt-secret-32-chars-minimum-2026}

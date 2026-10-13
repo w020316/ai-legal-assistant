@@ -19,10 +19,12 @@ spring:
       timeout: 5000ms
       # Upstash Redis 强制 TLS：明文 6379 会被直接拒连 → 黑名单 fail-open，令牌吊销失效（v1.17.1/v1.18）。
       # 注意：Spring Boot 3.1+ 把 spring.data.redis.ssl 由布尔改为嵌套对象，必须用 ssl.enabled（此前误用布尔导致启动绑定失败）。
-      # 默认 false 以兼容 docker-compose.prod.yml 内置 redis（无 TLS）；Render 使用 Upstash 时
-      # 必须设置环境变量 REDIS_SSL=true（如需用户名认证再配 REDIS_USERNAME=default）。
+      # v1.18（阶段二·审查 B-01）：生产默认启用 TLS（${REDIS_SSL:true}）——Upstash 强制 TLS，若默认 false
+      # 且 Render 漏配 REDIS_SSL=true，连接必失败；叠加 refresh fail-closed 将导致全体用户每 2h 被强制重登。
+      # 内置 redis（docker-compose.prod.yml，无 TLS）场景必须显式设 REDIS_SSL=false（已在该 compose 中配置）。
+      # 如需用户名认证再配 REDIS_USERNAME=default。
       ssl:
-        enabled: ${REDIS_SSL:false}
+        enabled: ${REDIS_SSL:true}
 
 # 生产环境关闭 Swagger，避免接口结构泄露
 springdoc:

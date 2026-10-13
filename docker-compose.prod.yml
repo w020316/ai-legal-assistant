@@ -48,6 +48,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
+      # v1.18（阶段二·审查 B-01）：内置 redis 无 TLS，显式关闭——否则会跟随 application-prod.yml
+      # 的新默认 REDIS_SSL=true 尝试 TLS 连接而失败。
+      REDIS_SSL: "false"
       AGNES_API_KEY: ${AGNES_API_KEY:?AGNES_API_KEY is required}
       AGNES_BASE_URL: ${AGNES_BASE_URL:-https://agnes-ai.com}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
