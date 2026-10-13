@@ -369,6 +369,10 @@ public class ChatService {
                 updateUserMsg.setId(userMsg.getId());
                 // 如果未识别到法律问题，保存提示消息
                 if (recognizedQuestion.contains("未识别到法律相关问题")) {
+                    // v1.18（阶段二·审查 B-02/F8）：落不含 "[图片消息]" 前缀的终态用户文案——
+                    // 否则前端守卫 chat.ts(!content.includes('[图片消息]')) 恒 false，用户气泡永久卡"识别中"
+                    updateUserMsg.setContent("未识别到法律相关问题");
+                    messageMapper.updateById(updateUserMsg);
                     if (saved.compareAndSet(false, true)) {
                         saveAssistantMessage(sessionId,
                                 "抱歉，未能从图片中识别到法律相关问题。请上传包含法律内容的图片，或直接输入您的问题。",
@@ -382,7 +386,8 @@ public class ChatService {
                 if (sensitiveWordFilter.contains(recognizedQuestion)) {
                     ChatMessage blockMsg = new ChatMessage();
                     blockMsg.setId(userMsg.getId());
-                    blockMsg.setContent("[图片消息]（识别内容未通过安全校验）");
+                    // v1.18（阶段二·审查 B-02/F8）：同上，去掉 "[图片消息]" 前缀，保证前端守卫能命中
+                    blockMsg.setContent("（图片内容未通过安全校验）");
                     messageMapper.updateById(blockMsg);
                     if (saved.compareAndSet(false, true)) {
                         saveAssistantMessage(sessionId, "图片中的内容未通过安全校验，无法处理。请更换图片或直接输入您的问题。", null);
