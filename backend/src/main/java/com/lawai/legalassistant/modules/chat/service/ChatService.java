@@ -493,7 +493,12 @@ public class ChatService {
             emitter.complete();
         });
         emitter.onError(t -> {
-            finished.set(true);
+            // v1.18（阶段二·审查 B-04）：客户端断连（切会话/关页，最常见中断）与 timeout/Flux error
+            // 同口径——落半截内容，避免用户已看到的内容在刷新后消失。compareAndSet 守卫防重复落库。
+            if (finished.compareAndSet(false, true)) {
+                log.warn("SSE 连接错误(客户端可能已断开)，保存半截内容: sessionId={}, {}", sessionId, t.getMessage());
+                savePartialAssistantMessage(sessionId, fullContent, null);
+            }
             cleanup.run();
         });
         emitter.onCompletion(cleanup);
