@@ -109,32 +109,49 @@ public class AiRouter {
     }
 
     /**
-     * 流式降级包装（v1.18，修复审查 V1-05 与"空流不降级"两项）。
+     * 流式降级包装（v1.18，修复审查 V1-05；v1.18 阶段二·B-06 修正判据）。
      * <ul>
-     *   <li>防重放：主层已发出 chunk 后中段失败（网络断/包间隔超时/5xx）时<b>不降级</b>——
-     *       下层从头重发会让前端出现双份/三份文本且落库内容重复；仅当<b>尚未发出任何 chunk</b> 时才切换下层；</li>
-     *   <li>防空答：主层"正常完成但零 chunk"（上游过滤/空答）时切换下层，
-     *       与同步链的 isNotBlank 守卫语义对齐，防止空答案直达前端并落库。</li>
+     *   <li>防重放：主层已输出<b>有效内容</b>后中段失败（网络断/包间隔超时/5xx）时<b>不降级</b>——
+     *       下层从头重发会让前端出现双份/三份文本且落库内容重复；仅当尚未输出有效内容时才切换下层；</li>
+     *   <li>防空答：主层正常完成但累计内容为空白（零 chunk 或纯空白）时切换下层，
+     *       与同步链 isNotBlank 守卫语义对齐，防止空答案直达前端并落库。</li>
      * </ul>
+     * v1.18 阶段二·B-06：判据由"是否发过任意 chunk"（emitted）改为"累计内容是否非空白"——
+     * 纯空白流此前被 emitted=true 锁定而不降级，与同步链不一致；改用 concatWith 在正常完成后
+     * 再按累计内容判定，可覆盖"零 chunk"与"纯空白"两种干净完成场景（switchIfEmpty 只能覆盖前者）。
      */
     private reactor.core.publisher.Flux<String> withStreamFallback(
             reactor.core.publisher.Flux<String> primary,
             reactor.core.publisher.Flux<String> fallback,
             String label) {
-        final java.util.concurrent.atomic.AtomicBoolean emitted = new java.util.concurrent.atomic.AtomicBoolean(false);
+        final StringBuilder acc = new StringBuilder();
+        final java.util.concurrent.atomic.AtomicBoolean degraded = new java.util.concurrent.atomic.AtomicBoolean(false);
         return primary
-                .doOnNext(chunk -> emitted.set(true))
+                .doOnNext(chunk -> {
+                    if (chunk != null) {
+                        acc.append(chunk);
+                    }
+                })
                 .onErrorResume(e -> {
-                    if (emitted.get()) {
-                        log.warn("{} 流式已输出内容，中段失败不再降级重放 | error={}", label, e.getMessage());
+                    if (!acc.toString().isBlank()) {
+                        log.warn("{} 流式已输出有效内容，中段失败不再降级重放 | error={}", label, e.getMessage());
                         return reactor.core.publisher.Flux.error(e);
                     }
-                    log.warn("{} 流式失败(未输出内容)，降级 | error={}", label, e.getMessage());
+                    log.warn("{} 流式失败(未输出有效内容)，降级 | error={}", label, e.getMessage());
+                    degraded.set(true);
                     return fallback;
                 })
-                .switchIfEmpty(reactor.core.publisher.Flux.defer(() -> {
-                    log.warn("{} 流式返回空内容，降级", label);
-                    return fallback;
+                .concatWith(reactor.core.publisher.Flux.defer(() -> {
+                    if (degraded.get()) {
+                        // 已在错误分支降级，避免重复订阅下层
+                        return reactor.core.publisher.Flux.empty();
+                    }
+                    if (acc.toString().isBlank()) {
+                        log.warn("{} 流式返回空白内容(零 chunk 或纯空白)，降级", label);
+                        degraded.set(true);
+                        return fallback;
+                    }
+                    return reactor.core.publisher.Flux.empty();
                 }));
     }
 

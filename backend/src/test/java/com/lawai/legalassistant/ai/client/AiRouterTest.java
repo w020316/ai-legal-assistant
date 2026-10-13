@@ -217,4 +217,30 @@ class AiRouterTest {
 
         assertThat(router.streamChat(SYSTEM, USER).collectList().block()).containsExactly("agnes");
     }
+
+    // ===== v1.18 阶段二·B-06：降级判据由"是否发过 chunk"改为"累计内容 isNotBlank" =====
+
+    @Test
+    @DisplayName("B-06：流式纯空白完成(非空但全空白)降级 Agnes，与同步链 isNotBlank 对齐")
+    void streamWhitespaceOnlyCompletionDegrades() {
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key");
+        when(tacklekeyClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.just("   ", "\n"));
+        when(agnesClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.just("agnes"));
+
+        assertThat(router.streamChat(SYSTEM, USER).collectList().block())
+                .containsExactly("   ", "\n", "agnes");
+    }
+
+    @Test
+    @DisplayName("B-06：流式仅输出空白后失败 → 视为未输出有效内容，降级 Agnes")
+    void streamWhitespaceThenFailureDegrades() {
+        AiRouter router = new AiRouter(agnesClient, Optional.empty(), Optional.of(tacklekeyClient), "", false, "tk-key");
+        when(tacklekeyClient.streamChat(SYSTEM, USER)).thenReturn(
+                reactor.core.publisher.Flux.just("   ")
+                        .concatWith(reactor.core.publisher.Flux.error(new RuntimeException("boom"))));
+        when(agnesClient.streamChat(SYSTEM, USER)).thenReturn(reactor.core.publisher.Flux.just("agnes"));
+
+        assertThat(router.streamChat(SYSTEM, USER).collectList().block())
+                .containsExactly("   ", "agnes");
+    }
 }
