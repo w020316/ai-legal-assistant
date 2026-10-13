@@ -1,7 +1,9 @@
 # v1.18（审查 P2#20）：Cloudflare Pages 安全响应头（此前前端页面零安全头）
+# v1.18 修复(F2)：CSP 放行 Google Fonts——index.html 依赖 fonts.googleapis.com 样式表
+# 与 fonts.gstatic.com 字体文件，此前未放行致生产端整套排版字体回退系统字体
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
