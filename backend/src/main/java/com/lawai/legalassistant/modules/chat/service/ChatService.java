@@ -18,10 +18,12 @@ import com.lawai.legalassistant.modules.rag.service.RagService;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,22 +61,29 @@ public class ChatService {
      */
     private static final int ASYNC_AI_TIMEOUT_SECONDS = 150;
 
+    /** 消息幂等 key 前缀（v1.18 阶段二·审查 B-05） */
+    private static final String IDEMPOTENT_PREFIX = "chat:msg:";
+    /** 消息幂等 TTL（覆盖前端重试窗口；超时后同 clientMsgId 视为新消息） */
+    private static final Duration IDEMPOTENT_TTL = Duration.ofMinutes(10);
+
     private final ChatSessionMapper sessionMapper;
     private final ChatMessageMapper messageMapper;
     private final RagService ragService;
     private final AiRouter aiRouter;
     private final ObjectMapper objectMapper;
     private final SensitiveWordFilter sensitiveWordFilter;
+    private final StringRedisTemplate redisTemplate;
 
     public ChatService(ChatSessionMapper sessionMapper, ChatMessageMapper messageMapper,
                        RagService ragService, AiRouter aiRouter, ObjectMapper objectMapper,
-                       SensitiveWordFilter sensitiveWordFilter) {
+                       SensitiveWordFilter sensitiveWordFilter, StringRedisTemplate redisTemplate) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
         this.ragService = ragService;
         this.aiRouter = aiRouter;
         this.objectMapper = objectMapper;
         this.sensitiveWordFilter = sensitiveWordFilter;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
@@ -250,6 +259,15 @@ public class ChatService {
      * @return 用户消息 ID
      */
     public Long sendMessageAsync(Long userId, Long sessionId, String content) {
+        return sendMessageAsync(userId, sessionId, content, null);
+    }
+
+    /**
+     * 发送消息（异步模式，v1.18 阶段二·审查 B-05：新增 clientMsgId 幂等）
+     *
+     * @param clientMsgId 客户端幂等 ID（可选）；同一值重复到达时跳过重复落库与问答
+     */
+    public Long sendMessageAsync(Long userId, Long sessionId, String content, String clientMsgId) {
         // 校验登录
         if (userId == null) {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
@@ -266,6 +284,13 @@ public class ChatService {
         final String filteredContent = sensitiveWordFilter.filter(content);
         // 校验会话
         ChatSession session = getSession(userId, sessionId);
+
+        // v1.18（阶段二·审查 B-05）：幂等——同一 clientMsgId 重复到达（前端重试）时跳过重复落库与问答。
+        // 放在校验/归属检查之后，保证参数或权限错误不消耗幂等 key（客户端可合法重试）。
+        if (!isFirstDelivery(userId, clientMsgId)) {
+            log.info("检测到重复 clientMsgId，跳过重复落库与问答: userId={}, sessionId={}", userId, sessionId);
+            return null;
+        }
 
         // 1. 加载近 6 轮历史（在保存当前用户消息前加载，避免包含当前问题）
         List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
@@ -452,6 +477,15 @@ public class ChatService {
      * @param emitter   SSE 发射器
      */
     public void streamChat(Long userId, Long sessionId, String content, SseEmitter emitter) {
+        streamChat(userId, sessionId, content, null, emitter);
+    }
+
+    /**
+     * SSE 流式问答（v1.18 阶段二·审查 B-05：新增 clientMsgId 幂等）
+     *
+     * @param clientMsgId 客户端幂等 ID（可选）；同一值重复到达时跳过重复落库与问答
+     */
+    public void streamChat(Long userId, Long sessionId, String content, String clientMsgId, SseEmitter emitter) {
         // v1.18（审查 V1-04）：流路径的最终超时裁决收敛到 emitter onTimeout 回调——
         // 此前外层 runAsync(...).orTimeout(150s) 体内 .subscribe() 非阻塞即返回，future 秒级正常完成，
         // orTimeout/exceptionally 永不触发，流式阶段实际只剩 emitter 155s 兜底且不发 error 事件。
@@ -526,6 +560,18 @@ public class ChatService {
         } catch (Exception e) {
             log.warn("SSE 会话校验失败: sessionId={}, {}", sessionId, e.getMessage());
             sendErrorAndComplete(emitter, "会话不存在或无权限");
+            return;
+        }
+
+        // v1.18（阶段二·审查 B-05）：幂等——同一 clientMsgId 重复到达（前端重试）时跳过重复落库与问答。
+        // 发 done 事件（而非静默 complete）以确保前端收到字节、打破"零字节即重试"循环。
+        if (!isFirstDelivery(userId, clientMsgId)) {
+            log.info("检测到重复 clientMsgId，跳过重复流式问答: userId={}, sessionId={}", userId, sessionId);
+            if (finished.compareAndSet(false, true)) {
+                heartbeat.cancel(false);
+            }
+            trySendEvent(emitter, "done", "[DONE]");
+            emitter.complete();
             return;
         }
 
@@ -653,6 +699,27 @@ public class ChatService {
     private void sendErrorAndComplete(SseEmitter emitter, String message) {
         trySendEvent(emitter, "error", message);
         emitter.complete();
+    }
+
+    /**
+     * v1.18（阶段二·审查 B-05）：基于 clientMsgId 的消息幂等去重。
+     * <p>
+     * Redis SETNX（TTL 10min）判定该消息是否已处理：首次返回 true（放行落库与问答）；
+     * 重复返回 false（调用方跳过重复落库、不产生重复助手回复）。
+     * 未传 clientMsgId 或 Redis 不可用时 <b>fail-open</b> 返回 true（行为同现状，不阻断）。
+     */
+    private boolean isFirstDelivery(Long userId, String clientMsgId) {
+        if (clientMsgId == null || clientMsgId.isBlank()) {
+            return true;
+        }
+        try {
+            Boolean first = redisTemplate.opsForValue()
+                    .setIfAbsent(IDEMPOTENT_PREFIX + userId + ":" + clientMsgId, "1", IDEMPOTENT_TTL);
+            return !Boolean.FALSE.equals(first);
+        } catch (Exception e) {
+            log.warn("消息幂等 Redis 校验失败，fail-open 放行: {}", e.getMessage());
+            return true;
+        }
     }
 
     /**

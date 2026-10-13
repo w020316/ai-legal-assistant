@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -52,6 +53,8 @@ class ChatServiceTest {
     private AiRouter aiRouter;
     @Mock
     private SensitiveWordFilter sensitiveWordFilter;
+    @Mock
+    private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -60,7 +63,7 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         chatService = new ChatService(sessionMapper, messageMapper, ragService,
-                aiRouter, objectMapper, sensitiveWordFilter);
+                aiRouter, objectMapper, sensitiveWordFilter, redisTemplate);
     }
 
     private ChatSession buildSession(Long id, Long userId, String title) {
@@ -568,6 +571,77 @@ class ChatServiceTest {
             assertThat(msgCaptor.getValue().getContent()).contains("未通过安全校验");
             verify(aiRouter, timeout(3000).times(1)).chatWithImage(anyString(), anyString(), any(), anyString());
             verify(aiRouter, never()).chat(anyString(), anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("B-05：clientMsgId 幂等去重（v1.18 阶段二）")
+    class Idempotency {
+
+        private org.springframework.data.redis.core.ValueOperations<String, String> stubValueOps() {
+            @SuppressWarnings("unchecked")
+            org.springframework.data.redis.core.ValueOperations<String, String> ops =
+                    mock(org.springframework.data.redis.core.ValueOperations.class);
+            when(redisTemplate.opsForValue()).thenReturn(ops);
+            return ops;
+        }
+
+        private void stubSessionAndFilter() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            when(sensitiveWordFilter.contains("你好")).thenReturn(false);
+            when(sensitiveWordFilter.filter("你好")).thenReturn("你好");
+        }
+
+        @Test
+        @DisplayName("首次到达：正常落库并问答")
+        void firstDeliveryProceeds() {
+            stubSessionAndFilter();
+            when(aiRouter.chat(anyString(), anyString())).thenReturn("回答");
+            doAnswer(inv -> {
+                ((ChatMessage) inv.getArgument(0)).setId(101L);
+                return 1;
+            }).when(messageMapper).insertMessage(any(ChatMessage.class));
+            when(stubValueOps().setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
+
+            Long id = chatService.sendMessageAsync(1L, 9L, "你好", "cmid-1");
+
+            assertThat(id).isNotNull();
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(any(ChatMessage.class));
+        }
+
+        @Test
+        @DisplayName("重复到达：跳过落库与问答，返回 null")
+        void duplicateSkips() {
+            stubSessionAndFilter();
+            when(stubValueOps().setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(false);
+
+            Long id = chatService.sendMessageAsync(1L, 9L, "你好", "cmid-dup");
+
+            assertThat(id).isNull();
+            verify(messageMapper, never()).insertMessage(any(ChatMessage.class));
+            verify(aiRouter, never()).chat(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Redis 不可用：fail-open 放行，行为同现状")
+        void redisDownFailsOpen() {
+            stubSessionAndFilter();
+            when(aiRouter.chat(anyString(), anyString())).thenReturn("回答");
+            doAnswer(inv -> {
+                ((ChatMessage) inv.getArgument(0)).setId(101L);
+                return 1;
+            }).when(messageMapper).insertMessage(any(ChatMessage.class));
+            when(redisTemplate.opsForValue()).thenThrow(new RuntimeException("redis down"));
+
+            Long id = chatService.sendMessageAsync(1L, 9L, "你好", "cmid-x");
+
+            assertThat(id).isNotNull();
+            // 等到助手消息落库（至少 2 次 insert），确保异步链路执行、aiRouter.chat 存根被使用
+            verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(any(ChatMessage.class));
         }
     }
 }

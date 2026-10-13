@@ -124,7 +124,8 @@ public class ChatController {
     @PostMapping("/{id}/messages")
     public Result<Long> sendMessage(@PathVariable Long id, @Valid @RequestBody SendMessageRequest req) {
         Long userId = requireLogin();
-        return Result.success(chatService.sendMessageAsync(userId, id, req.getContent()));
+        // v1.18 阶段二·审查 B-05：透传 clientMsgId 做幂等（可选字段）
+        return Result.success(chatService.sendMessageAsync(userId, id, req.getContent(), req.getClientMsgId()));
     }
 
     /**
@@ -174,7 +175,8 @@ public class ChatController {
         SseEmitter emitter = new SseEmitter(155_000L);
         emitter.onCompletion(() -> log.debug("SSE 连接关闭: sessionId={}", id));
         emitter.onError(ex -> log.error("SSE 连接错误: sessionId={}", id, ex));
-        chatService.streamChat(userId, id, req.getContent(), emitter);
+        // v1.18 阶段二·审查 B-05：透传 clientMsgId 做幂等（可选字段）
+        chatService.streamChat(userId, id, req.getContent(), req.getClientMsgId(), emitter);
         return emitter;
     }
 

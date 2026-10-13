@@ -128,7 +128,8 @@ class ChatControllerTest {
     @Test
     @DisplayName("POST /sessions/{id}/messages：发送并返回用户消息 ID")
     void sendMessage() throws Exception {
-        when(chatService.sendMessageAsync(42L, 5L, "你好")).thenReturn(100L);
+        // v1.18 阶段二·B-05：控制器改调带 clientMsgId 的 4 参重载（body 未传时为 null）
+        when(chatService.sendMessageAsync(42L, 5L, "你好", null)).thenReturn(100L);
 
         mockMvc.perform(post("/api/v1/sessions/5/messages")
                         .contentType(MediaType.APPLICATION_JSON)
