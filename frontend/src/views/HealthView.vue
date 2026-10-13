@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { getHealth } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { APP_VERSION } from '@/utils/version'
 
 const userStore = useUserStore()
-const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0'
+// v1.18 阶段三修复：VITE_APP_VERSION 从未注入导致健康页恒显 v1.0.0，改用全局唯一定义源
+const appVersion = APP_VERSION
 const loading = ref(false)
 const healthInfo = ref<{ status: string; service: string; timestamp: string } | null>(null)
 
