@@ -456,7 +456,10 @@ public class ChatService {
         // 此前外层 runAsync(...).orTimeout(150s) 体内 .subscribe() 非阻塞即返回，future 秒级正常完成，
         // orTimeout/exceptionally 永不触发，流式阶段实际只剩 emitter 155s 兜底且不发 error 事件。
         // 心跳/裁决回调在此处同步注册（早于任何异步动作），保证任意时刻超时都有裁决者。
-        StringBuilder fullContent = new StringBuilder();
+        // v1.18（阶段二·审查 B-03）：StringBuffer 取代 StringBuilder——doOnNext(reactor 线程) append
+        // 与 onTimeout/doOnError(容器回调线程) 的落库快照跨线程并发；StringBuffer 的 append/toString
+        // 均 synchronized，保证快照原子，无需人工加锁纪律（最小改动）。
+        StringBuffer fullContent = new StringBuffer();
         java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicReference<reactor.core.Disposable> subRef =
                 new java.util.concurrent.atomic.AtomicReference<>();
@@ -651,7 +654,7 @@ public class ChatService {
      * v1.18（审查 P2#4）：半截内容落库——超时/中断时保存已生成部分，
      * 避免前端已渲染的内容在刷新后消失（用户消息已存、助手消息缺失的不一致状态）。
      */
-    private void savePartialAssistantMessage(Long sessionId, StringBuilder partial, String citationsJson) {
+    private void savePartialAssistantMessage(Long sessionId, StringBuffer partial, String citationsJson) {
         String content = partial == null ? "" : partial.toString();
         if (content.isBlank()) {
             return;
