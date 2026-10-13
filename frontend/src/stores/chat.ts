@@ -292,7 +292,9 @@ export const useChatStore = defineStore('chat', () => {
       if (committed) {
         if (contentBuffer) flushContent()
         if (!aiMsgView.content) {
-          aiMsg.content =
+          // v1.18 修复(F1)：写入响应式代理 aiMsgView（此前误写原始对象 aiMsg，
+          // 绕过 reactive set trap 不触发渲染 → 错误文案永不显示，用户只见永久空白气泡）
+          aiMsgView.content =
             e instanceof Error && e.message && !e.message.startsWith('SSE 请求失败')
               ? e.message
               : 'AI 服务暂时不可用，请稍后重试。'
