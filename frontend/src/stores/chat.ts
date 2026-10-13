@@ -16,6 +16,19 @@ import {
 } from '@/api'
 import { useUserStore } from '@/stores/user'
 
+// v1.18(B-05)：发送幂等键。同一逻辑消息的 SSE 首发与轮询重试复用同一值，
+// 后端据此去重，消除"SSE 失败重试导致用户消息重复落库"。
+function newClientMsgId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // 非安全上下文等场景回退到时间戳+随机串
+  }
+  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 export const useChatStore = defineStore('chat', () => {
   // 会话列表
   const sessionList = ref<SessionVO[]>([])
@@ -118,7 +131,7 @@ export const useChatStore = defineStore('chat', () => {
 
   // SSE 流式获取 AI 回复（优先模式）
   // 通过 fetch + ReadableStream 接收 Server-Sent Events，逐字显示 AI 回复
-  async function fetchAssistantReplyStream(content: string): Promise<boolean> {
+  async function fetchAssistantReplyStream(content: string, clientMsgId: string): Promise<boolean> {
     if (!currentSession.value) return false
     const sessionId = currentSession.value.id
     const userStore = useUserStore()
@@ -183,7 +196,7 @@ export const useChatStore = defineStore('chat', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${userStore.token}`,
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, clientMsgId }),
       })
 
       if (!resp.ok || !resp.body) {
@@ -316,8 +329,10 @@ export const useChatStore = defineStore('chat', () => {
   // 异步获取 AI 回复（轮询模式，SSE 失败时的降级方案）
   // POST 立即返回用户消息 ID，后台异步调用 AI，前端轮询消息列表获取回复
   async function fetchAssistantReply(content: string) {
+    // v1.18(B-05)：同一逻辑消息的幂等键，SSE 首发与降级轮询复用同一值，后端据此去重
+    const clientMsgId = newClientMsgId()
     // 优先尝试 SSE 流式
-    const sseOk = await fetchAssistantReplyStream(content)
+    const sseOk = await fetchAssistantReplyStream(content, clientMsgId)
     if (sseOk) return
 
     // SSE 失败，降级为轮询模式
@@ -343,7 +358,7 @@ export const useChatStore = defineStore('chat', () => {
       currentSession.value?.id === sessionId && messages.value.includes(aiMsgView)
     try {
       // 发送消息，后端立即返回用户消息 ID
-      await sendMessageApi(sessionId, content)
+      await sendMessageApi(sessionId, content, clientMsgId)
       // 轮询消息列表，等待 AI 回复出现
       const maxAttempts = 90 // 最多轮询 90 次（约 180 秒，大于后端 150s 外层超时，确保由后端裁决）
       const interval = 2000 // 每 2 秒轮询一次
@@ -419,7 +434,8 @@ export const useChatStore = defineStore('chat', () => {
     const isCurrent = () =>
       currentSession.value?.id === sessionId && messages.value.includes(aiMsgView)
     try {
-      await sendMessageWithImage(sessionId, file)
+      // v1.18(B-05)：图片消息幂等键，后端据此对重试去重
+      await sendMessageWithImage(sessionId, file, newClientMsgId())
       // 轮询消息列表
       const maxAttempts = 90 // 约 180 秒，对齐后端 150s 外层超时
       const interval = 2000

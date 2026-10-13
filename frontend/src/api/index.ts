@@ -72,6 +72,8 @@ export interface MessageVO {
 // 发送消息请求体
 export interface SendMessageRequest {
   content: string
+  /** v1.18(B-05)：客户端幂等键，同一逻辑消息的重试复用同一值，后端据此去重 */
+  clientMsgId?: string
 }
 
 // 更新会话请求（重命名/收藏）
@@ -127,13 +129,14 @@ export const listMessages = (sessionId: number) =>
   http.get<MessageVO[]>(`/sessions/${sessionId}/messages`)
 
 // 发送消息（异步模式，返回用户消息 ID，AI 回复通过轮询获取）
-export const sendMessage = (sessionId: number, content: string) =>
-  http.post<number>(`/sessions/${sessionId}/messages`, { content } satisfies SendMessageRequest)
+export const sendMessage = (sessionId: number, content: string, clientMsgId?: string) =>
+  http.post<number>(`/sessions/${sessionId}/messages`, { content, clientMsgId } satisfies SendMessageRequest)
 
 // 发送图片消息（AI 识别图片中的法律问题并回答）
-export const sendMessageWithImage = (sessionId: number, file: File) => {
+export const sendMessageWithImage = (sessionId: number, file: File, clientMsgId?: string) => {
   const formData = new FormData()
   formData.append('file', file)
+  if (clientMsgId) formData.append('clientMsgId', clientMsgId)
   return http.post<number>(`/sessions/${sessionId}/messages/image`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
