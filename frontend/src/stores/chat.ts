@@ -335,8 +335,12 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
-    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性
-    const aiMsgIdx = messages.value.length - 1
+    // v1.18 修复(F3)：持有数组内"响应式代理"元素引用而非下标——会话切换会整体替换
+    // messages 数组，旧下标会指向新会话消息（串写/越界）。与 SSE 路径(V1-06)同口径。
+    const aiMsgView = messages.value[messages.value.length - 1]
+    // 元素是否仍属于当前会话的消息数组（切换/删除会话后为 false，停止写入）
+    const isCurrent = () =>
+      currentSession.value?.id === sessionId && messages.value.includes(aiMsgView)
     try {
       // 发送消息，后端立即返回用户消息 ID
       await sendMessageApi(sessionId, content)
@@ -346,31 +350,33 @@ export const useChatStore = defineStore('chat', () => {
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
         if (!sending.value) return // 用户点击了停止
-        if (currentSession.value?.id !== sessionId) return // 会话已切换，停止旧轮询
+        if (!isCurrent()) return // 会话已切换/元素已移除，停止旧轮询
         const res = await listMessages(sessionId)
+        // 轮询期间可能已切换会话，写入前再次校验，避免串写到新会话
+        if (!isCurrent()) return
         const msgs = res.data
         // 找到最后一条 assistant 消息
         const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
         if (lastAssistant && lastAssistant.content) {
-          // v1.11.0 修复 C-1：通过代理索引修改，触发响应式
-          messages.value[aiMsgIdx].id = lastAssistant.id
-          messages.value[aiMsgIdx].content = lastAssistant.content
+          // v1.18(F3)：通过持有的响应式代理引用写入，仅作用于本会话占位对象
+          aiMsgView.id = lastAssistant.id
+          aiMsgView.content = lastAssistant.content
           // AI 回复成功后刷新会话列表（获取自动命名的标题）
           loadSessions()
-          messages.value[aiMsgIdx].citations = lastAssistant.citations
-          messages.value[aiMsgIdx].tokens = lastAssistant.tokens
-          messages.value[aiMsgIdx].createdAt = lastAssistant.createdAt
+          aiMsgView.citations = lastAssistant.citations
+          aiMsgView.tokens = lastAssistant.tokens
+          aiMsgView.createdAt = lastAssistant.createdAt
           break
         }
       }
       // 超时仍未收到回复
-      if (!messages.value[aiMsgIdx].content) {
-        messages.value[aiMsgIdx].content = 'AI 回复超时，请稍后重试。'
+      if (isCurrent() && !aiMsgView.content) {
+        aiMsgView.content = 'AI 回复超时，请稍后重试。'
       }
     } catch {
       ElMessage.error('发送失败，请重试')
       // AI 消息为空时移除占位消息
-      if (!messages.value[aiMsgIdx].content) {
+      if (isCurrent() && !aiMsgView.content) {
         const idx = messages.value.findIndex((m) => m.id === placeholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
@@ -382,11 +388,12 @@ export const useChatStore = defineStore('chat', () => {
   // 发送图片消息
   async function sendImageMessage(file: File) {
     if (!currentSession.value || sending.value) return
+    const sessionId = currentSession.value.id
     // 添加占位消息
     const userPlaceholderId = -Date.now()
     const userMsg: MessageVO = {
       id: userPlaceholderId,
-      sessionId: currentSession.value.id,
+      sessionId,
       role: 'user',
       content: '📷 [图片识别中...]',
       citations: null,
@@ -397,7 +404,7 @@ export const useChatStore = defineStore('chat', () => {
     const aiPlaceholderId = -Date.now() - 1
     const aiMsg: MessageVO = {
       id: aiPlaceholderId,
-      sessionId: currentSession.value.id,
+      sessionId,
       role: 'assistant',
       content: '',
       citations: null,
@@ -406,11 +413,12 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(aiMsg)
     sending.value = true
-    // v1.11.0 修复 C-1：通过索引访问代理对象修改属性
-    const userMsgIdx = messages.value.length - 2
-    const aiMsgIdx = messages.value.length - 1
+    // v1.18 修复(F3)：持有响应式代理元素引用而非下标（同 fetchAssistantReply 口径）
+    const userMsgView = messages.value[messages.value.length - 2]
+    const aiMsgView = messages.value[messages.value.length - 1]
+    const isCurrent = () =>
+      currentSession.value?.id === sessionId && messages.value.includes(aiMsgView)
     try {
-      const sessionId = currentSession.value.id
       await sendMessageWithImage(sessionId, file)
       // 轮询消息列表
       const maxAttempts = 90 // 约 180 秒，对齐后端 150s 外层超时
@@ -418,33 +426,34 @@ export const useChatStore = defineStore('chat', () => {
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, interval))
         if (!sending.value) return
-        if (currentSession.value?.id !== sessionId) return // 会话已切换，停止旧轮询
+        if (!isCurrent()) return // 会话已切换/元素已移除，停止旧轮询
         const res = await listMessages(sessionId)
+        if (!isCurrent()) return // 轮询期间切换会话，写入前再次校验
         const msgs = res.data
         // 更新用户消息（识别后的问题）
         const lastUser = [...msgs].reverse().find((m) => m.role === 'user')
         if (lastUser && !lastUser.content.includes('[图片消息]')) {
-          messages.value[userMsgIdx].content = lastUser.content
+          userMsgView.content = lastUser.content
         }
         // 查找 AI 回复
         const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant')
         if (lastAssistant && lastAssistant.content) {
-          messages.value[aiMsgIdx].id = lastAssistant.id
-          messages.value[aiMsgIdx].content = lastAssistant.content
-          messages.value[aiMsgIdx].citations = lastAssistant.citations
-          messages.value[aiMsgIdx].tokens = lastAssistant.tokens
-          messages.value[aiMsgIdx].createdAt = lastAssistant.createdAt
+          aiMsgView.id = lastAssistant.id
+          aiMsgView.content = lastAssistant.content
+          aiMsgView.citations = lastAssistant.citations
+          aiMsgView.tokens = lastAssistant.tokens
+          aiMsgView.createdAt = lastAssistant.createdAt
           break
         }
       }
-      if (!messages.value[aiMsgIdx].content) {
-        messages.value[aiMsgIdx].content = '图片识别超时，请稍后重试。'
+      if (isCurrent() && !aiMsgView.content) {
+        aiMsgView.content = '图片识别超时，请稍后重试。'
       }
       // 刷新会话列表（获取自动命名的标题）
       loadSessions()
     } catch {
       ElMessage.error('图片上传失败，请重试')
-      if (!messages.value[aiMsgIdx].content) {
+      if (isCurrent() && !aiMsgView.content) {
         const idx = messages.value.findIndex((m) => m.id === aiPlaceholderId)
         if (idx >= 0) messages.value.splice(idx, 1)
       }
