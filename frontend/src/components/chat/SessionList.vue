@@ -185,7 +185,7 @@ async function handleDelete(session: SessionVO) {
             <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><StarFilled /></el-icon>
             <span class="title">{{ s.title }}</span>
           </div>
-          <div v-if="!multiSelectMode" class="item-actions">
+          <div v-if="!multiSelectMode" class="item-actions" @click.stop>
             <el-dropdown trigger="click" @command="(cmd: string) => emit('export', s.id, cmd as 'md' | 'word' | 'pdf')" @click.stop>
               <el-icon><Download /></el-icon>
               <template #dropdown>
@@ -223,7 +223,7 @@ async function handleDelete(session: SessionVO) {
               <el-icon class="star-icon" @click.stop="emit('toggleStar', s)"><Star /></el-icon>
               <span class="title">{{ s.title }}</span>
             </div>
-            <div v-if="!multiSelectMode" class="item-actions">
+            <div v-if="!multiSelectMode" class="item-actions" @click.stop>
               <el-icon @click.stop="emit('export', s.id, 'md')"><Download /></el-icon>
               <el-icon @click.stop="handleRename(s)"><Edit /></el-icon>
               <el-icon @click.stop="handleDelete(s)"><Delete /></el-icon>
@@ -405,6 +405,20 @@ async function handleDelete(session: SessionVO) {
     }
     :deep(.el-button--small) {
       min-height: 40px;
+    }
+  }
+  /* v1.18 阶段三补修：触屏无 hover——会话项操作（导出/重命名/删除）常显，
+     且每个图标命中区 ≥44×44（与 P2-2 触控标准一致）。抽屉宽 300px 可容纳。 */
+  .item-actions {
+    opacity: 1;
+    gap: 0;
+    .el-icon {
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
     }
   }
 }
