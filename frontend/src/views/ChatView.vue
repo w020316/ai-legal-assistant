@@ -554,6 +554,13 @@ onMounted(() => {
     transform: translateY(-3px);
   }
 }
+// F3（v1.18 阶段四）：对开启「减少动态效果」的用户停用无限浮动动画，
+// 保证「新 建 对 话」点击目标位置稳定（动画本身对普通用户保留）
+@media (prefers-reduced-motion: reduce) {
+  .empty-state .create-btn {
+    animation: none;
+  }
+}
 
 /* 移动端响应式 */
 @media (max-width: 768px) {
