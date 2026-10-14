@@ -235,11 +235,12 @@ onMounted(() => loadTemplates())
       </div>
     </div>
 
-    <!-- 生成对话框 -->
+    <!-- 生成对话框：F2（v1.18 阶段四）移动端 ≤768px 视口下 640px 固定宽会右溢出 265px，
+         改用 min() 在窄视口自动收窄至视口宽减 24px 左右留白 -->
     <el-dialog
       v-model="genDialogVisible"
       :title="currentTemplate?.title || '生成文书'"
-      width="640px"
+      width="min(640px, calc(100vw - 24px))"
       destroy-on-close
     >
       <div class="gen-body">
@@ -255,7 +256,9 @@ onMounted(() => loadTemplates())
                 <MarkdownRenderer :content="currentTemplate?.rawText || ''" />
               </div>
               <div class="tpl-preview-actions">
-                <el-button type="primary" plain @click="activeTab = 'generate'">前往生成文书 →</el-button>
+                <!-- F4（v1.18 阶段四）：原文案「前往生成文书 →」与操作区主按钮「生成文书」高度相近易误点，
+                     按实际行为（切换到填写要素标签页）改为语义明确的「前往填写要素 →」 -->
+                <el-button type="primary" plain @click="activeTab = 'generate'">前往填写要素 →</el-button>
               </div>
             </div>
           </el-tab-pane>

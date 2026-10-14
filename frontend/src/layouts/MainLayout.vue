@@ -120,6 +120,10 @@ async function handleLogout() {
       </div>
     </el-header>
 
+    <!-- 版本更新公告横幅：登录后内联展示于顶栏之下（v1.18 阶段四 F1：
+         原自动弹出的遮罩弹窗会吞掉问答页空状态 CTA 的首次点击，改为横幅+手动展开详情） -->
+    <VersionUpdateDialog />
+
     <el-container>
       <!-- 侧边栏：公报式深墨面板 + 罗马数字章节编号 -->
       <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '240px'" class="aside">
@@ -195,9 +199,6 @@ async function handleLogout() {
         </div>
       </div>
     </el-drawer>
-
-    <!-- 版本更新公告弹窗：登录后展示，localStorage 记录已读 -->
-    <VersionUpdateDialog />
   </el-container>
 </template>
 

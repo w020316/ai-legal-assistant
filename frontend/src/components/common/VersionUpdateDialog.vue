@@ -11,6 +11,10 @@ const STORAGE_KEY = 'linzai:lastReadVersion'
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 
 const visible = ref(false)
+// F1（v1.18 阶段四）：首次登录/版本升级不再自动弹出遮罩弹窗（遮罩会吞掉问答页
+// 空状态主 CTA「新 建 对 话」的首次点击），改为顶部公告横幅常驻展示；
+// 用户点击横幅「查看详情」才打开弹窗，且可随时关闭横幅。
+const bannerVisible = ref(false)
 
 // 阿拉伯索引转罗马数字（带防御，越界回退为阿拉伯数字）
 function toRoman(index: number): string {
@@ -222,21 +226,27 @@ const changelogs: ChangeLog[] = [
 ]
 
 onMounted(() => {
-  // 已登录用户首次进入或版本升级时展示
+  // 已登录用户首次进入或版本升级时展示顶部横幅（不再自动弹遮罩弹窗）
   try {
     const lastRead = localStorage.getItem(STORAGE_KEY) || ''
     if (lastRead !== CURRENT_VERSION) {
-      visible.value = true
+      bannerVisible.value = true
     }
   } catch {
     // 隐私模式下 localStorage 可能不可用，安全降级：不展示
-    visible.value = false
+    bannerVisible.value = false
   }
 })
 
-// 关闭弹窗并记录已读版本
+// 横幅点击/查看详情：打开公告弹窗（用户主动触发，遮罩不构成首次点击障碍）
+function openDetails() {
+  visible.value = true
+}
+
+// 关闭公告（横幅与弹窗一并收起）并记录已读版本
 function handleClose() {
   visible.value = false
+  bannerVisible.value = false
   try {
     localStorage.setItem(STORAGE_KEY, CURRENT_VERSION)
   } catch {
@@ -252,6 +262,28 @@ function handleViewDetails() {
 </script>
 
 <template>
+  <!-- F1：顶部公告横幅（内联文档流，无遮罩、不阻挡任何点击），点击展开详情弹窗，可关闭 -->
+  <transition name="banner-slide">
+    <div
+      v-if="bannerVisible"
+      class="release-banner"
+      role="status"
+      :title="`查看 ${CURRENT_VERSION} 更新详情`"
+      @click="openDetails"
+    >
+      <div class="banner-inner">
+        <span class="banner-eyebrow">RELEASE NOTES · 更新公告</span>
+        <span class="banner-version">{{ CURRENT_VERSION }}</span>
+        <span class="banner-tag">{{ changelogs[0]?.tag || '' }}</span>
+        <span class="banner-spacer"></span>
+        <button type="button" class="banner-action" @click.stop="openDetails">查看详情</button>
+        <el-icon class="banner-close" :size="16" aria-label="关闭公告" @click.stop="handleClose">
+          <Close />
+        </el-icon>
+      </div>
+    </div>
+  </transition>
+
   <el-dialog
     v-model="visible"
     :show-close="false"
@@ -311,7 +343,7 @@ function handleViewDetails() {
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button class="btn-ghost" @click="handleClose">稍后查看</el-button>
+        <el-button class="btn-ghost" @click="handleClose">关闭</el-button>
         <el-button class="btn-primary" type="primary" @click="handleViewDetails">
           查看完整发布说明
         </el-button>
@@ -321,6 +353,87 @@ function handleViewDetails() {
 </template>
 
 <style scoped lang="scss">
+// ===== F1：顶部公告横幅（内联文档流，不遮挡内容） =====
+.release-banner {
+  flex-shrink: 0;
+  cursor: pointer;
+  background:
+    radial-gradient(90% 150% at 100% 0%, rgba(122, 31, 43, 0.30), transparent 55%),
+    var(--color-primary);
+  border-bottom: 1px solid rgba(154, 107, 47, 0.30);
+  user-select: none;
+}
+.banner-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 9px 20px;
+  color: rgba(251, 248, 241, 0.85);
+}
+.banner-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--color-gilt);
+  text-transform: uppercase;
+}
+.banner-version {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--color-accent-soft);
+}
+.banner-tag {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(251, 248, 241, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.banner-spacer {
+  flex: 1;
+}
+.banner-action {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #FBF8F1;
+  background: transparent;
+  border: 1px solid rgba(251, 248, 241, 0.35);
+  border-radius: var(--radius-button);
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover {
+    border-color: var(--color-accent);
+    background: rgba(122, 31, 43, 0.35);
+  }
+}
+.banner-close {
+  color: rgba(251, 248, 241, 0.6);
+  cursor: pointer;
+  padding: 6px;
+  transition: var(--transition-fast);
+  &:hover {
+    color: #FBF8F1;
+    transform: rotate(90deg);
+  }
+}
+.banner-slide-enter-active,
+.banner-slide-leave-active {
+  transition: transform 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
+}
+.banner-slide-enter-from,
+.banner-slide-leave-to {
+  transform: translateY(-8px);
+  opacity: 0;
+}
+
 // ===== 公报式对话框（The Verdict）=====
 .version-dialog {
   :deep(.el-dialog) {
@@ -561,6 +674,15 @@ function handleViewDetails() {
 
 // ===== 移动端响应式 =====
 @media (max-width: 768px) {
+  .release-banner {
+    .banner-inner {
+      padding: 8px 14px;
+      gap: 8px;
+    }
+    .banner-tag {
+      display: none;
+    }
+  }
   .version-dialog {
     :deep(.el-dialog) {
       width: 92vw !important;
