@@ -275,6 +275,8 @@ async function handleDelete(session: SessionVO) {
 .list-scroll {
   flex: 1;
   overflow-y: auto;
+  // v1.18 阶段三(P3-1)：内层横向溢出 5px（sw76>cw71）→ 隐藏横向滚动，避免横向抖动
+  overflow-x: hidden;
   padding: 8px;
 }
 // 时间分组标题：公报 eyebrow 式（小型大写字母 + 牛血红 + 字距加宽 + 双线分隔）
