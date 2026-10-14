@@ -488,6 +488,15 @@ async function handleLogout() {
   .main {
     padding: 12px;
   }
+  /* v1.18 阶段三(P2-2)：移动端汉堡按钮命中区提升至 44×44 */
+  .menu-toggle {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* 超小屏手机：进一步压缩间距和字号 */

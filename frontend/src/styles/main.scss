@@ -511,6 +511,14 @@ a {
   }
 }
 
+// ===== 移动端（≤768px）：实心小按钮命中区 ≥40px（v1.18 阶段三 P2-2）=====
+// 排除文字按钮(is-text)与圆形按钮(is-circle)，避免拉伸/变形；二者在各自组件内定向处理。
+@media (max-width: 768px) {
+  .el-button--small:not(.is-text):not(.is-circle) {
+    min-height: 40px;
+  }
+}
+
 // ===== 公报式装饰元素 =====
 // 章节分隔符（居中花纹）
 .gazette-divider {

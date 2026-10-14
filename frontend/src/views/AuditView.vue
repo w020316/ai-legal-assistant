@@ -308,6 +308,13 @@ onMounted(fetchLogs)
       flex-wrap: wrap;
       justify-content: center;
     }
+    /* v1.18 阶段三(P2-2)：分页翻页/页码按钮命中区 ≥44×44 */
+    :deep(.el-pagination button),
+    :deep(.el-pager li) {
+      min-width: 44px;
+      height: 44px;
+      line-height: 44px;
+    }
   }
 }
 @media (max-width: 480px) {

@@ -246,4 +246,15 @@ function handleImageChange(e: Event) {
     font-style: normal;
   }
 }
+
+/* 移动端响应式（v1.18 阶段三 P2-2：触控目标 ≥44px） */
+@media (max-width: 768px) {
+  .toolbar-left :deep(.el-button.is-circle) {
+    width: 44px;
+    height: 44px;
+  }
+  .btn-group :deep(.el-button) {
+    min-height: 44px;
+  }
+}
 </style>

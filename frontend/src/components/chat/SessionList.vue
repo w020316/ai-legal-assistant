@@ -387,4 +387,23 @@ async function handleDelete(session: SessionVO) {
     }
   }
 }
+
+/* 移动端响应式（v1.18 阶段三 P2-2：触控目标 ≥44px） */
+@media (max-width: 768px) {
+  /* 会话项命中区抬高 */
+  .item {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  /* 顶部搜索框与操作按钮命中区抬高 */
+  .top-bar {
+    :deep(.el-input__wrapper) {
+      min-height: 40px;
+    }
+    :deep(.el-button--small) {
+      min-height: 40px;
+    }
+  }
+}
 </style>

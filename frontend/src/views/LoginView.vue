@@ -436,6 +436,13 @@ function toggleMode() {
   .form-panel {
     padding: 32px 20px;
   }
+  /* v1.18 阶段三(P2-2)：底部法律链接命中区 ≥44px */
+  .legal-links a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 6px;
+  }
 }
 @media (max-width: 480px) {
   .form-panel {
