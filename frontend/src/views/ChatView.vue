@@ -7,10 +7,13 @@ import { downloadBlob, buildFilename } from '@/utils/download'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageItem from '@/components/chat/MessageItem.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
-import { Reading } from '@element-plus/icons-vue'
+import { Reading, Menu, Fold } from '@element-plus/icons-vue'
 
 const chatStore = useChatStore()
 const scrollRef = ref<HTMLElement>()
+
+// v1.18 阶段三(P2-1)：移动端会话列表改为覆盖式抽屉的开关（仅 ≤768px 生效）
+const sessionDrawerOpen = ref(false)
 
 // 滚动到底部
 async function scrollToBottom() {
@@ -70,12 +73,14 @@ async function handleSend(content: string) {
 // 选择会话
 async function handleSelect(session: SessionVO) {
   await chatStore.selectSession(session)
+  sessionDrawerOpen.value = false // P2-1：移动端选中会话后自动收起抽屉
   scrollToBottom()
 }
 
 // 新建会话
 async function handleCreate() {
   await chatStore.createNewSession()
+  sessionDrawerOpen.value = false // P2-1：移动端新建后自动收起抽屉
   scrollToBottom()
 }
 
@@ -195,8 +200,8 @@ onMounted(() => {
 
 <template>
   <div class="chat-view">
-    <!-- 左侧会话列表 -->
-    <div class="left-panel">
+    <!-- 左侧会话列表（移动端为覆盖式抽屉） -->
+    <div class="left-panel" :class="{ open: sessionDrawerOpen }">
       <SessionList
         :sessions="chatStore.sessionList"
         :current-id="chatStore.currentSession?.id"
@@ -209,8 +214,22 @@ onMounted(() => {
         @export="handleExport"
       />
     </div>
+    <!-- 移动端抽屉遮罩：点击关闭 -->
+    <div v-if="sessionDrawerOpen" class="session-mask" @click="sessionDrawerOpen = false"></div>
     <!-- 右侧消息区 -->
     <div class="right-panel">
+      <!-- 移动端会话列表开关（仅 ≤768px 显示） -->
+      <div class="mobile-toolbar">
+        <button
+          type="button"
+          class="session-toggle"
+          :aria-label="sessionDrawerOpen ? '关闭会话列表' : '打开会话列表'"
+          :aria-expanded="sessionDrawerOpen"
+          @click="sessionDrawerOpen = !sessionDrawerOpen"
+        >
+          <el-icon :size="20"><component :is="sessionDrawerOpen ? Fold : Menu" /></el-icon>
+        </button>
+      </div>
       <!-- 消息流 -->
       <div ref="scrollRef" class="message-stream">
         <!-- 空状态引导：公报封面式 -->
@@ -306,6 +325,10 @@ onMounted(() => {
   flex-direction: column;
   min-width: 0;
   background: transparent;
+}
+// v1.18 阶段三(P2-1)：移动端会话抽屉开关容器——桌面隐藏
+.mobile-toolbar {
+  display: none;
 }
 .message-stream {
   flex: 1;
@@ -538,8 +561,55 @@ onMounted(() => {
     border-radius: 0;
     border: none;
   }
+  /* v1.18 阶段三(P2-1)：会话列表改覆盖式抽屉，避免 72px 挤压致标题/搜索不可读 */
   .left-panel {
-    width: 72px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(82vw, 300px);
+    padding-top: 52px; // 预留顶部开关条，避免与抽屉内搜索框重叠
+    z-index: 2;
+    background: var(--color-bg-card);
+    border-right: 1px solid var(--glass-border);
+    box-shadow: 0 12px 40px rgba(20, 17, 15, 0.32);
+    transform: translateX(-100%);
+    transition: transform 0.28s var(--ease-out);
+    &.open {
+      transform: translateX(0);
+    }
+  }
+  .session-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(20, 17, 15, 0.45);
+  }
+  .mobile-toolbar {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 8px;
+    position: relative;
+    z-index: 3; // 高于抽屉与遮罩，抽屉展开时仍可点击开合
+    flex-shrink: 0;
+  }
+  .session-toggle {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-button);
+    background: var(--glass-bg);
+    color: var(--color-primary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    &:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
   }
   .message-stream {
     padding: 16px 14px;
@@ -590,6 +660,12 @@ onMounted(() => {
   /* 隐藏装饰性 eyebrow，减少超小屏信息冗余（PG-4） */
   .empty-eyebrow,
   .suggestions-eyebrow {
+    display: none;
+  }
+}
+/* v1.18 阶段三(P2-1)：桌面端兜底——抽屉遮罩仅在移动端存在 */
+@media (min-width: 769px) {
+  .session-mask {
     display: none;
   }
 }
