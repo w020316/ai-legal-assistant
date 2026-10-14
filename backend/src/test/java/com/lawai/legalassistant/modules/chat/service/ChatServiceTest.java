@@ -643,5 +643,22 @@ class ChatServiceTest {
             // 等到助手消息落库（至少 2 次 insert），确保异步链路执行、aiRouter.chat 存根被使用
             verify(messageMapper, timeout(3000).atLeast(2)).insertMessage(any(ChatMessage.class));
         }
+
+        @Test
+        @DisplayName("图片重复到达：跳过重复落库与识别（B-05 图片路径）")
+        void imageDuplicateSkips() {
+            ChatSession s = new ChatSession();
+            s.setId(9L);
+            s.setUserId(1L);
+            s.setTitle("新对话");
+            when(sessionMapper.selectById(9L)).thenReturn(s);
+            when(stubValueOps().setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(false);
+
+            Long id = chatService.sendMessageWithImage(1L, 9L, new byte[]{1, 2, 3}, "image/png", "cmid-img-dup");
+
+            assertThat(id).isNull();
+            verify(messageMapper, never()).insertMessage(any(ChatMessage.class));
+            verify(aiRouter, never()).chatWithImage(anyString(), anyString(), any(), anyString());
+        }
     }
 }

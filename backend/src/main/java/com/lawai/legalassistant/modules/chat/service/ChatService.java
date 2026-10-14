@@ -362,10 +362,27 @@ public class ChatService {
      * @return 用户消息 ID
      */
     public Long sendMessageWithImage(Long userId, Long sessionId, byte[] imageBytes, String mimeType) {
+        return sendMessageWithImage(userId, sessionId, imageBytes, mimeType, null);
+    }
+
+    /**
+     * 发送图片消息（异步模式，v1.18 阶段二·审查 B-05：新增 clientMsgId 幂等）
+     *
+     * @param clientMsgId 客户端幂等 ID（可选）；同一值重复到达时跳过重复落库与问答
+     */
+    public Long sendMessageWithImage(Long userId, Long sessionId, byte[] imageBytes, String mimeType,
+                                     String clientMsgId) {
         if (userId == null) {
             throw BusinessException.of(ResultCode.UNAUTHORIZED, "请先登录");
         }
         getSession(userId, sessionId);
+
+        // v1.18（阶段二·审查 B-05）：图片路径同款幂等——重复 clientMsgId 跳过重复落库与问答。
+        // 置于校验/归属检查之后，保证参数或权限错误不消耗幂等 key（客户端可合法重试）。
+        if (!isFirstDelivery(userId, clientMsgId)) {
+            log.info("检测到重复 clientMsgId，跳过重复图片消息: userId={}, sessionId={}", userId, sessionId);
+            return null;
+        }
 
         List<ChatMessage> recent = messageMapper.selectRecent(sessionId, HISTORY_LIMIT);
         Collections.reverse(recent);

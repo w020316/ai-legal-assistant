@@ -135,7 +135,9 @@ public class ChatController {
      * 后台异步进行图片识别 + 法律问答，前端轮询获取结果。
      */
     @PostMapping("/{id}/messages/image")
-    public Result<Long> sendMessageWithImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+    public Result<Long> sendMessageWithImage(@PathVariable Long id,
+                                             @RequestParam("file") MultipartFile file,
+                                             @RequestParam(value = "clientMsgId", required = false) String clientMsgId) {
         Long userId = requireLogin();
         if (file.isEmpty()) {
             throw BusinessException.of(ResultCode.PARAM_ERROR, "请上传图片");
@@ -146,7 +148,8 @@ public class ChatController {
         }
         try {
             byte[] imageBytes = file.getBytes();
-            return Result.success(chatService.sendMessageWithImage(userId, id, imageBytes, contentType));
+            // v1.18 阶段二·审查 B-05：透传 clientMsgId 做幂等（可选）
+            return Result.success(chatService.sendMessageWithImage(userId, id, imageBytes, contentType, clientMsgId));
         } catch (IOException e) {
             throw BusinessException.of(ResultCode.UNKNOWN, "文件读取失败");
         }
